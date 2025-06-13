@@ -116,10 +116,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
     <div class="container">
         <h1>最新ニュース</h1>
+        <div class="global-summary-controls" style="margin-bottom: 20px;">
+            <button id="summarize-all-button" style="padding: 8px 15px; font-size: 1em; display: none;">今日のニュースをまとめて聞く (AI)</button>
+            <div id="global-summary-output" class="summary-section" style="display: none; margin-top: 15px;"></div>
+        </div>
         <div id="news-feed" class="news-feed-slider"> {/* クラス追加 */}
             <p class="loading">ニュースを読み込んでいます...</p>
         </div>
-        <li><a href="index.html">トップページ</a></li>
+        <li style="margin-top: 20px;"><a href="index.html">トップページ</a></li>
     </div>
 
     <script src="config.js"></script> <!-- 生成されたconfig.jsを読み込む -->
@@ -146,6 +150,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         const newsFeedContainer = document.getElementById('news-feed');
         let genAI;
         let model;
+        let currentNewsItemsForSummary = []; // 表示中のニュースデータを保持
 
         if (EFFECTIVE_GEMINI_API_KEY && EFFECTIVE_GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY_PLACEHOLDER") { // Placeholder check
             console.log("Gemini API Key found. Initializing Gemini model...");
@@ -153,11 +158,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                 genAI = new GoogleGenerativeAI(EFFECTIVE_GEMINI_API_KEY);
                 model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
                 console.log("Gemini model initialized successfully.");
+                document.getElementById('summarize-all-button').style.display = 'block'; // APIキーがあればボタン表示
             } catch (error) {
                 console.error("Failed to initialize Gemini model:", formatErrorDetail(error.message || error));
                 model = null; // Ensure model is null if initialization fails
             }
         } else {
+            document.getElementById('summarize-all-button').style.display = 'none'; // APIキーがなければボタン非表示
             console.warn("Gemini API Key not found or is a placeholder. Summarization feature will be disabled.");
             model = null; // Ensure model is null if key is missing
         }
@@ -204,40 +211,56 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             }
         }
 
-        async function summarizeTextWithGemini(textToSummarize, summaryContainer) {
-            console.log("Attempting to summarize with Gemini. Text (first 50 chars):", textToSummarize.substring(0, 50) + "...");
+        async function generateGlobalSummary() {
+            const summaryOutputContainer = document.getElementById('global-summary-output');
+            summaryOutputContainer.style.display = 'block';
+            summaryOutputContainer.innerHTML = `<p class="summary-loading">ニュース全体の要約を生成中...</p>`;
+
             if (!model) {
-                summaryContainer.innerHTML = `<p class="summary-error">Gemini APIキーが設定されていません。</p>`;
-                return;
-            }
-            if (!textToSummarize || textToSummarize.trim().length < 20) { // 短すぎるテキストは要約しない
-                summaryContainer.innerHTML = `<p class="summary-error">要約するにはテキストが短すぎます。</p>`;
+                summaryOutputContainer.innerHTML = `<p class="summary-error">Gemini APIキーが設定されていないか、モデルの初期化に失敗しました。</p>`;
                 return;
             }
 
-            summaryContainer.innerHTML = `<p class="summary-loading">要約を生成中...</p>`;
+            if (currentNewsItemsForSummary.length === 0) {
+                summaryOutputContainer.innerHTML = `<p class="summary-error">要約対象のニュースがありません。</p>`;
+                return;
+            }
+
+            let combinedNewsText = currentNewsItemsForSummary.map((item, index) => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = item.description; // 元のdescription (HTMLタグを含む可能性あり)
+                const plainDescription = (tempDiv.textContent || tempDiv.innerText || "").trim();
+                return `ニュース ${index + 1}:\nタイトル: ${item.title}\n概要: ${plainDescription}\n出典: ${item.sourceName || '不明'}`;
+            }).join("\n\n---\n\n");
+
+            if (combinedNewsText.trim().length < 50) { // 全体として短すぎる場合
+                summaryOutputContainer.innerHTML = `<p class="summary-error">要約するにはニュース全体の情報が少なすぎます。</p>`;
+                return;
+            }
+
+            console.log("Attempting to generate global summary with Gemini. Combined text length:", combinedNewsText.length);
 
             try {
                 const generationConfig = {
-                    temperature: 0.7, // 創造性の度合い (0.0-1.0)
+                    temperature: 0.7,
                     topK: 1,
                     topP: 1,
-                    maxOutputTokens: 150, // 要約の最大トークン数
+                    maxOutputTokens: 800, // 複数のニュースをまとめるため、トークン数を増やす
                 };
-                const safetySettings = [ // 必要に応じて調整
+                const safetySettings = [
                     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
                     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
                     { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
                     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
                 ];
 
-                const prompt = `以下のニュース記事の概要を日本語で簡潔に要約してください:\n\n${textToSummarize}`;
+                const prompt = `あなたはプロのニュースキャスターです。以下の複数のニュース記事を元に、今日の主要な出来事を視聴者に伝える形で、まとめてレポートしてください。各ニュースの要点を簡潔に含め、自然な話し言葉で、重要な順に構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
                 const result = await model.generateContent({ contents: [{ role: "user", parts: [{text: prompt}] }], generationConfig, safetySettings });
                 const summaryText = result.response.text();
-                summaryContainer.innerHTML = `<p>${summaryText.replace(/\n/g, '<br>')}</p>`;
+                summaryOutputContainer.innerHTML = `<p>${summaryText.replace(/\n/g, '<br>')}</p>`;
             } catch (error) {
-                summaryContainer.innerHTML = `<p class="summary-error">要約の生成に失敗しました: ${formatErrorDetail(error.message || error)}</p>`;
-                console.error("Gemini API Error:", error);
+                summaryOutputContainer.innerHTML = `<p class="summary-error">ニュース全体の要約生成に失敗しました: ${formatErrorDetail(error.message || error)}</p>`;
+                console.error("Gemini API Error for global summary:", error);
             }
         }
 
@@ -275,7 +298,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                 }
             });
 
-            renderNews(allItems.slice(0, MAX_NEWS_ITEMS_TOTAL));
+            const itemsToRender = allItems.slice(0, MAX_NEWS_ITEMS_TOTAL);
+            currentNewsItemsForSummary = itemsToRender.map(item => ({ // 要約に必要な情報を保持
+                title: item.title,
+                description: item.description, // HTMLタグを含む元のdescription
+                link: item.link,
+                sourceName: item.sourceName
+            }));
+            renderNews(itemsToRender);
         }
 
         function renderNews(items) {
@@ -325,26 +355,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                 newsItemDiv.appendChild(descriptionElement);
                 newsItemDiv.appendChild(dateElement);
 
-                // 要約セクションとボタンの追加
-                if (EFFECTIVE_GEMINI_API_KEY && model) { // modelが初期化されているかも確認
-                    const summaryButton = document.createElement('button');
-                    summaryButton.textContent = 'AIで要約';
-                    summaryButton.style.marginTop = '10px';
-                    summaryButton.style.padding = '5px 10px';
-                    const summaryDiv = document.createElement('div');
-                    summaryDiv.classList.add('summary-section');
-                    summaryDiv.style.display = 'none'; // 初期状態は非表示
-
-                    summaryButton.onclick = () => {
-                        summaryDiv.style.display = summaryDiv.style.display === 'none' ? 'block' : 'none';
-                        if (summaryDiv.style.display === 'block' && summaryDiv.innerHTML === '') { // まだ要約がなければ生成
-                            summarizeTextWithGemini(descriptionText, summaryDiv);
-                        }
-                    };
-                    newsItemDiv.appendChild(summaryButton);
-                    newsItemDiv.appendChild(summaryDiv);
-                }
-
                 // 出典元を表示
                 if (item.sourceName) {
                     const sourceElement = document.createElement('p');
@@ -367,6 +377,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
         // ページ読み込み時にニュースを取得して表示
         fetchAndDisplayNews();
+
+        // 全体要約ボタンのイベントリスナー
+        const summarizeAllBtn = document.getElementById('summarize-all-button');
+        summarizeAllBtn.addEventListener('click', generateGlobalSummary);
+
     </script>
 
 </body>
