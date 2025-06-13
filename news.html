@@ -147,11 +147,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         let genAI;
         let model;
 
-        if (EFFECTIVE_GEMINI_API_KEY) {
-            genAI = new GoogleGenerativeAI(EFFECTIVE_GEMINI_API_KEY);
-            model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); // または "gemini-pro"
+        if (EFFECTIVE_GEMINI_API_KEY && EFFECTIVE_GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY_PLACEHOLDER") { // Placeholder check
+            console.log("Gemini API Key found. Initializing Gemini model...");
+            try {
+                genAI = new GoogleGenerativeAI(EFFECTIVE_GEMINI_API_KEY);
+                model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+                console.log("Gemini model initialized successfully.");
+            } catch (error) {
+                console.error("Failed to initialize Gemini model:", formatErrorDetail(error.message || error));
+                model = null; // Ensure model is null if initialization fails
+            }
+        } else {
+            console.warn("Gemini API Key not found or is a placeholder. Summarization feature will be disabled.");
+            model = null; // Ensure model is null if key is missing
         }
-
         function formatErrorDetail(detail) {
             if (typeof detail === 'string') {
                 return detail;
@@ -196,6 +205,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         }
 
         async function summarizeTextWithGemini(textToSummarize, summaryContainer) {
+            console.log("Attempting to summarize with Gemini. Text (first 50 chars):", textToSummarize.substring(0, 50) + "...");
             if (!model) {
                 summaryContainer.innerHTML = `<p class="summary-error">Gemini APIキーが設定されていません。</p>`;
                 return;
