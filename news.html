@@ -310,7 +310,7 @@
 
         // Web Speech API のインスタンスと日本語音声の管理
         const synth = window.speechSynthesis;
-        let japaneseVoice = null;
+        let japaneseVoice = null; // 選択された日本語音声
 
         // 日本語の音声を探して設定（一度だけ実行）
         function findJapaneseVoice() {
@@ -319,15 +319,39 @@
                 return;
             }
             const voices = synth.getVoices();
-            // 優先順位: Google 日本語 -> Microsoft 日本語 -> その他日本語
-            japaneseVoice = voices.find(voice => voice.lang === 'ja-JP' && voice.name.includes('Google')) ||
-                            voices.find(voice => voice.lang === 'ja-JP' && voice.name.includes('Microsoft')) ||
-                            voices.find(voice => voice.lang === 'ja-JP');
-            
-            if (!japaneseVoice) {
-                console.warn("No Japanese voice found. Speech synthesis may use default voice or fail.");
+            const jaVoices = voices.filter(voice => voice.lang === 'ja-JP');
+
+            // 男性音声を優先的に探すロジック
+            // よく使われる男性っぽい名前や識別子をヒントにする
+            const maleVoiceCandidates = [
+                // Google系
+                v => v.name.includes('Google') && (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男')),
+                // Microsoft系 (Harukaは女性声ですが、システムによっては男性として認識される可能性も考慮。Hiroshiなどがあればより確実)
+                v => v.name.includes('Microsoft') && (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男') || v.name.includes('Hiroshi')),
+                // その他のOS組み込み音声 (例: WindowsのOtoya, Daichi)
+                v => (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男') || v.name.includes('Otoya') || v.name.includes('Daichi'))
+            ];
+
+            let selectedVoice = null;
+            for (const candidateFilter of maleVoiceCandidates) {
+                selectedVoice = jaVoices.find(candidateFilter);
+                if (selectedVoice) {
+                    japaneseVoice = selectedVoice;
+                    console.log("Japanese male voice found and selected:", japaneseVoice.name);
+                    return; // 見つかったら終了
+                }
+            }
+
+            // 男性音声が見つからない場合、一般的な日本語音声（Google系優先）
+            selectedVoice = jaVoices.find(voice => voice.name.includes('Google')) ||
+                            jaVoices.find(voice => voice.name.includes('Microsoft')) ||
+                            jaVoices[0]; // 利用可能な最初の日本語音声
+
+            if (selectedVoice) {
+                japaneseVoice = selectedVoice;
+                console.warn("No specific Japanese male voice found. Using default Japanese voice:", japaneseVoice.name);
             } else {
-                console.log("Japanese voice found:", japaneseVoice.name);
+                console.warn("No Japanese voice found at all. Speech synthesis may use browser default voice or fail.");
             }
         }
 
@@ -357,12 +381,12 @@
 
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
             utterance.lang = 'ja-JP';
-            if (japaneseVoice) {
+            if (japaneseVoice) { // findJapaneseVoiceで選択された音声を使用
                 utterance.voice = japaneseVoice;
             }
 
-            utterance.rate = 1.0; // 読み上げ速度 (0.1 - 10)
-            utterance.pitch = 1.0; // ピッチ (0 - 2)
+            utterance.rate = 1.05; // 少し早めに設定 (EEWよりはゆっくりめ)
+            utterance.pitch = 1.0;
 
             utterance.onstart = () => {
                 ttsStatusElement.textContent = '再生中...';
@@ -467,7 +491,7 @@
 
                 newsItemDiv.appendChild(titleElement);
                 newsItemDiv.appendChild(descriptionElement);
-                newsItemDiv.appendChild(dateElement); // ここが470行目付近
+                newsItemDiv.appendChild(dateElement);
 
                 if (item.sourceName) {
                     const sourceElement = document.createElement('p');
@@ -627,14 +651,14 @@
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
             utterance.lang = 'ja-JP'; // 日本語を設定
 
-            if (japaneseVoice) {
+            if (japaneseVoice) { // findJapaneseVoiceで選択された音声を使用
                 utterance.voice = japaneseVoice;
             } else {
-                console.warn("Japanese voice not specifically set, using default.");
+                console.warn("Japanese voice not specifically set for EEW, using default.");
             }
             
             // スピードとピッチの調整（オプション）
-            utterance.rate = 1.0; // 読み上げ速度 (0.1 - 10)。デフォルトは1.0
+            utterance.rate = 1.1; // EEWは少し早めに設定 (例: 1.1 - 1.2 あたりが適度)
             utterance.pitch = 1.0; // ピッチ (0 - 2)。デフォルトは1.0
 
             synth.speak(utterance);
