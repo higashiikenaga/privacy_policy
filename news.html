@@ -139,25 +139,30 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
         async function fetchFeed(feedConfig) {
             // factmaven APIのURLを構築
-            const targetApiUrl = `https://api.factmaven.com/xml-to-json?xml=${encodeURIComponent(feedConfig.url)}`;
+            // const targetApiUrl = `https://api.factmaven.com/xml-to-json?xml=${encodeURIComponent(feedConfig.url)}`;
             // CORSプロキシ (api.allorigins.win) を経由するURLに書き換え
-            const apiUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetApiUrl)}`;
+            // const apiUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetApiUrl)}`;
+
+            // rss2json.com API を利用する
+            const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedConfig.url)}`;
+
             const response = await fetch(apiUrl);
             if (!response.ok) {
                 let errorText = response.statusText;
                 try {
                     const errorData = await response.json();
-                    if (errorData && (errorData.reason || errorData.error)) {
-                         errorText = formatErrorDetail(errorData.reason || errorData.error);
+                    if (errorData && errorData.message) { // rss2json.comのエラーメッセージ形式
+                         errorText = formatErrorDetail(errorData.message);
                     }
                 } catch (e) { /* JSONパース失敗時は元のステータステキストを使用 */ }
                 throw new Error(`HTTP error! status: ${response.status}, message: ${errorText} for ${feedConfig.name}`);
             }
             const data = await response.json();
-            if (data && data.rss && data.rss.channel && Array.isArray(data.rss.channel.item)) {
-                return data.rss.channel.item.map(item => ({ ...item, sourceName: feedConfig.name, sourceUrl: feedConfig.url }));
-            } else if (data && (data.error || data.reason)) {
-                const errorDetail = data.reason || data.error;
+            // rss2json.com のレスポンス構造に合わせる
+            if (data && data.status === 'ok' && Array.isArray(data.items)) {
+                return data.items.map(item => ({ ...item, sourceName: feedConfig.name, sourceUrl: feedConfig.url }));
+            } else if (data && data.status === 'error' && data.message) {
+                const errorDetail = data.message;
                 throw new Error(`API error: ${formatErrorDetail(errorDetail)} for ${feedConfig.name}`);
             } else {
                 throw new Error(`Invalid feed format for ${feedConfig.name}`);
