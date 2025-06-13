@@ -1,8 +1,4 @@
-export async function onRequest(context) {
-  if (context.request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed. Only POST is accepted.' }), { status: 405, headers: { 'Content-Type': 'application/json', 'Allow': 'POST' } });
-  }
-
+export async function onRequestPost(context) {
   try {
     const requestBody = await context.request.json();
     const textToSpeak = requestBody.text;
