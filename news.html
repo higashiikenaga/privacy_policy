@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-B0HWS1DKGF"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-B0HWS1DKGF');
+</script>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-5Q37NF24');</script>
+<!-- End Google Tag Manager -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>yukiecho.com - newsslide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .news-item {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .news-item:last-child {
+            border-bottom: none;
+        }
+        .news-item h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.4em;
+        }
+        .news-item h2 a {
+            text-decoration: none;
+            color: #007bff;
+        }
+        .news-item h2 a:hover {
+            text-decoration: underline;
+        }
+        .news-item p.description {
+            margin: 0 0 8px 0;
+            font-size: 0.95em;
+            color: #555;
+        }
+        .news-item p.date {
+            font-size: 0.8em;
+            color: #777;
+            margin: 0;
+        }
+        .loading, .error {
+            text-align: center;
+            padding: 20px;
+            font-size: 1.1em;
+            color: #777;
+        }
+        /* 横スライド用スタイル */
+        .news-feed-slider {
+            display: flex;
+            overflow-x: auto; /* 横スクロールを可能にする */
+            padding-bottom: 15px; /* スクロールバーのためのスペース */
+            -webkit-overflow-scrolling: touch; /* iOSでの慣性スクロール */
+            /* scroll-snap-type: x mandatory; */ /* 好みに応じてスナップスクロールを有効化 */
+        }
+        .news-feed-slider .news-item {
+            flex: 0 0 auto; /* アイテムが縮まないように、また伸びないように */
+            width: 300px; /* 各ニュースアイテムの幅 */
+            margin-right: 15px;
+            border-bottom: none; /* 横並びなので下線は不要 */
+            border-right: 1px solid #eee; /* 右側に区切り線 */
+            padding: 15px; /* パディングをアイテム自体に適用 */
+            box-sizing: border-box; /* パディングとボーダーを幅に含める */
+            /* scroll-snap-align: start; */ /* スナップスクロール使用時 */
+        }
+        .news-feed-slider .news-item:last-child {
+            border-right: none;
+            margin-right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>最新ニュース</h1>
+        <div id="news-feed" class="news-feed-slider"> {/* クラス追加 */}
+            <p class="loading">ニュースを読み込んでいます...</p>
+        </div>
+        <li><a href="index.html">トップページ</a></li>
+    </div>
+
+    <script>
+        // 表示したいRSSフィードのURL (例: NHK主要ニュース)
+        // const rssFeedUrl = "https://www.nhk.or.jp/rss/news/cat0.xml"; // 使用されていません
+        const MAX_NEWS_ITEMS_TOTAL = 20; // 全フィード合わせて表示する最大件数
+
+        const rssFeeds = [
+            { name: "NHK 主要ニュース", url: "https://www.nhk.or.jp/rss/news/cat0.xml" },
+            { name: "BBC World News", url: "http://feeds.bbci.co.uk/news/world/rss.xml" },
+            { name: "Bloomberg Markets", url: "https://feeds.bloomberg.com/markets/news.rss" }
+            // 他のフィードも追加可能
+        ];
+
+        // api.factmaven.com/xml-to-json APIを利用してRSSフィードをJSON形式で取得
+        // 注意: このような無料APIは利用規約や可用性が変更される可能性があります。
+        // const apiUrl = ...; // これは fetchFeed 内で動的に生成
+
+        const newsFeedContainer = document.getElementById('news-feed');
+
+        function formatErrorDetail(detail) {
+            if (typeof detail === 'string') {
+                return detail;
+            }
+            // nullでないオブジェクトの場合、JSON文字列に変換
+            if (typeof detail === 'object' && detail !== null) {
+                return JSON.stringify(detail);
+            }
+            return '不明なエラー詳細'; // その他の場合はフォールバック
+        }
+
+        async function fetchFeed(feedConfig) {
+            // factmaven APIのURLを構築
+            const targetApiUrl = `https://api.factmaven.com/xml-to-json?xml=${encodeURIComponent(feedConfig.url)}`;
+            // CORSプロキシ (cors-anywhere.herokuapp.com) を経由するURLに書き換え
+            const apiUrl = `https://cors-anywhere.herokuapp.com/${targetApiUrl}`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                let errorText = response.statusText;
+                try {
+                    const errorData = await response.json();
+                    if (errorData && (errorData.reason || errorData.error)) {
+                         errorText = formatErrorDetail(errorData.reason || errorData.error);
+                    }
+                } catch (e) { /* JSONパース失敗時は元のステータステキストを使用 */ }
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText} for ${feedConfig.name}`);
+            }
+            const data = await response.json();
+            if (data && data.rss && data.rss.channel && Array.isArray(data.rss.channel.item)) {
+                return data.rss.channel.item.map(item => ({ ...item, sourceName: feedConfig.name, sourceUrl: feedConfig.url }));
+            } else if (data && (data.error || data.reason)) {
+                const errorDetail = data.reason || data.error;
+                throw new Error(`API error: ${formatErrorDetail(errorDetail)} for ${feedConfig.name}`);
+            } else {
+                throw new Error(`Invalid feed format for ${feedConfig.name}`);
+            }
+        }
+
+        async function fetchAndDisplayNews() {
+            newsFeedContainer.innerHTML = `<p class="loading">ニュースを読み込んでいます...</p>`;
+            let allItems = [];
+
+            const results = await Promise.allSettled(
+                rssFeeds.map(feedConfig => fetchFeed(feedConfig))
+            );
+
+            results.forEach(result => {
+                if (result.status === 'fulfilled' && result.value) {
+                    allItems = allItems.concat(result.value);
+                } else if (result.status === 'rejected') {
+                    console.error(`フィード「${result.reason.message.includes("for ") ? result.reason.message.substring(result.reason.message.indexOf("for ") + 4) : "不明"}」の取得に失敗: ${result.reason}`);
+                    // 個別のフィードエラーをUIに表示することも検討できます
+                }
+            });
+
+            if (allItems.length === 0) {
+                newsFeedContainer.innerHTML = `<p class="error">表示するニュースがありません。全てのフィードの読み込みに失敗したか、ニュースが空でした。</p>`;
+                return;
+            }
+
+            // 日付でソート (新しい順)
+            allItems.sort((a, b) => {
+                try {
+                    // pubDateがない場合やパースできない場合は古いものとして扱う
+                    const dateA = a.pubDate ? new Date(a.pubDate) : new Date(0);
+                    const dateB = b.pubDate ? new Date(b.pubDate) : new Date(0);
+                    return dateB - dateA;
+                } catch (e) {
+                    return 0; // パースできない場合は順序維持 (またはエラー処理)
+                }
+            });
+
+            renderNews(allItems.slice(0, MAX_NEWS_ITEMS_TOTAL));
+        }
+
+        function renderNews(items) {
+            if (!items || items.length === 0) {
+                newsFeedContainer.innerHTML = "<p class='error'>表示するニュースがありません。</p>";
+                return;
+            }
+
+            newsFeedContainer.innerHTML = ''; // ローディングメッセージまたは既存のアイテムをクリア
+
+            items.forEach(item => {
+                const newsItemDiv = document.createElement('div');
+                newsItemDiv.classList.add('news-item');
+
+                const titleElement = document.createElement('h2');
+                const linkElement = document.createElement('a');
+                linkElement.href = item.link;
+                linkElement.textContent = item.title;
+                linkElement.target = "_blank"; // 新しいタブで開く
+                linkElement.rel = "noopener noreferrer"; // セキュリティ対策
+                titleElement.appendChild(linkElement);
+
+                const descriptionElement = document.createElement('p');
+                descriptionElement.classList.add('description');
+                // item.description はHTMLタグを含むことがあるため、
+                // 安全にテキストのみを抽出して表示します。
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = item.description;
+                let descriptionText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+                // 概要が長すぎる場合は短縮 (横スライドなので少し短めに)
+                const MAX_DESC_LENGTH = 120;
+                if (descriptionText.length > MAX_DESC_LENGTH) {
+                    descriptionText = descriptionText.substring(0, MAX_DESC_LENGTH) + "...";
+                }
+                descriptionElement.textContent = descriptionText;
+
+
+                const dateElement = document.createElement('p');
+                dateElement.classList.add('date');
+                try {
+                    dateElement.textContent = item.pubDate ? `公開日: ${new Date(item.pubDate).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '公開日不明';
+                } catch (e) {
+                    dateElement.textContent = item.pubDate ? `公開日: ${item.pubDate}` : '公開日不明'; // パース失敗時はそのまま表示
+                }
+
+                newsItemDiv.appendChild(titleElement);
+                newsItemDiv.appendChild(descriptionElement);
+                newsItemDiv.appendChild(dateElement);
+
+                // 出典元を表示
+                if (item.sourceName) {
+                    const sourceElement = document.createElement('p');
+                    sourceElement.classList.add('date'); // dateクラスのスタイルを流用
+                    sourceElement.style.fontSize = '0.75em';
+                    sourceElement.style.color = '#888';
+                    sourceElement.style.marginTop = '4px';
+                    const sourceLink = document.createElement('a');
+                    sourceLink.href = item.sourceUrl || '#'; // フィード自体のURL、なければ#
+                    sourceLink.textContent = item.sourceName;
+                    sourceLink.target = "_blank"; sourceLink.rel = "noopener noreferrer";
+                    sourceElement.appendChild(document.createTextNode('出典: '));
+                    sourceElement.appendChild(sourceLink);
+                    newsItemDiv.appendChild(sourceElement);
+                }
+
+                newsFeedContainer.appendChild(newsItemDiv);
+            });
+        }
+
+        // ページ読み込み時にニュースを取得して表示
+        fetchAndDisplayNews();
+    </script>
+</body>
+</html>
