@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-B0HWS1DKGF"></script>
 <script>
@@ -15,6 +16,7 @@ new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-5Q37NF24');</script>
+
 <!-- End Google Tag Manager -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -75,6 +77,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             font-size: 1.1em;
             color: #777;
         }
+        .summary-section {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #007bff;
+            font-size: 0.9em;
+        }
+        .summary-loading, .summary-error {
+            font-style: italic;
+            color: #777;
+        }
         /* 横スライド用スタイル */
         .news-feed-slider {
             display: flex;
@@ -99,6 +112,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>最新ニュース</h1>
@@ -108,10 +122,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <li><a href="index.html">トップページ</a></li>
     </div>
 
-    <script>
+    <script src="config.js"></script> <!-- 生成されたconfig.jsを読み込む -->
+    <script type="module">
+        // Google AI JavaScript SDK のインポート
+        import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.run/@google/generative-ai";
+
         // 表示したいRSSフィードのURL (例: NHK主要ニュース)
         // const rssFeedUrl = "https://www.nhk.or.jp/rss/news/cat0.xml"; // 使用されていません
         const MAX_NEWS_ITEMS_TOTAL = 20; // 全フィード合わせて表示する最大件数
+        const EFFECTIVE_GEMINI_API_KEY = window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY;
 
         const rssFeeds = [
             { name: "NHK 主要ニュース", url: "https://www.nhk.or.jp/rss/news/cat0.xml" },
@@ -125,6 +144,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         // const apiUrl = ...; // これは fetchFeed 内で動的に生成
 
         const newsFeedContainer = document.getElementById('news-feed');
+        let genAI;
+        let model;
+
+        if (EFFECTIVE_GEMINI_API_KEY) {
+            genAI = new GoogleGenerativeAI(EFFECTIVE_GEMINI_API_KEY);
+            model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); // または "gemini-pro"
+        }
 
         function formatErrorDetail(detail) {
             if (typeof detail === 'string') {
@@ -166,6 +192,42 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                 throw new Error(`API error: ${formatErrorDetail(errorDetail)} for ${feedConfig.name}`);
             } else {
                 throw new Error(`Invalid feed format for ${feedConfig.name}`);
+            }
+        }
+
+        async function summarizeTextWithGemini(textToSummarize, summaryContainer) {
+            if (!model) {
+                summaryContainer.innerHTML = `<p class="summary-error">Gemini APIキーが設定されていません。</p>`;
+                return;
+            }
+            if (!textToSummarize || textToSummarize.trim().length < 20) { // 短すぎるテキストは要約しない
+                summaryContainer.innerHTML = `<p class="summary-error">要約するにはテキストが短すぎます。</p>`;
+                return;
+            }
+
+            summaryContainer.innerHTML = `<p class="summary-loading">要約を生成中...</p>`;
+
+            try {
+                const generationConfig = {
+                    temperature: 0.7, // 創造性の度合い (0.0-1.0)
+                    topK: 1,
+                    topP: 1,
+                    maxOutputTokens: 150, // 要約の最大トークン数
+                };
+                const safetySettings = [ // 必要に応じて調整
+                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
+                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
+                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
+                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
+                ];
+
+                const prompt = `以下のニュース記事の概要を日本語で簡潔に要約してください:\n\n${textToSummarize}`;
+                const result = await model.generateContent({ contents: [{ role: "user", parts: [{text: prompt}] }], generationConfig, safetySettings });
+                const summaryText = result.response.text();
+                summaryContainer.innerHTML = `<p>${summaryText.replace(/\n/g, '<br>')}</p>`;
+            } catch (error) {
+                summaryContainer.innerHTML = `<p class="summary-error">要約の生成に失敗しました: ${formatErrorDetail(error.message || error)}</p>`;
+                console.error("Gemini API Error:", error);
             }
         }
 
@@ -253,6 +315,26 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                 newsItemDiv.appendChild(descriptionElement);
                 newsItemDiv.appendChild(dateElement);
 
+                // 要約セクションとボタンの追加
+                if (EFFECTIVE_GEMINI_API_KEY && model) { // modelが初期化されているかも確認
+                    const summaryButton = document.createElement('button');
+                    summaryButton.textContent = 'AIで要約';
+                    summaryButton.style.marginTop = '10px';
+                    summaryButton.style.padding = '5px 10px';
+                    const summaryDiv = document.createElement('div');
+                    summaryDiv.classList.add('summary-section');
+                    summaryDiv.style.display = 'none'; // 初期状態は非表示
+
+                    summaryButton.onclick = () => {
+                        summaryDiv.style.display = summaryDiv.style.display === 'none' ? 'block' : 'none';
+                        if (summaryDiv.style.display === 'block' && summaryDiv.innerHTML === '') { // まだ要約がなければ生成
+                            summarizeTextWithGemini(descriptionText, summaryDiv);
+                        }
+                    };
+                    newsItemDiv.appendChild(summaryButton);
+                    newsItemDiv.appendChild(summaryDiv);
+                }
+
                 // 出典元を表示
                 if (item.sourceName) {
                     const sourceElement = document.createElement('p');
@@ -276,5 +358,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         // ページ読み込み時にニュースを取得して表示
         fetchAndDisplayNews();
     </script>
+
 </body>
 </html>
