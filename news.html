@@ -140,8 +140,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         async function fetchFeed(feedConfig) {
             // factmaven APIのURLを構築
             const targetApiUrl = `https://api.factmaven.com/xml-to-json?xml=${encodeURIComponent(feedConfig.url)}`;
-            // CORSプロキシ (cors-anywhere.herokuapp.com) を経由するURLに書き換え
-            const apiUrl = `https://cors-anywhere.herokuapp.com/${targetApiUrl}`;
+            // CORSプロキシ (api.allorigins.win) を経由するURLに書き換え
+            const apiUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetApiUrl)}`;
             const response = await fetch(apiUrl);
             if (!response.ok) {
                 let errorText = response.statusText;
