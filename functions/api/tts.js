@@ -32,22 +32,49 @@ export async function onRequestPost(context) {
     });
 
     if (!apiResponse.ok) {
-      const errorData = await apiResponse.json();
-      console.error('TTS API Error (from function):', errorData);
-      return new Response(JSON.stringify({ error: `TTS APIエラー: ${apiResponse.status} ${errorData.error?.message || '不明なTTSエラー'}` }), {
-        status: apiResponse.status,
+      let errorResponseMessage = `Google TTS API returned status ${apiResponse.status}`;
+      try {
+        // Attempt to parse as JSON, but be ready for it to fail
+        const errorData = await apiResponse.json();
+        errorResponseMessage = `TTS APIエラー: ${apiResponse.status} ${errorData.error?.message || JSON.stringify(errorData)}`;
+      } catch (jsonParseError) {
+        // If JSON parsing fails, it means Google's error response wasn't JSON
+        console.warn('Failed to parse Google TTS API error response as JSON:', jsonParseError.message);
+        try {
+            const rawErrorText = await apiResponse.text();
+            // エラーメッセージが長すぎる場合があるので、一部のみ表示
+            errorResponseMessage = `Google TTS API returned status ${apiResponse.status}. Response was not valid JSON: ${rawErrorText.substring(0, 200)}...`;
+        } catch (textParseError) {
+            console.warn('Failed to read Google TTS API error response as text:', textParseError.message);
+            errorResponseMessage = `Google TTS API returned status ${apiResponse.status}. Response was not valid JSON and could not be read as text.`;
+        }
+      }
+      console.error('TTS API Error (from function):', errorResponseMessage);
+      // Google APIのエラーステータスをクライアントに伝播させるか、502 (Bad Gateway) を使用
+      const statusToReturn = apiResponse.status >= 400 && apiResponse.status < 600 ? apiResponse.status : 502;
+      return new Response(JSON.stringify({ error: errorResponseMessage }), {
+        status: statusToReturn,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    const data = await apiResponse.json();
-    return new Response(JSON.stringify({ audioContent: data.audioContent }), { // audioContentをそのまま返す
+    // apiResponse.ok が true の場合でも、念のためレスポンスボディがJSONであることを確認
+    const data = await apiResponse.json(); // Google APIが2xxで非JSONを返すことは稀だが、堅牢性のためにtry-catchも検討可
+    return new Response(JSON.stringify({ audioContent: data.audioContent }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Cloudflare Function Error:', error);
-    return new Response(JSON.stringify({ error: 'TTS Function内部エラー: ' + error.message }), {
+    // このcatchブロックは、リクエストボディのJSONパース失敗 (context.request.json()) や、
+    // 上記のapiResponse.json()が失敗し、それが適切にcatchされなかった場合などに到達する
+    console.error('Cloudflare Function Error:', error.message, error.stack);
+    let detailErrorMessage = 'TTS Function内部エラー: ';
+    if (error.message.toLowerCase().includes('json input')) {
+        detailErrorMessage += 'リクエストまたはAPIレスポンスのJSON解析に失敗しました。';
+    } else {
+        detailErrorMessage += error.message;
+    }
+    return new Response(JSON.stringify({ error: detailErrorMessage }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
