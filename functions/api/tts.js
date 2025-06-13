@@ -1,82 +1,110 @@
-export async function onRequestPost(context) {
-  try {
-    const requestBody = await context.request.json();
-    const textToSpeak = requestBody.text;
-    const apiKey = context.env.GEMINI_API_KEY; // Cloudflare Pagesの環境変数を参照
+// worker.js (Cloudflare Worker)
+// このコードはあなたのCloudflare Workerにデプロイされます。
 
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'APIキーがサーバーに設定されていません。' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+// 環境変数にAPIキーを設定してください (例: GEMINI_API_KEY)
+const GEMINI_API_KEY = ENV.GEMINI_API_KEY; // Cloudflare Workersの環境変数から取得
+
+// Gemini TTS APIのエンドポイント
+// 実際のAPIエンドポイントはGoogleの公式ドキュメントで確認してください。
+// 例: https://texttospeech.googleapis.com/v1/text:synthesize
+const GEMINI_TTS_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=';
+
+async function handleRequest(request) {
+    if (request.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
+            status: 405,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 
-    if (!textToSpeak) {
-      return new Response(JSON.stringify({ error: '読み上げるテキストがありません。' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const { text } = await request.json();
+
+    if (!text) {
+        return new Response(JSON.stringify({ error: 'Text is required' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 
-    const ttsApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/text-to-speech:synthesizeSpeech?key=${apiKey}`;
-    const apiResponse = await fetch(ttsApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: { text: textToSpeak },
-        voice: { languageCode: 'ja-JP'}, // 必要に応じて音声名を変更
-        audioConfig: { audioEncoding: 'MP3' },
-      }),
-    });
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_PLACEHOLDER") {
+        return new Response(JSON.stringify({ error: 'Gemini API Key is not configured on the server.' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
-    if (!apiResponse.ok) {
-      let errorResponseMessage = `Google TTS API returned status ${apiResponse.status}`;
-      try {
-        // Attempt to parse as JSON, but be ready for it to fail
-        const errorData = await apiResponse.json();
-        errorResponseMessage = `TTS APIエラー: ${apiResponse.status} ${errorData.error?.message || JSON.stringify(errorData)}`;
-      } catch (jsonParseError) {
-        // If JSON parsing fails, it means Google's error response wasn't JSON
-        console.warn('Failed to parse Google TTS API error response as JSON:', jsonParseError.message);
-        try {
-            const rawErrorText = await apiResponse.text();
-            // エラーメッセージが長すぎる場合があるので、一部のみ表示
-            errorResponseMessage = `Google TTS API returned status ${apiResponse.status}. Response was not valid JSON: ${rawErrorText.substring(0, 200)}...`;
-        } catch (textParseError) {
-            console.warn('Failed to read Google TTS API error response as text:', textParseError.message);
-            errorResponseMessage = `Google TTS API returned status ${apiResponse.status}. Response was not valid JSON and could not be read as text.`;
+    try {
+        // Gemini APIのTTSリクエストボディを構築
+        // これは現在のGemini APIのTTSモデルの予想される形式です。
+        // 公式ドキュメントで正確な形式を確認してください。
+        const ttsRequestBody = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        { text: text }
+                    ]
+                }
+            ],
+            // TTS固有の設定 (mode, voice など)
+            // Gemini APIのTTSに関する最新の公式ドキュメントを参照してください。
+            // 例:
+            // output_modality: "AUDIO",
+            // audio_config: {
+            //     audio_encoding: "MP3",
+            //     speaking_rate: 1.0,
+            //     pitch: 0.0,
+            //     volume_gain_db: 0.0,
+            //     voice: {
+            //         language_code: "ja-JP",
+            //         name: "ja-JP-Wavenet-A" // 日本語の適切な音声を選択
+            //     }
+            // }
+            generation_config: {
+                response_mime_type: "audio/mpeg", // MP3形式を指定
+            },
+        };
+
+        console.log("Sending TTS request to Gemini API. Text length:", text.length);
+
+        const ttsResponse = await fetch(`<span class="math-inline">\{GEMINI\_TTS\_API\_URL\}</span>{GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // 'x-goog-api-key': GEMINI_API_KEY // 多くのGoogle APIではURLパラメータではなくヘッダーを使うこともあります
+            },
+            body: JSON.stringify(ttsRequestBody)
+        });
+
+        if (!ttsResponse.ok) {
+            const errorData = await ttsResponse.json();
+            console.error("Gemini TTS API Error:", errorData);
+            return new Response(JSON.stringify({ error: `Gemini TTS API call failed: ${errorData.error ? errorData.error.message : JSON.stringify(errorData)}` }), {
+                status: ttsResponse.status,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
-      }
-      console.error('TTS API Error (from function):', errorResponseMessage);
-      // Google APIのエラーステータスをクライアントに伝播させるか、502 (Bad Gateway) を使用
-      const statusToReturn = apiResponse.status >= 400 && apiResponse.status < 600 ? apiResponse.status : 502;
-      return new Response(JSON.stringify({ error: errorResponseMessage }), {
-        status: statusToReturn,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
 
-    // apiResponse.ok が true の場合でも、念のためレスポンスボディがJSONであることを確認
-    const data = await apiResponse.json(); // Google APIが2xxで非JSONを返すことは稀だが、堅牢性のためにtry-catchも検討可
-    return new Response(JSON.stringify({ audioContent: data.audioContent }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    // このcatchブロックは、リクエストボディのJSONパース失敗 (context.request.json()) や、
-    // 上記のapiResponse.json()が失敗し、それが適切にcatchされなかった場合などに到達する
-    console.error('Cloudflare Function Error:', error.message, error.stack);
-    let detailErrorMessage = 'TTS Function内部エラー: ';
-    if (error.message.toLowerCase().includes('json input')) {
-        detailErrorMessage += 'リクエストまたはAPIレスポンスのJSON解析に失敗しました。';
-    } else {
-        detailErrorMessage += error.message;
+        // Gemini TTS APIからのレスポンスを処理
+        // generateContentのresponse_mime_typeがaudioの場合、raw response bodyが音声データになります
+        const audioBlob = await ttsResponse.arrayBuffer();
+        const base64Audio = Buffer.from(audioBlob).toString('base64');
+
+
+        return new Response(JSON.stringify({ audioContent: base64Audio }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('Error during TTS proxy:', error);
+        return new Response(JSON.stringify({ error: `Internal server error: ${error.message}` }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-    return new Response(JSON.stringify({ error: detailErrorMessage }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
 }
+
+addEventListener('fetch', event => {
+    event.respondWith(handleRequest(event.request));
+});
