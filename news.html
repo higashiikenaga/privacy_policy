@@ -484,7 +484,7 @@
                 dateElement.classList.add('date');
                 try {
                     // 日付を整形して表示
-                    dateElement.textContent = item.pubDate ? `公開日: ${new Date(item.pubDate).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '公開日不明';
+                    dateElement.textContent = item.pubDate ? `公開日: ${new Date(item.pubDate).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })}` : '公開日不明';
                 } catch (e) {
                     dateElement.textContent = item.pubDate ? `公開日: ${item.pubDate}` : '公開日不明';
                 }
