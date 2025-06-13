@@ -478,6 +478,9 @@ const eewTickerText = document.getElementById('eew-ticker-text');
 const EEW_API_URL = 'https://api.wolfx.jp/jma_eew.json';
 let lastEEWData = null; // 前回取得したEEWデータを保持（JSON文字列で比較するため）
 
+// EEWの情報を何分以内であれば表示するか（例: 5分以内）
+const EEW_VALID_DURATION_MINUTES = 5;
+
 /**
  * EEW情報を取得し、テロップを更新する
  */
@@ -491,16 +494,28 @@ async function fetchEEWData() {
 
         // ★修正点1: currentEEWDataがオブジェクトとして返されることを前提とする
         // そして、有効なデータかどうかの最低限のチェックを行う
-        if (!currentEEWData || typeof currentEEWData !== 'object' || !currentEEWData.Title) {
-            console.log('EEW data is empty or invalid format.');
+        if (!currentEEWData || typeof currentEEWData !== 'object' || !currentEEWData.Title || !currentEEWData.EventID || !currentEEWData.AnnouncedTime) {
+            console.log('EEW data is empty or invalid format, or missing key fields.');
             eewTickerContainer.style.display = 'none'; // データがない場合は非表示
             eewTickerText.textContent = '';
             lastEEWData = null; // データがない場合はnullにリセット
             return;
         }
 
-        // データが前回と異なる場合のみ処理
-        // EventIDとSerialを組み合わせてユニークなIDとし、それが前回と異なるかを判断する
+        // ★修正点2: AnnouncedTime をチェックし、古すぎるデータは処理しない
+        const announcedTime = new Date(currentEEWData.AnnouncedTime); // "YYYY/MM/DD HH:mm:ss" 形式に対応
+        const currentTime = new Date();
+        const diffMinutes = (currentTime.getTime() - announcedTime.getTime()) / (1000 * 60);
+
+        if (diffMinutes > EEW_VALID_DURATION_MINUTES) {
+            console.log(`EEW data is too old (announced ${diffMinutes.toFixed(1)} minutes ago). Hiding ticker.`);
+            eewTickerContainer.style.display = 'none';
+            eewTickerText.textContent = '';
+            lastEEWData = null; // 古いデータは記憶しない
+            return;
+        }
+        
+        // ★修正点3: EventIDとSerialを組み合わせてユニークなIDとし、それが前回と異なるかを判断する
         const currentEventId = `${currentEEWData.EventID}-${currentEEWData.Serial}`;
         const lastEventId = lastEEWData ? `${lastEEWData.EventID}-${lastEEWData.Serial}` : null;
 
@@ -526,7 +541,6 @@ async function fetchEEWData() {
  * @param {object} eewData - 受信したEEWデータ（単一オブジェクト）
  */
 function processEEWData(eewData) {
-    // ★修正点2: データ構造に合わせたプロパティアクセスに変更
     if (!eewData || eewData.isCancel || eewData.isTraining) {
         console.log('EEW is cancelled or training data, or invalid. Hiding ticker.');
         eewTickerContainer.style.display = 'none';
@@ -548,14 +562,11 @@ function processEEWData(eewData) {
         alertClass = 'eew-alert-warning';
         // ★オプション: 音声読み上げをトリガーする
         // speakSummary(message);
-        // 注意: EEWの音声は非常に重要なので、運用上の注意点を考慮してください。
     } else { // 警報ではない場合（予報、情報更新など）
         const hypocenterName = eewData.Hypocenter || '不明';
         const magnitude = eewData.Magunitude || '不明';
 
         message = `【緊急地震速報 - 予報】震源地: ${hypocenterName}、M: ${magnitude}。`;
-        // より詳細な Title をメッセージに含めることも可能
-        // message = `【緊急地震速報】${eewData.Title || '情報更新'}：震源地「${hypocenterName}」、M: ${magnitude}。`;
         alertClass = 'eew-alert-forecast';
     }
 
