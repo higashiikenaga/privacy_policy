@@ -8,7 +8,13 @@
   </url>
   <url>
     <loc>https://www.yukiecho.com/policy.html</loc>
-    <lastmod>2023-06-13</lastmod> <!-- ページの最終更新日 (YYYY-MM-DD形式) -->
+    <lastmod>2025-06-13</lastmod> <!-- ページの最終更新日 (YYYY-MM-DD形式) -->
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.yukiecho.com/news.html</loc>
+    <lastmod>2025-06-13</lastmod> <!-- ページの最終更新日 (YYYY-MM-DD形式) -->
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
