@@ -282,7 +282,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
         async function speakSummary(textToSpeak) {
             if (!EFFECTIVE_GEMINI_API_KEY || EFFECTIVE_GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_PLACEHOLDER") {
-                ttsStatusElement.textContent = '音声合成のためのAPIキーが設定されていません。';
+                // このチェックは機能の有効化判断には依然として有用
+                ttsStatusElement.textContent = '音声合成機能は利用できません (APIキー未設定)。';
                 ttsControlsDiv.style.display = 'block'; // ステータス表示のために表示
                 ttsAudioPlayer.style.display = 'none';
                 return;
@@ -293,28 +294,35 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             ttsStatusElement.textContent = '音声を生成中...';
             console.log("Attempting to synthesize speech for text (first 50 chars):", textToSpeak.substring(0, 50) + "...");
 
-            const ttsApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/text-to-speech:synthesizeSpeech?key=${EFFECTIVE_GEMINI_API_KEY}`;
+            const proxyApiUrl = `/api/tts`; // Cloudflare Functionのエンドポイント
 
             try {
-                const response = await fetch(ttsApiUrl, {
+                const response = await fetch(proxyApiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        input: { text: textToSpeak },
-                        voice: { languageCode: 'ja-JP', name: 'ja-JP-Standard-A' }, // Voice selection
-                        audioConfig: { audioEncoding: 'MP3' },
-                    }),
+                    body: JSON.stringify({ text: textToSpeak }), // Functionにテキストを送信
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`TTS API error: ${response.status} ${formatErrorDetail(errorData.error ? errorData.error.message : 'Unknown TTS error')}`);
+                    let errorDetail = '不明なプロキシエラー';
+                    try {
+                        const errorData = await response.json();
+                        errorDetail = errorData.error || JSON.stringify(errorData);
+                    } catch (e) { /* JSONパース失敗時はデフォルトメッセージ */ }
+                    throw new Error(`プロキシTTSエラー: ${response.status} ${formatErrorDetail(errorDetail)}`);
                 }
 
                 const data = await response.json();
+                if (data.error) { // Functionが返したエラーを処理
+                    throw new Error(`プロキシTTSエラー: ${formatErrorDetail(data.error)}`);
+                }
+
                 const audioContent = data.audioContent; // Base64 encoded audio
+                if (!audioContent) {
+                    throw new Error('プロキシから音声データが返されませんでした。');
+                }
                 ttsAudioPlayer.src = `data:audio/mp3;base64,${audioContent}`;
                 ttsAudioPlayer.style.display = 'block';
                 ttsStatusElement.textContent = '音声の準備ができました。'; // または自動再生後にクリア
@@ -322,7 +330,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             } catch (error) {
                 ttsStatusElement.textContent = `音声の生成に失敗しました: ${formatErrorDetail(error.message || error)}`;
                 ttsAudioPlayer.style.display = 'none';
-                console.error("TTS API Error:", error);
+                console.error("Proxy TTS Call Error:", error);
             }
         }
 
