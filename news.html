@@ -467,4 +467,202 @@
 
                 newsItemDiv.appendChild(titleElement);
                 newsItemDiv.appendChild(descriptionElement);
-                newsItemDiv.appe
+                // 470行目からここから
+                const dateElement = document.createElement('p');
+                dateElement.classList.add('date');
+                try {
+                    dateElement.textContent = item.pubDate ? `公開日: ${new Date(item.pubDate).toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '公開日不明';
+                } catch (e) {
+                    dateElement.textContent = item.pubDate ? `公開日: ${item.pubDate}` : '公開日不明';
+                }
+
+                newsItemDiv.appendChild(dateElement);
+
+                if (item.sourceName) {
+                    const sourceElement = document.createElement('p');
+                    sourceElement.classList.add('date');
+                    sourceElement.style.fontSize = '0.75em';
+                    sourceElement.style.color = '#888';
+                    sourceElement.style.marginTop = '4px';
+                    const sourceLink = document.createElement('a');
+                    sourceLink.href = item.sourceUrl || '#';
+                    sourceLink.textContent = item.sourceName;
+                    sourceLink.target = "_blank"; sourceLink.rel = "noopener noreferrer";
+                    sourceElement.appendChild(document.createTextNode('出典: '));
+                    sourceElement.appendChild(sourceLink);
+                    newsItemDiv.appendChild(sourceElement);
+                }
+
+                newsFeedContainer.appendChild(newsItemDiv);
+            });
+        }
+
+        // ページ読み込み時にニュースを取得して表示
+        fetchAndDisplayNews();
+
+        // 全体要約ボタンのイベントリスナー
+        const summarizeAllBtn = document.getElementById('summarize-all-button');
+        summarizeAllBtn.addEventListener('click', generateGlobalSummary);
+
+
+        // --- 緊急地震速報 (EEW) 機能 ---
+        const eewTickerContainer = document.getElementById('eew-ticker-container');
+        const eewTickerText = document.getElementById('eew-ticker-text');
+
+        const EEW_API_URL = 'https://api.wolfx.jp/jma_eew.json';
+        let lastEEWData = null; // 前回取得したEEWデータを保持（JSON文字列で比較するため）
+
+        // EEWの情報を何分以内であれば表示するか（例: 5分以内）
+        const EEW_VALID_DURATION_MINUTES = 5;
+
+        /**
+         * EEW情報を取得し、テロップを更新する
+         */
+        async function fetchEEWData() {
+            try {
+                const response = await fetch(EEW_API_URL);
+                if (!response.ok) {
+                    throw new Error(`EEW API call failed with status: ${response.status}`);
+                }
+                const currentEEWData = await response.json();
+
+                if (!currentEEWData || typeof currentEEWData !== 'object' || !currentEEWData.Title || !currentEEWData.EventID || !currentEEWData.AnnouncedTime) {
+                    console.log('EEW data is empty or invalid format, or missing key fields.');
+                    eewTickerContainer.style.display = 'none';
+                    eewTickerText.textContent = '';
+                    lastEEWData = null; // データがない場合はnullにリセット
+                    return;
+                }
+
+                const announcedTime = new Date(currentEEWData.AnnouncedTime);
+                const currentTime = new Date();
+                const diffMinutes = (currentTime.getTime() - announcedTime.getTime()) / (1000 * 60);
+
+                if (diffMinutes > EEW_VALID_DURATION_MINUTES) {
+                    console.log(`EEW data is too old (announced ${diffMinutes.toFixed(1)} minutes ago). Hiding ticker.`);
+                    eewTickerContainer.style.display = 'none';
+                    eewTickerText.textContent = '';
+                    lastEEWData = null; // 古いデータは記憶しない
+                    return;
+                }
+                
+                const currentEventId = `${currentEEWData.EventID}-${currentEEWData.Serial}`;
+                const lastEventId = lastEEWData ? `${lastEEWData.EventID}-${lastEEWData.Serial}` : null;
+
+                if (currentEventId !== lastEventId) {
+                    console.log('New EEW data received:', currentEEWData);
+                    processEEWData(currentEEWData);
+                    lastEEWData = currentEEWData; // データを更新
+                } else {
+                    console.log('EEW data unchanged.');
+                }
+
+            } catch (error) {
+                console.error('Failed to fetch EEW data:', error);
+                eewTickerContainer.style.display = 'none';
+                eewTickerText.textContent = '';
+                lastEEWData = null;
+            }
+        }
+
+        /**
+         * EEWデータを処理し、テロップを表示または更新する
+         * @param {object} eewData - 受信したEEWデータ（単一オブジェクト）
+         */
+        function processEEWData(eewData) {
+            // 訓練報とキャンセル報は表示・読み上げしない
+            if (!eewData || eewData.isCancel || eewData.isTraining) {
+                console.log('EEW is cancelled or training data, or invalid. Hiding ticker.');
+                eewTickerContainer.style.display = 'none';
+                eewTickerText.textContent = '';
+                return;
+            }
+
+            let message = '';
+            let alertClass = '';
+
+            if (eewData.isWarn) { // isWarn が true の場合は警報
+                const hypocenterName = eewData.Hypocenter || '不明';
+                const depth = eewData.Depth ? `${eewData.Depth}キロメートル` : '不明'; // 読み上げやすいように「km」を「キロメートル」に
+                const magnitude = eewData.Magunitude || '不明'; // 注意: Magunitude (綴りがu)
+                const maxIntensity = eewData.MaxIntensity || '不明';
+                
+                message = `【緊急地震速報 - 警報】震源地: ${hypocenterName}、深さ: 約${depth}、マグニチュード: ${magnitude}。予測最大震度: ${maxIntensity}。強い揺れに警戒してください。`;
+                alertClass = 'eew-alert-warning';
+                // Web Speech APIで読み上げをトリガー
+                speakEEWAlert(message);
+            } else { // 警報ではない場合（予報、情報更新など）
+                const hypocenterName = eewData.Hypocenter || '不明';
+                const magnitude = eewData.Magunitude || '不明';
+
+                message = `【緊急地震速報 - 予報】震源地: ${hypocenterName}、マグニチュード: ${magnitude}。`;
+                alertClass = 'eew-alert-forecast';
+                // 予報も読み上げる場合は、ここで speakEEWAlert(message); を追加
+                // 現時点では、警報のみ読み上げるように設定
+            }
+
+            eewTickerText.textContent = message;
+            eewTickerContainer.className = ''; // クラスをリセット
+            if (alertClass) {
+                eewTickerContainer.classList.add(alertClass);
+            }
+            eewTickerContainer.style.display = 'block';
+
+            // アニメーションのリセットと再開
+            eewTickerText.style.animation = 'none';
+            eewTickerText.offsetHeight; // リフローを強制
+            eewTickerText.style.animation = null; // アニメーションを再開
+        }
+
+        // Web Speech APIを使ったEEW読み上げ関数
+        function speakEEWAlert(textToSpeak) {
+            if (!synth) {
+                console.warn("Web Speech API is not supported. Cannot speak EEW alert.");
+                return;
+            }
+            
+            // 現在読み上げ中の音声があればキャンセル（EEWは最優先）
+            if (synth.speaking) {
+                synth.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'ja-JP'; // 日本語を設定
+
+            if (japaneseVoice) {
+                utterance.voice = japaneseVoice;
+            } else {
+                console.warn("Japanese voice not specifically set, using default.");
+            }
+            
+            // スピードとピッチの調整（オプション）
+            utterance.rate = 1.0; // 読み上げ速度 (0.1 - 10)
+            utterance.pitch = 1.0; // ピッチ (0 - 2)
+
+            synth.speak(utterance);
+            console.log("Speaking EEW alert:", textToSpeak);
+
+            // テロップのアニメーションを一時停止・再開
+            utterance.onstart = () => {
+                eewTickerText.classList.add('paused');
+            };
+            utterance.onend = () => {
+                eewTickerText.classList.remove('paused');
+            };
+            utterance.onerror = (event) => {
+                console.error('SpeechSynthesisUtterance.onerror for EEW:', event);
+                eewTickerText.classList.remove('paused'); // エラー時もアニメーション再開
+            };
+        }
+
+
+        // EEW情報のポーリングを開始
+        const EEW_POLLING_INTERVAL = 3000; // 3秒ごとにEEW情報をチェック (リアルタイム性重視)
+        setInterval(fetchEEWData, EEW_POLLING_INTERVAL);
+
+        // ページロード時に初回取得
+        fetchEEWData();
+
+    </script>
+</body>
+</html>
