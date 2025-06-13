@@ -472,113 +472,113 @@
 
 
         // --- 緊急地震速報 (EEW) 機能 ---
-        const eewTickerContainer = document.getElementById('eew-ticker-container');
-        const eewTickerText = document.getElementById('eew-ticker-text');
+const eewTickerContainer = document.getElementById('eew-ticker-container');
+const eewTickerText = document.getElementById('eew-ticker-text');
 
-        const EEW_API_URL = 'https://api.wolfx.jp/jma_eew.json';
-        let lastEEWData = null; // 前回取得したEEWデータを保持
+const EEW_API_URL = 'https://api.wolfx.jp/jma_eew.json';
+let lastEEWData = null; // 前回取得したEEWデータを保持（JSON文字列で比較するため）
 
-        /**
-         * EEW情報を取得し、テロップを更新する
-         */
-        async function fetchEEWData() {
-            try {
-                const response = await fetch(EEW_API_URL);
-                if (!response.ok) {
-                    throw new Error(`EEW API call failed with status: ${response.status}`);
-                }
-                const currentEEWData = await response.json();
+/**
+ * EEW情報を取得し、テロップを更新する
+ */
+async function fetchEEWData() {
+    try {
+        const response = await fetch(EEW_API_URL);
+        if (!response.ok) {
+            throw new Error(`EEW API call failed with status: ${response.status}`);
+        }
+        const currentEEWData = await response.json();
 
-                // データが前回と異なる、または初回のデータ取得の場合
-                // JSON.stringify() で比較することで、オブジェクトの内容が完全に同じか確認
-                if (JSON.stringify(currentEEWData) !== JSON.stringify(lastEEWData)) {
-                    console.log('New EEW data received:', currentEEWData);
-                    processEEWData(currentEEWData);
-                    lastEEWData = currentEEWData; // データを更新
-                } else {
-                    console.log('EEW data unchanged.');
-                }
-
-            } catch (error) {
-                console.error('Failed to fetch EEW data:', error);
-                // エラー時はテロップを非表示にする
-                eewTickerContainer.style.display = 'none';
-                eewTickerText.textContent = '';
-            }
+        // ★修正点1: currentEEWDataがオブジェクトとして返されることを前提とする
+        // そして、有効なデータかどうかの最低限のチェックを行う
+        if (!currentEEWData || typeof currentEEWData !== 'object' || !currentEEWData.Title) {
+            console.log('EEW data is empty or invalid format.');
+            eewTickerContainer.style.display = 'none'; // データがない場合は非表示
+            eewTickerText.textContent = '';
+            lastEEWData = null; // データがない場合はnullにリセット
+            return;
         }
 
-        /**
-         * EEWデータを処理し、テロップを表示または更新する
-         * @param {Array<object>} eewData - 受信したEEWデータ（配列）
-         */
-        function processEEWData(eewData) {
-            if (!eewData || eewData.length === 0) {
-                // データがない場合は非表示
-                eewTickerContainer.style.display = 'none';
-                eewTickerText.textContent = '';
-                return;
-            }
+        // データが前回と異なる場合のみ処理
+        // EventIDとSerialを組み合わせてユニークなIDとし、それが前回と異なるかを判断する
+        const currentEventId = `${currentEEWData.EventID}-${currentEEWData.Serial}`;
+        const lastEventId = lastEEWData ? `${lastEEWData.EventID}-${lastEEWData.Serial}` : null;
 
-            // wolfx.jpのAPIは新しい順になっていると仮定し、最初の要素を最新とする
-            const latestEEW = eewData[0];
-
-            // タイプが '取消' または '訓練' の場合はテロップを表示しない
-            if (latestEEW.issue && (latestEEW.issue.type === '取消' || latestEEW.issue.type === '訓練')) {
-                console.log('EEW is cancelled or training data. Hiding ticker.');
-                eewTickerContainer.style.display = 'none';
-                eewTickerText.textContent = '';
-                return;
-            }
-
-            let message = '';
-            let alertClass = ''; // CSSクラス用
-
-            // alertflg を確認してメッセージとクラスを決定
-            if (latestEEW.alertflg === '警報') {
-                const hypocenterName = latestEEW.earthquake?.hypocenter?.name || '不明';
-                const depth = latestEEW.earthquake?.hypocenter?.depth ? `${latestEEW.earthquake.hypocenter.depth}km` : '不明';
-                const magnitude = latestEEW.earthquake?.hypocenter?.magnitude || '不明';
-                const maxScale = latestEEW.earthquake?.maxScale || '不明';
-                
-                message = `【緊急地震速報 - 警報】震源地: ${hypocenterName}、深さ: 約${depth}、M: ${magnitude}。予想最大震度: ${maxScale}。`;
-                alertClass = 'eew-alert-warning';
-                // ★オプション: 音声読み上げをトリガーする
-                // speakSummary(message); 
-                // 注意: EEWの音声は非常に重要なので、運用上の注意点を考慮してください。
-            } else if (latestEEW.alertflg === '予報') {
-                const hypocenterName = latestEEW.earthquake?.hypocenter?.name || '不明';
-                const magnitude = latestEEW.earthquake?.hypocenter?.magnitude || '不明';
-
-                message = `【緊急地震速報 - 予報】震源地: ${hypocenterName}、M: ${magnitude}。`;
-                alertClass = 'eew-alert-forecast';
-            } else {
-                // alertflg が予期しない値の場合や、単なる情報提供の場合
-                message = `【緊急地震速報】情報更新: ${latestEEW.issue?.type || '不明'}。`;
-                alertClass = ''; // デフォルトの色
-            }
-
-            // テロップの表示と内容更新
-            eewTickerText.textContent = message;
-            eewTickerContainer.className = ''; // クラスをリセット
-            if (alertClass) {
-                eewTickerContainer.classList.add(alertClass);
-            }
-            eewTickerContainer.style.display = 'block';
-
-            // アニメーションのリセットと再開
-            // これにより、新しいメッセージが表示されるたびにアニメーションがリスタートする
-            eewTickerText.style.animation = 'none';
-            eewTickerText.offsetHeight; // リフローを強制 (アニメーションリセットに必要)
-            eewTickerText.style.animation = null; // アニメーションを再開
+        if (currentEventId !== lastEventId) {
+            console.log('New EEW data received:', currentEEWData);
+            processEEWData(currentEEWData);
+            lastEEWData = currentEEWData; // データを更新
+        } else {
+            console.log('EEW data unchanged.');
         }
 
-        // EEW情報のポーリングを開始
-        // リアルタイム性が重要なので、ポーリング間隔は短めに設定
-        const EEW_POLLING_INTERVAL = 5000; // 5秒ごとにEEW情報をチェック
-        setInterval(fetchEEWData, EEW_POLLING_INTERVAL);
+    } catch (error) {
+        console.error('Failed to fetch EEW data:', error);
+        // エラー時はテロップを非表示にする
+        eewTickerContainer.style.display = 'none';
+        eewTickerText.textContent = '';
+        lastEEWData = null; // エラー時もデータをリセット
+    }
+}
 
-        // ページロード時に初回取得
-        fetchEEWData();
+/**
+ * EEWデータを処理し、テロップを表示または更新する
+ * @param {object} eewData - 受信したEEWデータ（単一オブジェクト）
+ */
+function processEEWData(eewData) {
+    // ★修正点2: データ構造に合わせたプロパティアクセスに変更
+    if (!eewData || eewData.isCancel || eewData.isTraining) {
+        console.log('EEW is cancelled or training data, or invalid. Hiding ticker.');
+        eewTickerContainer.style.display = 'none';
+        eewTickerText.textContent = '';
+        return;
+    }
+
+    let message = '';
+    let alertClass = '';
+
+    // 'Title' プロパティや 'isWarn' を使用してEEWの種類を判断
+    if (eewData.isWarn) { // isWarn が true の場合は警報
+        const hypocenterName = eewData.Hypocenter || '不明';
+        const depth = eewData.Depth ? `${eewData.Depth}km` : '不明';
+        const magnitude = eewData.Magunitude || '不明'; // 注意: Magunitude (綴りがu)
+        const maxIntensity = eewData.MaxIntensity || '不明';
+        
+        message = `【緊急地震速報 - 警報】震源地: ${hypocenterName}、深さ: 約${depth}、M: ${magnitude}。予測最大震度: ${maxIntensity}。`;
+        alertClass = 'eew-alert-warning';
+        // ★オプション: 音声読み上げをトリガーする
+        // speakSummary(message);
+        // 注意: EEWの音声は非常に重要なので、運用上の注意点を考慮してください。
+    } else { // 警報ではない場合（予報、情報更新など）
+        const hypocenterName = eewData.Hypocenter || '不明';
+        const magnitude = eewData.Magunitude || '不明';
+
+        message = `【緊急地震速報 - 予報】震源地: ${hypocenterName}、M: ${magnitude}。`;
+        // より詳細な Title をメッセージに含めることも可能
+        // message = `【緊急地震速報】${eewData.Title || '情報更新'}：震源地「${hypocenterName}」、M: ${magnitude}。`;
+        alertClass = 'eew-alert-forecast';
+    }
+
+    // テロップの表示と内容更新
+    eewTickerText.textContent = message;
+    eewTickerContainer.className = ''; // クラスをリセット
+    if (alertClass) {
+        eewTickerContainer.classList.add(alertClass);
+    }
+    eewTickerContainer.style.display = 'block';
+
+    // アニメーションのリセットと再開
+    eewTickerText.style.animation = 'none';
+    eewTickerText.offsetHeight; // リフローを強制
+    eewTickerText.style.animation = null; // アニメーションを再開
+}
+
+// EEW情報のポーリングを開始
+const EEW_POLLING_INTERVAL = 3000; // 3秒ごとにEEW情報をチェック (リアルタイム性重視)
+setInterval(fetchEEWData, EEW_POLLING_INTERVAL);
+
+// ページロード時に初回取得
+fetchEEWData();
 
     </script>
 </body>
