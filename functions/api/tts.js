@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
       },
       body: JSON.stringify({
         input: { text: textToSpeak },
-        voice: { languageCode: 'ja-JP', name: 'ja-JP-Standard-A' }, // 必要に応じて音声名を変更
+        voice: { languageCode: 'ja-JP'}, // 必要に応じて音声名を変更
         audioConfig: { audioEncoding: 'MP3' },
       }),
     });
