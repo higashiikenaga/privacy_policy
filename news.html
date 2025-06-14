@@ -304,7 +304,7 @@
                 }
                 // 18時以降および5時前は「こんばんは」のまま
 
-                const prompt = `${greeting}プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の主要な出来事を視聴者に伝える形で、まとめてレポートしてください。各ニュースの要点を簡潔に含め、自然な話し言葉で、重要な順に構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
+                const prompt = `まず「${greeting.slice(0, -1)}」と挨拶してください。その後、プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の主要な出来事を視聴者に伝える形で、まとめてレポートしてください。各ニュースの要点を簡潔に含め、自然な話し言葉で、重要な順に構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
                 const result = await model.generateContent({ contents: [{ role: "user", parts: [{text: prompt}] }], generationConfig, safetySettings });
                 const summaryText = result.response.text();
                 const summaryHtml = summaryText.replace(/\n/g, '<br>');
