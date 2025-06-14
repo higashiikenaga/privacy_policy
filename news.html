@@ -306,7 +306,22 @@
                 // 18時以降および5時前は「こんばんは」のまま
                 const newsTimeString = `${timeString.replace(':', '時')}分`; // "14時30分" のような形式
 
-                const prompt = `まず「${greeting.slice(0, -1)}」と挨拶し、続けて「${newsTimeString}のニュースです。」と言ってください。その後、プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の主要な出来事を視聴者に伝える形で、まとめてレポートしてください。各ニュースの要点を簡潔に含め、自然な話し言葉で、重要な順に構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
+                const prompt = `まず「${greeting.slice(0, -1)}」と挨拶し、続けて「${newsTimeString}のニュースです。」と言ってください。
+
+その後、プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の出来事をレポートしてください。
+構成は以下のようにお願いします。
+
+1.  まず、最も重要な「メインニュース」を1つ選び、詳しく伝えてください。
+2.  次に、注目すべき「ヘッドラインニュース」を3つ程度選び、簡潔に伝えてください。
+3.  続いて、経済ニュースやその他の主要なニュースがあれば、いくつか選んで伝えてください。
+4.  もし、提供されたニュース記事の中にスポーツに関する情報があれば、その後にスポーツニュースとして伝えてください。
+5.  最後に、もし天気に関する情報があれば、気象情報として伝えてください。
+
+各ニュースの要点を自然な話し言葉で、上記の順番で構成して話してください。
+
+[ニュース記事群ここから]
+${combinedNewsText}
+[ニュース記事群ここまで]`;
                 const result = await model.generateContent({ contents: [{ role: "user", parts: [{text: prompt}] }], generationConfig, safetySettings });
                 const summaryText = result.response.text();
                 const summaryHtml = summaryText.replace(/\n/g, '<br>');
