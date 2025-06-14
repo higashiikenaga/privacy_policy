@@ -293,18 +293,20 @@
 
                 // 日本時間の現在時刻に基づいて挨拶を決定
                 const now = new Date();
-                const hours = now.toLocaleString('ja-JP', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tokyo' });
-                let greeting = "こんばんは。";
-                const currentHour = parseInt(hours, 10);
+                const optionsTime = { hour: 'numeric', minute: 'numeric', timeZone: 'Asia/Tokyo', hour12: false };
+                const timeString = now.toLocaleString('ja-JP', optionsTime); // 例: "14:30"
+                const currentHour = parseInt(now.toLocaleString('ja-JP', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tokyo' }), 10);
 
+                let greeting = "こんばんは。";
                 if (currentHour >= 5 && currentHour < 11) {
                     greeting = "おはようございます。";
                 } else if (currentHour >= 11 && currentHour < 18) {
                     greeting = "こんにちは。";
                 }
                 // 18時以降および5時前は「こんばんは」のまま
+                const newsTimeString = `${timeString.replace(':', '時')}分`; // "14時30分" のような形式
 
-                const prompt = `まず「${greeting.slice(0, -1)}」と挨拶してください。その後、プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の主要な出来事を視聴者に伝える形で、まとめてレポートしてください。各ニュースの要点を簡潔に含め、自然な話し言葉で、重要な順に構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
+                const prompt = `まず「${greeting.slice(0, -1)}」と挨拶し、続けて「${newsTimeString}のニュースです。」と言ってください。その後、プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の主要な出来事を視聴者に伝える形で、まとめてレポートしてください。各ニュースの要点を簡潔に含め、自然な話し言葉で、重要な順に構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
                 const result = await model.generateContent({ contents: [{ role: "user", parts: [{text: prompt}] }], generationConfig, safetySettings });
                 const summaryText = result.response.text();
                 const summaryHtml = summaryText.replace(/\n/g, '<br>');
