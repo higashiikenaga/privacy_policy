@@ -1,16 +1,26 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-B0HWS1DKGF"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-B0HWS1DKGF');
+</script>
+<!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-5Q37NF24');</script>
+<!-- End Google Tag Manager -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>yukiecho.com - news slide</title>
-    <style>
+    <title>yukiecho.com - ニュース</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
@@ -141,19 +151,31 @@
         .eew-alert-forecast { background-color: rgba(255, 165, 0, 0.9); } /* 予報 */
         .eew-alert-cancel { background-color: rgba(0, 0, 255, 0.8); } /* 解除/取消 (ただし、表示されないロジックなので基本使わない) */
 
-    </style>
+    </style> -->
 </head>
 
 <body>
+    <!-- Google Tag Manager (noscript) -->
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5Q37NF24"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+    <nav class="navbar">
+        <ul>
+            <li><a href="index.html">ホーム</a></li>
+            <li><a href="policy.html">プライバシーポリシー</a></li>
+            <li><a href="news.html">ニュースRSS</a></li>
+        </ul>
+    </nav>
+
     <div id="eew-ticker-container">
         <span id="eew-ticker-text"></span>
     </div>
 
     <div class="container">
         <h1>最新ニュース</h1>
-        <div class="global-summary-controls" style="margin-bottom: 20px;">
+        <!-- news.htmlのインラインスタイルは、style.cssに移行することを推奨します -->
+        <!-- 例: style="margin-bottom: 20px;" は style.css で .global-summary-controls に指定 -->
+        <div class="global-summary-controls" style="margin-bottom: 20px;"> 
             <button id="summarize-all-button" style="padding: 8px 15px; font-size: 1em; display: none;">今日のニュースをまとめて聞く (AI)</button>
             <div id="global-summary-output" class="summary-section" style="display: none; margin-top: 15px;"></div>
             <div id="tts-controls" style="margin-top: 10px; display: none;">
@@ -163,10 +185,13 @@
         <div id="news-feed" class="news-feed-slider">
             <p class="loading">ニュースを読み込んでいます...</p>
         </div>
-        <li style="margin-top: 20px;"><a href="index.html">トップページ</a></li>
+        <!-- <li style="margin-top: 20px;"><a href="index.html">トップページ</a></li> -->
     </div>
 
-    <script src="config.js"></script> <script type="module">
+    <footer class="footer">
+        <p>&copy; 2025 yukiecho.com. All Rights Reserved.</p>
+    </footer>
+    <script src="config.js"></script> <script type="module"> // config.js の読み込み位置はbodyの最後が良いでしょう
         // Google AI JavaScript SDK のインポート
         import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.run/@google/generative-ai";
 
@@ -732,6 +757,13 @@ ${combinedNewsText}
 
         // ページロード時に初回取得
         fetchEEWData();
+
+        // ページ離脱時に音声読み上げを停止
+        window.addEventListener('beforeunload', () => {
+            if (speechSynthesis && speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+        });
 
     </script>
 </body>
