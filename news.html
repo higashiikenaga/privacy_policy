@@ -291,7 +291,20 @@
                     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
                 ];
 
-                const prompt = `あなたはプロのニュースキャスターです。以下の複数のニュース記事を元に、今日の主要な出来事を視聴者に伝える形で、まとめてレポートしてください。各ニュースの要点を簡潔に含め、自然な話し言葉で、重要な順に構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
+                // 日本時間の現在時刻に基づいて挨拶を決定
+                const now = new Date();
+                const hours = now.toLocaleString('ja-JP', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tokyo' });
+                let greeting = "こんばんは。";
+                const currentHour = parseInt(hours, 10);
+
+                if (currentHour >= 5 && currentHour < 11) {
+                    greeting = "おはようございます。";
+                } else if (currentHour >= 11 && currentHour < 18) {
+                    greeting = "こんにちは。";
+                }
+                // 18時以降および5時前は「こんばんは」のまま
+
+                const prompt = `${greeting}プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の主要な出来事を視聴者に伝える形で、まとめてレポートしてください。各ニュースの要点を簡潔に含め、自然な話し言葉で、重要な順に構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
                 const result = await model.generateContent({ contents: [{ role: "user", parts: [{text: prompt}] }], generationConfig, safetySettings });
                 const summaryText = result.response.text();
                 const summaryHtml = summaryText.replace(/\n/g, '<br>');
