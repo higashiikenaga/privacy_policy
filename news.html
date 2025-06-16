@@ -439,21 +439,23 @@
             generateVideoButton.addEventListener('click', async () => {
                 if (!newsCanvas.getContext) { alert("お使いのブラウザはCanvasをサポートしていません。"); return; }
                 if (typeof MediaRecorder === 'undefined') { alert("お使いのブラウザはMediaRecorder APIをサポートしていません。"); return; }
+                if (!window.speechSynthesis) { alert("お使いのブラウザは音声合成APIをサポートしていません。"); return; }
                 if (currentNewsItemsForSummary.length === 0) { alert("動画に変換するニュースがありません。"); return; }
 
                 const newsItemsForVideo = currentNewsItemsForSummary.slice(0, 5).map((item, index) => ({
                     title: item.title,
                     audioText: item.title,
-                    // imageUrl: `images/news_image_${index}.png`, // 例: imagesフォルダ内の画像
-                    backgroundImage: 'back.png', // 例: imagesフォルダ内のback.png
+                    // imageUrl: `images/news_image_${index}.png`,
+                    backgroundImage: 'back.png', // ルートにある back.png を指定
                     slideDuration: 7000
                 }));
 
+                console.log("[Video Generation] Current japaneseVoice before creating videoOptions:", japaneseVoice ? japaneseVoice.name : "Not set");
                 const videoOptions = {
                     opening: {
                         title: "本日のニュース",
                         duration: 5000,
-                        backgroundImage:'op.png', // 例: imagesフォルダ内のop.png (MP4は不可)
+                        backgroundVideo:'op.mp4', // ルートにある op.mp4 を動画として指定
                         backgroundColor: "#1a237e",
                         audioText: "本日の主要なニュースをお伝えします。"
                     },
@@ -462,14 +464,20 @@
                 };
                 if (!videoOptions.voice && window.speechSynthesis) { // フォールバックで音声を探す
                     videoOptions.voice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP' && (v.name.includes('Google') || v.name.includes('Male') || v.name.includes('男性')));
-                     if (videoOptions.voice) {
+                    if (videoOptions.voice) {
                         console.log("Fallback: Selected Japanese voice for video:", videoOptions.voice.name);
-                    } else {
-                        console.warn("Fallback: No Japanese voice found for video.");
-                    }
+                    } else { // フォールバックでも見つからなかった場合、さらに探す
+                        console.warn("Fallback: No specific Japanese male/Google voice found for video. Trying any Japanese voice.");
+                        videoOptions.voice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP');
+                        if (videoOptions.voice) {
+                            console.log("Fallback: Found any Japanese voice for video:", videoOptions.voice.name);
+                        } else { // 該当のelseブロックのコメントアウトを解除
+                            console.warn("Fallback: No Japanese voice found for video."); 
+                        } // この閉じ括弧が、直前の else (L499) に対応します
+                    } // この閉じ括弧が、L494の else に対応します
                 }
 
-
+                console.log("[Video Generation] videoOptions to be used:", JSON.parse(JSON.stringify(videoOptions, (key, value) => key === 'voice' && value instanceof SpeechSynthesisVoice ? {name: value.name, lang: value.lang, default: value.default} : value)));
                 try {
                     generateVideoButton.disabled = true;
                     generateVideoButton.textContent = '動画生成中...';
@@ -489,6 +497,8 @@
                 }
             });
         }
+        
+        
 
         const eewTickerContainer = document.getElementById('eew-ticker-container');
         const eewTickerText = document.getElementById('eew-ticker-text');

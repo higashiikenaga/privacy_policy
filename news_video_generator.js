@@ -18,10 +18,19 @@ function speakText(text, voice = null) {
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
+    console.log(`[speakText] Attempting to speak: "${text.substring(0, 70)}..."`);
     utterance.lang = 'ja-JP';
+
     if (voice) {
       utterance.voice = voice;
+      console.log(`[speakText] Using provided voice: ${voice.name} (lang: ${voice.lang}, default: ${voice.default})`);
+    } else {
+      const defaultJpVoice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP' && v.default);
+      const firstJpVoice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP');
+      utterance.voice = defaultJpVoice || firstJpVoice || null;
+      console.log(`[speakText] No voice provided. Attempting to use default/first Japanese voice: ${utterance.voice ? utterance.voice.name + ` (lang: ${utterance.voice.lang}, default: ${utterance.voice.default})` : 'Not found'}`);
     }
+
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
@@ -37,7 +46,7 @@ function speakText(text, voice = null) {
     utterance.onerror = (event) => {
       if (!resolved) {
         resolved = true;
-        console.error("Speech synthesis error, continuing without audio for this segment:", event.error);
+        console.error(`[speakText] Speech synthesis error for text "${text.substring(0,70)}...":`, event.error, "Utterance details:", {text: utterance.text.substring(0,70), lang: utterance.lang, voice: utterance.voice ? utterance.voice.name : 'N/A'});
         resolve(); // エラーが発生してもPromiseを解決し、処理を続行する
       }
     };
@@ -46,7 +55,7 @@ function speakText(text, voice = null) {
     const timeoutId = setTimeout(() => {
         if (!resolved) {
             resolved = true;
-            console.warn(`Speech synthesis timed out after ${timeoutDuration / 1000} seconds.`);
+            console.warn(`[speakText] Speech synthesis timed out for text "${text.substring(0,70)}..." after ${timeoutDuration / 1000} seconds.`);
             window.speechSynthesis.cancel(); // 念のためキャンセル
             resolve(); // タイムアウトでも処理は続行
         }
@@ -54,6 +63,7 @@ function speakText(text, voice = null) {
 
     utterance.onstart = () => {
         clearTimeout(timeoutId); 
+        console.log(`[speakText] Speech synthesis started for: "${text.substring(0, 70)}..." with voice: ${utterance.voice ? utterance.voice.name : 'System default'}`);
     };
 
     window.speechSynthesis.speak(utterance);
