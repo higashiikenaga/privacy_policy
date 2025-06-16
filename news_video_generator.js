@@ -80,13 +80,15 @@ function loadImage(src) {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = (err) => {
-      console.error(`Failed to load image: ${src}`, err);
-      reject(new Error(`Failed to load image: ${src} ${err.type || err}`));
+    img.onerror = (event) => { // 'event' の方が一般的
+      console.error(`[loadImage] Failed to load image. Src: ${src}`, event.type, event);
+      reject(new Error(`Failed to load image: ${src} (Error type: ${event.type})`));
     };
+    console.log(`[loadImage] Attempting to load image: ${src}`);
     img.src = src;
   });
 }
+
 
 /**
  * Canvasにテキストを折り返して描画する関数
@@ -138,6 +140,7 @@ function wrapText(context, text, x, y, maxWidth, lineHeight, font, color, textAl
  */
 async function generateVideoFromNews(newsItems, canvasElement, outputContainer, options = {}) {
   const ctx = canvasElement.getContext('2d');
+  console.log('[VideoGen] Received options:', JSON.parse(JSON.stringify(options, (key, value) => key === 'voice' && value instanceof SpeechSynthesisVoice ? {name: value.name, lang: value.lang} : value)));
   const { opening, defaultSlideDuration = 7000, voice = null } = options; 
 
   const stream = canvasElement.captureStream(30); 
@@ -183,20 +186,29 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
   // --- オープニングシーン ---
   if (opening && opening.title) {
-    console.log("オープニングを生成中...");
+    console.log("[VideoGen] Opening: Starting generation...");
     let opRenderedSuccessfully = false;
 
     if (opening.backgroundVideo) {
+      console.log(`[VideoGen] Opening: Attempting to use background video: ${opening.backgroundVideo}`);
       try {
         const video = document.createElement('video');
         video.crossOrigin = 'anonymous';
         video.muted = true; 
         video.src = opening.backgroundVideo;
+        console.log(`[VideoGen] Opening: Video element created, src set to: ${video.src}`);
         
         await new Promise((resolve, reject) => {
-            video.oncanplaythrough = resolve;
-            video.onerror = () => reject(new Error(`Failed to load video: ${opening.backgroundVideo}`));
+            video.oncanplaythrough = () => { console.log("[VideoGen] Opening: Video can play through."); resolve(); };
+            video.onerror = (e) => {
+                console.error(`[VideoGen] Opening: Failed to load video. Src: ${opening.backgroundVideo}`, video.error || e);
+                reject(new Error(`Failed to load video: ${opening.backgroundVideo} (Error: ${video.error ? video.error.message : 'Unknown media error'})`));
+            };
+            video.onloadeddata = () => console.log("[VideoGen] Opening: Video data loaded.");
+            video.onstalled = () => console.warn(`[VideoGen] Opening: Video loading stalled for ${opening.backgroundVideo}.`);
+            video.onsuspend = () => console.warn(`[VideoGen] Opening: Video loading suspended for ${opening.backgroundVideo}.`);
             video.load(); // 明示的にロードを開始
+            console.log(`[VideoGen] Opening: video.load() called for ${opening.backgroundVideo}.`);
         });
         await video.play();
 
@@ -205,6 +217,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         const opDuration = opening.duration || 5000;
 
         while (opElapsedTime < opDuration && !video.ended) {
+          // console.log(`[VideoGen] Opening: Drawing video frame. Elapsed: ${opElapsedTime}, Video currentTime: ${video.currentTime}`);
           ctx.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
           const opTitleFont = `${canvasElement.height * 0.08}px Meiryo, Arial, sans-serif`;
           const opTitleColor = opening.titleColor || 'white';
@@ -217,22 +230,26 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         }
         video.pause();
         opRenderedSuccessfully = true;
+        console.log("[VideoGen] Opening: Video part successfully rendered.");
       } catch (e) {
-        console.warn("オープニング動画の処理に失敗。フォールバックを試みます。", e);
+        console.warn(`[VideoGen] Opening: Video processing failed. Fallback will be attempted. Error: ${e.message}`, e);
       }
     }
 
     if (!opRenderedSuccessfully && opening.backgroundImage) {
+      console.log(`[VideoGen] Opening: Attempting to use background image: ${opening.backgroundImage}`);
       try {
         const bgImg = await loadImage(opening.backgroundImage);
         ctx.drawImage(bgImg, 0, 0, canvasElement.width, canvasElement.height);
         opRenderedSuccessfully = true;
+        console.log("[VideoGen] Opening: Background image successfully rendered.");
       } catch (e) {
-        console.warn("オープニング静止画背景の読み込みに失敗。デフォルト背景を使用します。", e);
+        console.warn(`[VideoGen] Opening: Background image loading failed. Error: ${e.message}`, e);
       }
     }
     
     if (!opRenderedSuccessfully) {
+        console.log(`[VideoGen] Opening: No video or image background rendered. Using background color: ${opening.backgroundColor || '#003366'}`);
         ctx.fillStyle = opening.backgroundColor || '#003366';
         ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
     }
@@ -247,6 +264,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     }
 
     if (opening.audioText) {
+        console.log(`[VideoGen] Opening: Attempting to speak audioText: "${opening.audioText.substring(0,50)}..."`);
         await speakText(opening.audioText, voice); // speakTextはエラーでもresolveする
     }
     // オープニングの表示時間（音声がない場合や、音声再生後の追加待機）
@@ -261,23 +279,25 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
   // --- ニュースアイテムシーン ---
   for (const item of newsItems) {
-    console.log(`シーンを生成中: ${item.title}`);
+    console.log(`[VideoGen] Item Scene: Starting generation for "${item.title.substring(0,50)}..."`);
     let itemBgRendered = false;
     if (item.backgroundImage) {
+      console.log(`[VideoGen] Item Scene: Attempting to use background image: ${item.backgroundImage}`);
       try {
         const bgImg = await loadImage(item.backgroundImage);
         ctx.drawImage(bgImg, 0, 0, canvasElement.width, canvasElement.height);
         itemBgRendered = true;
+        console.log(`[VideoGen] Item Scene: Background image "${item.backgroundImage}" successfully rendered for "${item.title.substring(0,50)}".`);
       } catch (e) {
-        console.warn(`背景画像 (${item.backgroundImage}) の読み込みに失敗。デフォルト背景を使用します。`, e);
+        console.warn(`[VideoGen] Item Scene: Background image "${item.backgroundImage}" loading failed for "${item.title.substring(0,50)}". Error: ${e.message}`, e);
       }
     }
     
     if (!itemBgRendered) {
+      console.log(`[VideoGen] Item Scene: No background image rendered for "${item.title.substring(0,50)}". Using background color: ${item.backgroundColor || 'white'}`);
       ctx.fillStyle = item.backgroundColor || 'white';
       ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
     }
-
     if (item.imageUrl) {
       try {
         const img = await loadImage(item.imageUrl);
@@ -329,10 +349,12 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     const audioToSpeak = item.audioText || item.title;
     const slideDuration = item.slideDuration || defaultSlideDuration;
 
+    console.log(`[VideoGen] Item Scene: Attempting to speak audioText for "${item.title.substring(0,50)}...": "${audioToSpeak.substring(0,50)}..."`);
     await speakText(audioToSpeak, voice); // speakTextはエラーでもresolveする
+    console.log(`[VideoGen] Item Scene: Finished speakText for "${item.title.substring(0,50)}". Waiting for slide duration.`);
     await new Promise(resolve => setTimeout(resolve, Math.max(1000, slideDuration / 2) )); // 音声再生後、またはエラー後も少し待つ
   }
 
   recorder.stop();
-  console.log("動画生成処理を停止しました。");
+  console.log("[VideoGen] Video generation process stopped. Recorder stopped.");
 }
