@@ -323,10 +323,15 @@
             let selectedVoice = null;
             for (const candidateFilter of maleVoiceCandidates) {
                 selectedVoice = jaVoices.find(candidateFilter);
-                if (selectedVoice) { japaneseVoice = selectedVoice; return; }
+                if (selectedVoice) { japaneseVoice = selectedVoice; console.log("Selected Japanese voice:", japaneseVoice.name); return; }
             }
             selectedVoice = jaVoices.find(voice => voice.name.includes('Google')) || jaVoices.find(voice => voice.name.includes('Microsoft')) || jaVoices[0];
-            if (selectedVoice) japaneseVoice = selectedVoice;
+            if (selectedVoice) {
+                japaneseVoice = selectedVoice;
+                console.log("Selected Japanese voice (fallback):", japaneseVoice.name);
+            } else {
+                console.warn("No Japanese voice found.");
+            }
         }
 
         if (synth) {
@@ -439,8 +444,8 @@
                 const newsItemsForVideo = currentNewsItemsForSummary.slice(0, 5).map((item, index) => ({
                     title: item.title,
                     audioText: item.title,
-                    // imageUrl: `https://source.unsplash.com/random/800x450?news,${index}`, // ダミー画像
-                    backgroundImage: 'back.png',
+                    // imageUrl: `images/news_image_${index}.png`, // 例: imagesフォルダ内の画像
+                    backgroundImage: 'images/back.png', // 例: imagesフォルダ内のback.png
                     slideDuration: 7000
                 }));
 
@@ -448,16 +453,22 @@
                     opening: {
                         title: "本日のニュース",
                         duration: 5000,
-                        backgroundImage:'op.mp4',
+                        backgroundImage:'images/op.png', // 例: imagesフォルダ内のop.png (MP4は不可)
                         backgroundColor: "#1a237e",
                         audioText: "本日の主要なニュースをお伝えします。"
                     },
                     defaultSlideDuration: 7000,
                     voice: japaneseVoice
                 };
-                if (!videoOptions.voice && window.speechSynthesis) {
+                if (!videoOptions.voice && window.speechSynthesis) { // フォールバックで音声を探す
                     videoOptions.voice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP' && (v.name.includes('Google') || v.name.includes('Male') || v.name.includes('男性')));
+                     if (videoOptions.voice) {
+                        console.log("Fallback: Selected Japanese voice for video:", videoOptions.voice.name);
+                    } else {
+                        console.warn("Fallback: No Japanese voice found for video.");
+                    }
                 }
+
 
                 try {
                     generateVideoButton.disabled = true;
