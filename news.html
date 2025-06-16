@@ -173,7 +173,7 @@
             <div id="tts-controls" style="margin-top: 10px; display: none;">
                 <p id="tts-status" class="summary-loading" style="font-size: 0.9em; margin-top: 5px;"></p>
             </div>
-            <canvas id="newsCanvas" style="border: 1px solid black; display: none; margin-top: 15px;"></canvas> <!-- 初期状態では非表示 -->
+            <canvas id="newsCanvas" style="border: 1px solid black; display: none; margin-top: 15px; max-width: 100%;"></canvas> <!-- 初期状態では非表示、レスポンシブ対応 -->
             <button id="generateVideoButton" style="padding: 8px 15px; font-size: 1em; margin-top: 10px; display: none;">ニュース動画を生成 (β)</button>
             <div id="video-output-area" style="margin-top: 15px;"></div> <!-- 動画プレイヤーとダウンロードリンクの表示エリア -->
         </div>
@@ -273,62 +273,7 @@
         async function generateGlobalSummary() {
             const summaryOutputContainer = document.getElementById('global-summary-output');
             summaryOutputContainer.style.display = 'block';
-            // 動画生成ボタンのイベントリスナー
-        if (generateVideoButton && newsCanvas && videoOutputArea) {
-            // Canvasのサイズを設定 (CSSでも可、アスペクト比16:9)
-            // newsCanvas.width = 854;  // 480p
-            // newsCanvas.height = 480;
-            // より小さいデフォルトサイズ、または親要素に合わせる
-            newsCanvas.width = newsCanvas.parentElement.clientWidth > 854 ? 854 : newsCanvas.parentElement.clientWidth;
-            newsCanvas.height = newsCanvas.width * (9/16);
-
-
-            generateVideoButton.addEventListener('click', async () => {
-                if (!newsCanvas.getContext) {
-                    alert("お使いのブラウザはCanvasをサポートしていません。");
-                    return;
-                }
-                if (typeof MediaRecorder === 'undefined') {
-                    alert("お使いのブラウザはMediaRecorder APIをサポートしていません。");
-                    return;
-                }
-
-                if (currentNewsItemsForSummary.length === 0) {
-                    alert("動画に変換するニュースがありません。まずニュースを読み込んでください。");
-                    return;
-                }
-
-                // news_video_generator.js が期待する形式に変換
-                const newsItemsForVideo = currentNewsItemsForSummary.map(item => ({
-                    title: item.title,
-                    // imageUrl: item.imageUrl // news.html側では画像URLを直接持っていないため、
-                                           // news_video_generator.js側で画像なしの場合の処理を期待
-                }));
-
-                try {
-                    generateVideoButton.disabled = true;
-                    generateVideoButton.textContent = '動画生成中...';
-                    newsCanvas.style.display = 'block'; // 生成中はCanvasを表示
-                    videoOutputArea.innerHTML = ''; // 前回の出力をクリア
-
-                    // generateVideoFromNews 関数に videoOutputArea を渡す
-                    // news_video_generator.js 側でこの引数を受け取り、
-                    // document.body の代わりに videoOutputArea に要素を追加するように修正が必要
-                    await generateVideoFromNews(newsItemsForVideo, newsCanvas, videoOutputArea);
-
-                    // alert("動画の生成が完了しました。ページ下部にプレイヤーとダウンロードリンクが表示されます。");
-                    // generateVideoFromNews内でUIが追加されるので、ここでは不要かも
-                } catch (error) {
-                    console.error("動画生成中にエラーが発生しました:", error);
-                    alert("動画生成中にエラーが発生しました: " + error.message);
-                } finally {
-                    generateVideoButton.disabled = false;
-                    generateVideoButton.textContent = 'ニュース動画を生成 (β)';
-                    // newsCanvas.style.display = 'none'; // 生成後はCanvasを非表示にしても良い
-                }
-            });
-        }
-
+            
             ttsControlsDiv.style.display = 'block'; // TTSコントロールを表示
             ttsStatusElement.textContent = 'ニュース全体の要約を生成中...';
             summaryOutputContainer.innerHTML = `<p class="summary-loading">ニュース全体の要約を生成中...</p>`;
@@ -650,6 +595,62 @@ ${combinedNewsText}
         // 全体要約ボタンのイベントリスナー
         const summarizeAllBtn = document.getElementById('summarize-all-button');
         summarizeAllBtn.addEventListener('click', generateGlobalSummary);
+
+        // 動画生成ボタンのイベントリスナー
+        if (generateVideoButton && newsCanvas && videoOutputArea) {
+            // Canvasのサイズを設定 (CSSでも可、アスペクト比16:9)
+            // newsCanvas.width = 854;  // 480p
+            // newsCanvas.height = 480;
+            // より小さいデフォルトサイズ、または親要素に合わせる
+            newsCanvas.width = newsCanvas.parentElement.clientWidth > 854 ? 854 : newsCanvas.parentElement.clientWidth;
+            newsCanvas.height = newsCanvas.width * (9/16);
+
+
+            generateVideoButton.addEventListener('click', async () => {
+                if (!newsCanvas.getContext) {
+                    alert("お使いのブラウザはCanvasをサポートしていません。");
+                    return;
+                }
+                if (typeof MediaRecorder === 'undefined') {
+                    alert("お使いのブラウザはMediaRecorder APIをサポートしていません。");
+                    return;
+                }
+
+                if (currentNewsItemsForSummary.length === 0) {
+                    alert("動画に変換するニュースがありません。まずニュースを読み込んでください。");
+                    return;
+                }
+
+                // news_video_generator.js が期待する形式に変換
+                const newsItemsForVideo = currentNewsItemsForSummary.map(item => ({
+                    title: item.title,
+                    // imageUrl: item.imageUrl // news.html側では画像URLを直接持っていないため、
+                                           // news_video_generator.js側で画像なしの場合の処理を期待
+                }));
+
+                try {
+                    generateVideoButton.disabled = true;
+                    generateVideoButton.textContent = '動画生成中...';
+                    newsCanvas.style.display = 'block'; // 生成中はCanvasを表示
+                    videoOutputArea.innerHTML = ''; // 前回の出力をクリア
+
+                    // generateVideoFromNews 関数に videoOutputArea を渡す
+                    // news_video_generator.js 側でこの引数を受け取り、
+                    // document.body の代わりに videoOutputArea に要素を追加するように修正が必要
+                    await generateVideoFromNews(newsItemsForVideo, newsCanvas, videoOutputArea);
+
+                    // alert("動画の生成が完了しました。ページ下部にプレイヤーとダウンロードリンクが表示されます。");
+                    // generateVideoFromNews内でUIが追加されるので、ここでは不要かも
+                } catch (error) {
+                    console.error("動画生成中にエラーが発生しました:", error);
+                    alert("動画生成中にエラーが発生しました: " + error.message);
+                } finally {
+                    generateVideoButton.disabled = false;
+                    generateVideoButton.textContent = 'ニュース動画を生成 (β)';
+                    // newsCanvas.style.display = 'none'; // 生成後はCanvasを非表示にしても良い
+                }
+            });
+        }
 
 
         // --- 緊急地震速報 (EEW) 機能 ---
