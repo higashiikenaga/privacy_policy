@@ -85,64 +85,64 @@
             overflow-x: auto; /* 横スクロールを可能にする */
             padding-bottom: 15px; /* スクロールバーのためのスペース */
             -webkit-overflow-scrolling: touch; /* iOSでの慣性スクロール */
-            /* scroll-snap-type: x mandatory; */ /* 好みに応じてスナップスクロールを有効化 */
         }
         .news-feed-slider .news-item {
-            flex: 0 0 auto; /* アイテムが縮まないように、また伸びないように */
-            width: 300px; /* 各ニュースアイテムの幅 */
+            flex: 0 0 auto; 
+            width: 300px; 
             margin-right: 15px;
-            border-bottom: none; /* 横並びなので下線は不要 */
-            border-right: 1px solid #eee; /* 右側に区切り線 */
-            padding: 15px; /* パディングをアイテム自体に適用 */
-            box-sizing: border-box; /* パディングとボーダーを幅に含める */
-            /* scroll-snap-align: start; */ /* スナップスクロール使用時 */
+            border-bottom: none; 
+            border-right: 1px solid #eee; 
+            padding: 15px; 
+            box-sizing: border-box; 
         }
         .news-feed-slider .news-item:last-child {
             border-right: none;
             margin-right: 0;
         }
 
-        /* EEWテロップ用のCSS */
         #eew-ticker-container {
-            position: fixed; /* 画面に固定 */
+            position: fixed; 
             top: 0;
             left: 0;
             width: 100%;
-            background-color: rgba(255, 0, 0, 0.8); /* 赤色の半透明背景 */
+            background-color: rgba(255, 0, 0, 0.8); 
             color: white;
             padding: 5px 0;
             font-size: 1.2em;
             font-weight: bold;
-            overflow: hidden; /* テキストがコンテナからはみ出すように */
-            white-space: nowrap; /* テキストを折り返さない */
-            z-index: 1000; /* 他の要素より手前に表示 */
-            display: none; /* 初期状態では非表示 */
-            text-align: center; /* 中央寄せ */
+            overflow: hidden; 
+            white-space: nowrap; 
+            z-index: 1000; 
+            display: none; 
+            text-align: center; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         #eew-ticker-text {
-            display: inline-block; /* アニメーションのために必須 */
-            padding-left: 100%; /* 最初は画面外から開始 */
-            animation: ticker-scroll 20s linear infinite; /* アニメーション設定 */
+            display: inline-block; 
+            padding-left: 100%; 
+            animation: ticker-scroll 20s linear infinite; 
             animation-play-state: running; 
         }
 
-        /* 読み上げ中にテロップアニメーションを一時停止するためのクラス */
         #eew-ticker-text.paused {
             animation-play-state: paused;
         }
 
         @keyframes ticker-scroll {
             0% { transform: translateX(0%); }
-            100% { transform: translateX(-100%); } /* 左にスクロール */
+            100% { transform: translateX(-100%); } 
         }
 
-        /* アラートの種類に応じた色分け */
-        .eew-alert-warning { background-color: rgba(255, 0, 0, 0.9); } /* 警報 */
-        .eew-alert-forecast { background-color: rgba(255, 165, 0, 0.9); } /* 予報 */
-        .eew-alert-cancel { background-color: rgba(0, 0, 255, 0.8); } /* 解除/取消 (ただし、表示されないロジックなので基本使わない) */
+        .eew-alert-warning { background-color: rgba(255, 0, 0, 0.9); } 
+        .eew-alert-forecast { background-color: rgba(255, 165, 0, 0.9); } 
+        .eew-alert-cancel { background-color: rgba(0, 0, 255, 0.8); } 
 
+        #video-loading-indicator {
+            color: #007bff;
+            font-weight: bold;
+            margin-top: 10px;
+        }
     </style>
 </head>
 
@@ -165,86 +165,73 @@
 
     <div class="container">
         <h1>最新ニュース</h1>
-        <!-- news.htmlのインラインスタイルは、style.cssに移行することを推奨します -->
-        <!-- 例: style="margin-bottom: 20px;" は style.css で .global-summary-controls に指定 -->
         <div class="global-summary-controls" style="margin-bottom: 20px;"> 
             <button id="summarize-all-button" style="padding: 8px 15px; font-size: 1em; display: none;">今日のニュースをまとめて聞く (AI)</button>
             <div id="global-summary-output" class="summary-section" style="display: none; margin-top: 15px;"></div>
             <div id="tts-controls" style="margin-top: 10px; display: none;">
                 <p id="tts-status" class="summary-loading" style="font-size: 0.9em; margin-top: 5px;"></p>
             </div>
-            <canvas id="newsCanvas" style="border: 1px solid black; display: none; margin-top: 15px; max-width: 100%;"></canvas> <!-- 初期状態では非表示、レスポンシブ対応 -->
+            <canvas id="newsCanvas" style="border: 1px solid black; display: none; margin-top: 15px; max-width: 100%;"></canvas>
             <button id="generateVideoButton" style="padding: 8px 15px; font-size: 1em; margin-top: 10px; display: none;">ニュース動画を生成 (β)</button>
-            <div id="video-output-area" style="margin-top: 15px;"></div> <!-- 動画プレイヤーとダウンロードリンクの表示エリア -->
+            <p id="video-loading-indicator" style="display: none;">動画を生成しています。しばらくお待ちください...</p>
+            <div id="video-output-area" style="margin-top: 15px;"></div>
         </div>
         <div id="news-feed" class="news-feed-slider">
             <p class="loading">ニュースを読み込んでいます...</p>
         </div>
-        <!-- <li style="margin-top: 20px;"><a href="index.html">トップページ</a></li> -->
     </div>
 
     <footer class="footer">
         <p>&copy; 2025 yukiecho.com. All Rights Reserved.</p>
     </footer>
     <script src="config.js"></script>
-    <script src="news_video_generator.js"></script> <!-- 動画生成スクリプトを読み込み -->
-    <script type="module"> // config.js の読み込み位置はbodyの最後が良いでしょう
-        // Google AI JavaScript SDK のインポート
+    <script src="news_video_generator.js"></script>
+    <script type="module">
         import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.run/@google/generative-ai";
 
-        const MAX_NEWS_ITEMS_TOTAL = 20; // 全フィード合わせて表示する最大件数
+        const MAX_NEWS_ITEMS_TOTAL = 20;
         const EFFECTIVE_GEMINI_API_KEY = window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY;
 
         const rssFeeds = [
             { name: "NHK 主要ニュース", url: "https://www.nhk.or.jp/rss/news/cat0.xml" },
             { name: "BBC World News", url: "http://feeds.bbci.co.uk/news/world/rss.xml" },
             { name: "Bloomberg Markets", url: "https://feeds.bloomberg.com/markets/news.rss" }
-            // 他のフィードも追加可能
         ];
 
         const newsFeedContainer = document.getElementById('news-feed');
         let genAI;
         let model;
-        let currentNewsItemsForSummary = []; // 表示中のニュースデータを保持
+        let currentNewsItemsForSummary = [];
         const ttsControlsDiv = document.getElementById('tts-controls');
-        // 動画生成関連の要素
         const generateVideoButton = document.getElementById('generateVideoButton');
         const newsCanvas = document.getElementById('newsCanvas');
-        const videoOutputArea = document.getElementById('video-output-area'); // videoOutputArea を news_video_generator.js に渡すために取得
+        const videoOutputArea = document.getElementById('video-output-area');
         const ttsStatusElement = document.getElementById('tts-status');
+        const videoLoadingIndicator = document.getElementById('video-loading-indicator'); // 読み込み中インジケータ
 
-        // Gemini APIの初期化
         if (EFFECTIVE_GEMINI_API_KEY && EFFECTIVE_GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY_PLACEHOLDER") {
-            console.log("Gemini API Key found. Initializing Gemini model...");
             try {
                 genAI = new GoogleGenerativeAI(EFFECTIVE_GEMINI_API_KEY);
                 model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-                console.log("Gemini model initialized successfully.");
-                document.getElementById('summarize-all-button').style.display = 'block'; // ボタンを表示
-                if (generateVideoButton) generateVideoButton.style.display = 'block'; // 動画生成ボタンも表示
+                document.getElementById('summarize-all-button').style.display = 'block';
+                if (generateVideoButton) generateVideoButton.style.display = 'block';
             } catch (error) {
                 console.error("Failed to initialize Gemini model:", formatErrorDetail(error.message || error));
                 model = null;
             }
         } else {
-            document.getElementById('summarize-all-button').style.display = 'none'; // ボタンを非表示
-            if (generateVideoButton) generateVideoButton.style.display = 'none'; // 動画生成ボタンも非表示
-            console.warn("Gemini API Key not found or is a placeholder. Summarization feature will be disabled.");
+            document.getElementById('summarize-all-button').style.display = 'none';
+            if (generateVideoButton) generateVideoButton.style.display = 'none';
+            console.warn("Gemini API Key not found or is a placeholder.");
             model = null;
         }
 
-        // エラー詳細を整形するヘルパー関数
         function formatErrorDetail(detail) {
-            if (typeof detail === 'string') {
-                return detail;
-            }
-            if (typeof detail === 'object' && detail !== null) {
-                return JSON.stringify(detail);
-            }
+            if (typeof detail === 'string') return detail;
+            if (typeof detail === 'object' && detail !== null) return JSON.stringify(detail);
             return '不明なエラー詳細';
         }
 
-        // RSSフィードを取得する関数
         async function fetchFeed(feedConfig) {
             const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedConfig.url)}`;
             const response = await fetch(apiUrl);
@@ -252,45 +239,37 @@
                 let errorText = response.statusText;
                 try {
                     const errorData = await response.json();
-                    if (errorData && errorData.message) {
-                        errorText = formatErrorDetail(errorData.message);
-                    }
-                } catch (e) { /* JSONパース失敗時は元のステータステキストを使用 */ }
+                    if (errorData && errorData.message) errorText = formatErrorDetail(errorData.message);
+                } catch (e) { /* ignore */ }
                 throw new Error(`HTTP error! status: ${response.status}, message: ${errorText} for ${feedConfig.name}`);
             }
             const data = await response.json();
             if (data && data.status === 'ok' && Array.isArray(data.items)) {
                 return data.items.map(item => ({ ...item, sourceName: feedConfig.name, sourceUrl: feedConfig.url }));
             } else if (data && data.status === 'error' && data.message) {
-                const errorDetail = data.message;
-                throw new Error(`API error: ${formatErrorDetail(errorDetail)} for ${feedConfig.name}`);
-            } else {
-                throw new Error(`Invalid feed format for ${feedConfig.name}`);
+                throw new Error(`API error: ${formatErrorDetail(data.message)} for ${feedConfig.name}`);
             }
+            throw new Error(`Invalid feed format for ${feedConfig.name}`);
         }
 
-        // 全体要約を生成する関数 (Gemini APIを使用)
         async function generateGlobalSummary() {
             const summaryOutputContainer = document.getElementById('global-summary-output');
             summaryOutputContainer.style.display = 'block';
-            
-            ttsControlsDiv.style.display = 'block'; // TTSコントロールを表示
+            ttsControlsDiv.style.display = 'block';
             ttsStatusElement.textContent = 'ニュース全体の要約を生成中...';
             summaryOutputContainer.innerHTML = `<p class="summary-loading">ニュース全体の要約を生成中...</p>`;
 
             if (!model) {
-                summaryOutputContainer.innerHTML = `<p class="summary-error">Gemini APIキーが設定されていないか、モデルの初期化に失敗しました。</p>`;
+                summaryOutputContainer.innerHTML = `<p class="summary-error">Gemini APIキー未設定またはモデル初期化失敗。</p>`;
                 ttsStatusElement.textContent = '要約機能は利用できません。';
                 return;
             }
-
             if (currentNewsItemsForSummary.length === 0) {
                 summaryOutputContainer.innerHTML = `<p class="summary-error">要約対象のニュースがありません。</p>`;
                 ttsStatusElement.textContent = '要約対象のニュースがありません。';
                 return;
             }
 
-            // HTMLタグを除去してプレーンテキストにする
             let combinedNewsText = currentNewsItemsForSummary.map((item, index) => {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = item.description;
@@ -299,283 +278,140 @@
             }).join("\n\n---\n\n");
 
             if (combinedNewsText.trim().length < 50) {
-                summaryOutputContainer.innerHTML = `<p class="summary-error">要約するにはニュース全体の情報が少なすぎます。</p>`;
+                summaryOutputContainer.innerHTML = `<p class="summary-error">要約するには情報が少なすぎます。</p>`;
                 ttsStatusElement.textContent = '要約する情報が少なすぎます。';
                 return;
             }
 
-            console.log("Attempting to generate global summary with Gemini. Combined text length:", combinedNewsText.length);
-
             try {
-                const generationConfig = {
-                    temperature: 0.7,
-                    topK: 1,
-                    topP: 1,
-                    maxOutputTokens: 800,
-                };
+                const generationConfig = { temperature: 0.7, topK: 1, topP: 1, maxOutputTokens: 800 };
                 const safetySettings = [
-                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
-                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
-                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
-                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE, },
+                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
                 ];
-
-                // 日本時間の現在時刻に基づいて挨拶を決定
                 const now = new Date();
-                const optionsTime = { hour: 'numeric', minute: 'numeric', timeZone: 'Asia/Tokyo', hour12: false };
-                const timeString = now.toLocaleString('ja-JP', optionsTime); // 例: "14:30"
+                const timeString = now.toLocaleString('ja-JP', { hour: 'numeric', minute: 'numeric', timeZone: 'Asia/Tokyo', hour12: false });
                 const currentHour = parseInt(now.toLocaleString('ja-JP', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tokyo' }), 10);
-
-                let greeting = "こんばんは。";
-                if (currentHour >= 5 && currentHour < 11) {
-                    greeting = "おはようございます。";
-                } else if (currentHour >= 11 && currentHour < 18) {
-                    greeting = "こんにちは。";
-                }
-                // 18時以降および5時前は「こんばんは」のまま
-                const newsTimeString = `${timeString.replace(':', '時')}分`; // "14時30分" のような形式
-
-                const prompt = `まず「${greeting.slice(0, -1)}」と挨拶し、続けて「${newsTimeString}のニュースです。」と言ってください。
-
-その後、プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の出来事をレポートしてください。
-構成は以下のようにお願いします。
-
-1.  まず、最も重要な「メインニュース」を1つ選び、詳しく伝えてください。
-2.  次に、注目すべき「ヘッドラインニュース」を3つ程度選び、簡潔に伝えてください。
-3.  続いて、経済ニュースやその他の主要なニュースがあれば、いくつか選んで伝えてください。
-4.  もし、提供されたニュース記事の中にスポーツに関する情報があれば、その後にスポーツニュースとして伝えてください。情報がなければ、この項目は省略してください。「スポーツニュースはありません。」などとは表現せずに省略してください。
-5.  最後に、もし天気に関する情報があれば、気象情報として伝えてください。情報がなければ、この項目は省略してください。「気象情報はありません。」などとは表現せずに省略してください。
-6.  終わりには「ニュースのまとめ」を伝えて、番組を締めてください。
-
-各ニュースの要点を自然な話し言葉で、上記の順番で構成して話してください。
-
-[ニュース記事群ここから]
-${combinedNewsText}
-[ニュース記事群ここまで]`;
+                let greeting = (currentHour >= 5 && currentHour < 11) ? "おはようございます。" : (currentHour >= 11 && currentHour < 18) ? "こんにちは。" : "こんばんは。";
+                const newsTimeString = `${timeString.replace(':', '時')}分`;
+                const prompt = `まず「${greeting.slice(0, -1)}」と挨拶し、続けて「${newsTimeString}のニュースです。」と言ってください。\n\nその後、プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の出来事をレポートしてください。\n構成は以下のようにお願いします。\n\n1.  まず、最も重要な「メインニュース」を1つ選び、詳しく伝えてください。\n2.  次に、注目すべき「ヘッドラインニュース」を3つ程度選び、簡潔に伝えてください。\n3.  続いて、経済ニュースやその他の主要なニュースがあれば、いくつか選んで伝えてください。\n4.  もし、提供されたニュース記事の中にスポーツに関する情報があれば、その後にスポーツニュースとして伝えてください。情報がなければ、この項目は省略してください。「スポーツニュースはありません。」などとは表現せずに省略してください。\n5.  最後に、もし天気に関する情報があれば、気象情報として伝えてください。情報がなければ、この項目は省略してください。「気象情報はありません。」などとは表現せずに省略してください。\n6.  終わりには「ニュースのまとめ」を伝えて、番組を締めてください。\n\n各ニュースの要点を自然な話し言葉で、上記の順番で構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
                 const result = await model.generateContent({ contents: [{ role: "user", parts: [{text: prompt}] }], generationConfig, safetySettings });
                 const summaryText = result.response.text();
-                const summaryHtml = summaryText.replace(/\n/g, '<br>');
-                summaryOutputContainer.innerHTML = `<p>${summaryHtml}</p>`;
-
-                if (summaryText.trim()) {
-                    speakSummary(summaryText.trim());
-                }
-
+                summaryOutputContainer.innerHTML = `<p>${summaryText.replace(/\n/g, '<br>')}</p>`;
+                if (summaryText.trim()) speakSummary(summaryText.trim());
             } catch (error) {
-                summaryOutputContainer.innerHTML = `<p class="summary-error">ニュース全体の要約生成に失敗しました: ${formatErrorDetail(error.message || error)}</p>`;
-                ttsStatusElement.textContent = `要約生成に失敗しました: ${formatErrorDetail(error.message || error)}`;
+                summaryOutputContainer.innerHTML = `<p class="summary-error">要約生成失敗: ${formatErrorDetail(error.message || error)}</p>`;
+                ttsStatusElement.textContent = `要約生成失敗: ${formatErrorDetail(error.message || error)}`;
                 console.error("Gemini API Error for global summary:", error);
             }
         }
 
-        // Web Speech API のインスタンスと日本語音声の管理
         const synth = window.speechSynthesis;
-        let japaneseVoice = null; // 選択された日本語音声
+        let japaneseVoice = null;
 
-        // 日本語の音声を探して設定（一度だけ実行）
         function findJapaneseVoice() {
-            if (!synth) {
-                console.warn("Web Speech API is not supported in this browser.");
-                return;
-            }
+            if (!synth) return;
             const voices = synth.getVoices();
             const jaVoices = voices.filter(voice => voice.lang === 'ja-JP');
-
-            // 男性音声を優先的に探すロジック
-            // よく使われる男性っぽい名前や識別子をヒントにする
             const maleVoiceCandidates = [
-                // Google系
                 v => v.name.includes('Google') && (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男')),
-                // Microsoft系 (Harukaは女性声ですが、システムによっては男性として認識される可能性も考慮。Hiroshiなどがあればより確実)
                 v => v.name.includes('Microsoft') && (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男') || v.name.includes('Hiroshi')),
-                // その他のOS組み込み音声 (例: WindowsのOtoya, Daichi)
                 v => (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男') || v.name.includes('Otoya') || v.name.includes('Daichi'))
             ];
-
             let selectedVoice = null;
             for (const candidateFilter of maleVoiceCandidates) {
                 selectedVoice = jaVoices.find(candidateFilter);
-                if (selectedVoice) {
-                    japaneseVoice = selectedVoice;
-                    console.log("Japanese male voice found and selected:", japaneseVoice.name);
-                    return; // 見つかったら終了
-                }
+                if (selectedVoice) { japaneseVoice = selectedVoice; return; }
             }
-
-            // 男性音声が見つからない場合、一般的な日本語音声（Google系優先）
-            selectedVoice = jaVoices.find(voice => voice.name.includes('Google')) ||
-                            jaVoices.find(voice => voice.name.includes('Microsoft')) ||
-                            jaVoices[0]; // 利用可能な最初の日本語音声
-
-            if (selectedVoice) {
-                japaneseVoice = selectedVoice;
-                console.warn("No specific Japanese male voice found. Using default Japanese voice:", japaneseVoice.name);
-            } else {
-                console.warn("No Japanese voice found at all. Speech synthesis may use browser default voice or fail.");
-            }
+            selectedVoice = jaVoices.find(voice => voice.name.includes('Google')) || jaVoices.find(voice => voice.name.includes('Microsoft')) || jaVoices[0];
+            if (selectedVoice) japaneseVoice = selectedVoice;
         }
 
-        // 音声がロードされたら日本語音声を探す（ブラウザによっては遅延してロードされるため）
         if (synth) {
-            if (synth.onvoiceschanged !== undefined) {
-                synth.onvoiceschanged = findJapaneseVoice;
-            }
-            findJapaneseVoice(); // ページロード時に一度探す
+            if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = findJapaneseVoice;
+            findJapaneseVoice();
         }
 
-        // ニュース要約の読み上げ関数
         async function speakSummary(textToSpeak) {
             if (!synth) {
-                ttsStatusElement.textContent = '音声合成機能は利用できません (ブラウザ非対応)。';
+                ttsStatusElement.textContent = '音声合成機能は利用できません。';
                 ttsControlsDiv.style.display = 'block';
                 return;
             }
-
             ttsControlsDiv.style.display = 'block';
             ttsStatusElement.textContent = '音声を生成中...';
-
-            // 現在読み上げ中の音声があればキャンセル (EEW音声優先のため、ニュース要約は中断可能)
-            if (synth.speaking) {
-                synth.cancel();
-            }
-
+            if (synth.speaking) synth.cancel();
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
             utterance.lang = 'ja-JP';
-            if (japaneseVoice) { // findJapaneseVoiceで選択された音声を使用
-                utterance.voice = japaneseVoice;
-            }
-
-            utterance.rate = 1.05; // 少し早めに設定 (EEWよりはゆっくりめ)
+            if (japaneseVoice) utterance.voice = japaneseVoice;
+            utterance.rate = 1.05;
             utterance.pitch = 1.0;
-
-            utterance.onstart = () => {
-                ttsStatusElement.textContent = '再生中...';
-            };
-            utterance.onend = () => {
-                ttsStatusElement.textContent = '音声の再生が終了しました。';
-            };
-            utterance.onerror = (event) => {
-                ttsStatusElement.textContent = `音声の再生に失敗しました: ${event.error}`;
-                console.error('SpeechSynthesisUtterance.onerror for summary:', event);
-            };
-
+            utterance.onstart = () => { ttsStatusElement.textContent = '再生中...'; };
+            utterance.onend = () => { ttsStatusElement.textContent = '音声の再生が終了しました。'; };
+            utterance.onerror = (event) => { ttsStatusElement.textContent = `音声再生失敗: ${event.error}`; };
             synth.speak(utterance);
-            console.log("Speaking news summary:", textToSpeak.substring(0, 50) + "...");
         }
 
-        // ニュースフィードを取得して表示する関数
         async function fetchAndDisplayNews() {
             newsFeedContainer.innerHTML = `<p class="loading">ニュースを読み込んでいます...</p>`;
             let allItems = [];
-
-            const results = await Promise.allSettled(
-                rssFeeds.map(feedConfig => fetchFeed(feedConfig))
-            );
-
+            const results = await Promise.allSettled(rssFeeds.map(fetchFeed));
             results.forEach(result => {
-                if (result.status === 'fulfilled' && result.value) {
-                    allItems = allItems.concat(result.value);
-                } else if (result.status === 'rejected') {
-                    console.error(`フィード「${result.reason.message.includes("for ") ? result.reason.message.substring(result.reason.message.indexOf("for ") + 4) : "不明"}」の取得に失敗: ${result.reason}`);
-                }
+                if (result.status === 'fulfilled' && result.value) allItems = allItems.concat(result.value);
+                else if (result.status === 'rejected') console.error(`フィード取得失敗: ${result.reason}`);
             });
-
             if (allItems.length === 0) {
-                newsFeedContainer.innerHTML = `<p class="error">表示するニュースがありません。全てのフィードの読み込みに失敗したか、ニュースが空でした。</p>`;
+                newsFeedContainer.innerHTML = `<p class="error">表示するニュースがありません。</p>`;
                 return;
             }
-
-            // ニュースアイテムを公開日でソート（新しいものが上）
-            allItems.sort((a, b) => {
-                try {
-                    const dateA = a.pubDate ? new Date(a.pubDate) : new Date(0);
-                    const dateB = b.pubDate ? new Date(b.pubDate) : new Date(0);
-                    return dateB - dateA;
-                } catch (e) {
-                    return 0; // 日付パースエラーの場合は順序を変更しない
-                }
-            });
-
-            const itemsToRender = allItems.slice(0, MAX_NEWS_ITEMS_TOTAL); // 表示するニュース数を制限
-            // 要約用にニュースデータを保持
-            currentNewsItemsForSummary = itemsToRender.map(item => ({
-                title: item.title,
-                description: item.description,
-                link: item.link,
-                sourceName: item.sourceName
-            }));
-            renderNews(itemsToRender); // ニュースをHTMLにレンダリング
+            allItems.sort((a, b) => (new Date(b.pubDate || 0)) - (new Date(a.pubDate || 0)));
+            const itemsToRender = allItems.slice(0, MAX_NEWS_ITEMS_TOTAL);
+            currentNewsItemsForSummary = itemsToRender.map(item => ({ title: item.title, description: item.description, link: item.link, sourceName: item.sourceName }));
+            renderNews(itemsToRender);
         }
 
-        // ニュースアイテムをHTMLにレンダリングする関数
         function renderNews(items) {
             if (!items || items.length === 0) {
                 newsFeedContainer.innerHTML = "<p class='error'>表示するニュースがありません。</p>";
                 return;
             }
-
-            newsFeedContainer.innerHTML = ''; // 既存のニュースをクリア
-
+            newsFeedContainer.innerHTML = '';
             items.forEach(item => {
                 const newsItemDiv = document.createElement('div');
                 newsItemDiv.classList.add('news-item');
-
                 const titleElement = document.createElement('h2');
                 const linkElement = document.createElement('a');
                 linkElement.href = item.link;
                 linkElement.textContent = item.title;
-                linkElement.target = "_blank"; // 新しいタブで開く
-                linkElement.rel = "noopener noreferrer"; // セキュリティ対策
+                linkElement.target = "_blank";
+                linkElement.rel = "noopener noreferrer";
                 titleElement.appendChild(linkElement);
-
                 const descriptionElement = document.createElement('p');
                 descriptionElement.classList.add('description');
-                // HTMLタグを除去してプレーンテキストにする
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = item.description;
                 let descriptionText = (tempDiv.textContent || tempDiv.innerText || "").trim();
-                const MAX_DESC_LENGTH = 120; // 説明文の最大文字数
-                if (descriptionText.length > MAX_DESC_LENGTH) {
-                    descriptionText = descriptionText.substring(0, MAX_DESC_LENGTH) + "...";
-                }
+                if (descriptionText.length > 120) descriptionText = descriptionText.substring(0, 120) + "...";
                 descriptionElement.textContent = descriptionText;
-
                 const dateElement = document.createElement('p');
                 dateElement.classList.add('date');
                 try {
-                    // 日付を整形して表示
                     if (item.pubDate) {
-                        let dateObj;
-                        // item.pubDate が "YYYY-MM-DD HH:MM:SS" のようなタイムゾーン情報なしの文字列で、
-                        // これがUTC時刻を指していると仮定される場合、明示的にUTCとしてパースします。
-                        // (例: "2023-10-27 00:00:00" がUTCの午前0時を示す場合)
-                        // RFC 822形式やISO 8601形式(Zやオフセット付き)など、
-                        // 既にタイムゾーン情報が含まれる場合は、new Date()がそれを適切に解釈します。
-                        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(item.pubDate) && !item.pubDate.includes('T') && !item.pubDate.match(/[A-Z]{3}$/i) && !item.pubDate.match(/[+-]\d{2}:?\d{2}$/)) {
-                            // 上記条件で、タイムゾーン情報がない "YYYY-MM-DD HH:MM:SS" 形式と判断し、UTCとして扱う
-                            dateObj = new Date(item.pubDate.replace(' ', 'T') + 'Z');
-                        } else {
-                            // それ以外の形式 (タイムゾーン情報がある、または不明な形式) はそのままパース
-                            dateObj = new Date(item.pubDate);
-                        }
+                        let dateObj = (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(item.pubDate) && !item.pubDate.includes('T') && !item.pubDate.match(/[A-Z]{3}$/i) && !item.pubDate.match(/[+-]\d{2}:?\d{2}$/))
+                                      ? new Date(item.pubDate.replace(' ', 'T') + 'Z')
+                                      : new Date(item.pubDate);
                         dateElement.textContent = `公開日: ${dateObj.toLocaleString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })}`;
-                    } else {
-                        dateElement.textContent = '公開日不明';
-                    }
-                } catch (e) {
-                    dateElement.textContent = item.pubDate ? `公開日: ${item.pubDate}` : '公開日不明';
-                }
-
+                    } else { dateElement.textContent = '公開日不明'; }
+                } catch (e) { dateElement.textContent = item.pubDate ? `公開日: ${item.pubDate}` : '公開日不明'; }
                 newsItemDiv.appendChild(titleElement);
                 newsItemDiv.appendChild(descriptionElement);
                 newsItemDiv.appendChild(dateElement);
-
                 if (item.sourceName) {
                     const sourceElement = document.createElement('p');
                     sourceElement.classList.add('date');
-                    sourceElement.style.fontSize = '0.75em';
-                    sourceElement.style.color = '#888';
-                    sourceElement.style.marginTop = '4px';
+                    sourceElement.style.cssText = 'font-size: 0.75em; color: #888; margin-top: 4px;';
                     const sourceLink = document.createElement('a');
                     sourceLink.href = item.sourceUrl || '#';
                     sourceLink.textContent = item.sourceName;
@@ -584,247 +420,131 @@ ${combinedNewsText}
                     sourceElement.appendChild(sourceLink);
                     newsItemDiv.appendChild(sourceElement);
                 }
-
                 newsFeedContainer.appendChild(newsItemDiv);
             });
         }
 
-        // ページ読み込み時にニュースを取得して表示
         fetchAndDisplayNews();
+        document.getElementById('summarize-all-button').addEventListener('click', generateGlobalSummary);
 
-        // 全体要約ボタンのイベントリスナー
-        const summarizeAllBtn = document.getElementById('summarize-all-button');
-        summarizeAllBtn.addEventListener('click', generateGlobalSummary);
-
-        // 動画生成ボタンのイベントリスナー
-        if (generateVideoButton && newsCanvas && videoOutputArea) {
-            // Canvasのサイズを設定 (CSSでも可、アスペクト比16:9)
-            // newsCanvas.width = 854;  // 480p
-            // newsCanvas.height = 480;
-            // より小さいデフォルトサイズ、または親要素に合わせる
+        if (generateVideoButton && newsCanvas && videoOutputArea && videoLoadingIndicator) {
             newsCanvas.width = newsCanvas.parentElement.clientWidth > 854 ? 854 : newsCanvas.parentElement.clientWidth;
             newsCanvas.height = newsCanvas.width * (9/16);
 
-
             generateVideoButton.addEventListener('click', async () => {
-                if (!newsCanvas.getContext) {
-                    alert("お使いのブラウザはCanvasをサポートしていません。");
-                    return;
-                }
-                if (typeof MediaRecorder === 'undefined') {
-                    alert("お使いのブラウザはMediaRecorder APIをサポートしていません。");
-                    return;
-                }
+                if (!newsCanvas.getContext) { alert("お使いのブラウザはCanvasをサポートしていません。"); return; }
+                if (typeof MediaRecorder === 'undefined') { alert("お使いのブラウザはMediaRecorder APIをサポートしていません。"); return; }
+                if (currentNewsItemsForSummary.length === 0) { alert("動画に変換するニュースがありません。"); return; }
 
-                if (currentNewsItemsForSummary.length === 0) {
-                    alert("動画に変換するニュースがありません。まずニュースを読み込んでください。");
-                    return;
-                }
-
-                // news_video_generator.js が期待する形式に変換
-                const newsItemsForVideo = currentNewsItemsForSummary.map(item => ({
+                const newsItemsForVideo = currentNewsItemsForSummary.slice(0, 5).map((item, index) => ({
                     title: item.title,
-                    // imageUrl: item.imageUrl // news.html側では画像URLを直接持っていないため、
-                                           // news_video_generator.js側で画像なしの場合の処理を期待
+                    audioText: item.title,
+                    // imageUrl: `https://source.unsplash.com/random/800x450?news,${index}`, // ダミー画像
+                    backgroundImage: url('back.png'),
+                    slideDuration: 7000
                 }));
+
+                const videoOptions = {
+                    opening: {
+                        title: "本日のニュース",
+                        duration: 5000,
+                        backgroundImage:url(op.mp4),
+                        backgroundColor: "#1a237e",
+                        audioText: "本日の主要なニュースをお伝えします。"
+                    },
+                    defaultSlideDuration: 7000,
+                    voice: japaneseVoice
+                };
+                if (!videoOptions.voice && window.speechSynthesis) {
+                    videoOptions.voice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP' && (v.name.includes('Google') || v.name.includes('Male') || v.name.includes('男性')));
+                }
 
                 try {
                     generateVideoButton.disabled = true;
                     generateVideoButton.textContent = '動画生成中...';
-                    newsCanvas.style.display = 'block'; // 生成中はCanvasを表示
-                    videoOutputArea.innerHTML = ''; // 前回の出力をクリア
-
-                    // generateVideoFromNews 関数に videoOutputArea を渡す
-                    // news_video_generator.js 側でこの引数を受け取り、
-                    // document.body の代わりに videoOutputArea に要素を追加するように修正が必要
-                    await generateVideoFromNews(newsItemsForVideo, newsCanvas, videoOutputArea);
-
-                    // alert("動画の生成が完了しました。ページ下部にプレイヤーとダウンロードリンクが表示されます。");
-                    // generateVideoFromNews内でUIが追加されるので、ここでは不要かも
+                    videoLoadingIndicator.style.display = 'block'; // 読み込み中表示
+                    newsCanvas.style.display = 'block';
+                    videoOutputArea.innerHTML = '';
+                    
+                    await generateVideoFromNews(newsItemsForVideo, newsCanvas, videoOutputArea, videoOptions);
                 } catch (error) {
                     console.error("動画生成中にエラーが発生しました:", error);
                     alert("動画生成中にエラーが発生しました: " + error.message);
                 } finally {
                     generateVideoButton.disabled = false;
                     generateVideoButton.textContent = 'ニュース動画を生成 (β)';
-                    // newsCanvas.style.display = 'none'; // 生成後はCanvasを非表示にしても良い
+                    videoLoadingIndicator.style.display = 'none'; // 読み込み中非表示
+                    // newsCanvas.style.display = 'none'; // 生成後Canvasを非表示にする場合
                 }
             });
         }
 
-
-        // --- 緊急地震速報 (EEW) 機能 ---
         const eewTickerContainer = document.getElementById('eew-ticker-container');
         const eewTickerText = document.getElementById('eew-ticker-text');
-
         const EEW_API_URL = 'https://api.wolfx.jp/jma_eew.json';
-        let lastEEWData = null; // 前回取得したEEWデータを保持
-
-        // EEWの情報を何分以内であれば表示するか（例: 5分以内）
+        let lastEEWData = null;
         const EEW_VALID_DURATION_MINUTES = 5;
 
-        /**
-         * EEW情報を取得し、テロップを更新する
-         */
         async function fetchEEWData() {
             try {
                 const response = await fetch(EEW_API_URL);
-                if (!response.ok) {
-                    throw new Error(`EEW API call failed with status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`EEW API error: ${response.status}`);
                 const currentEEWData = await response.json();
-
-                // データの基本的なバリデーション
-                if (!currentEEWData || typeof currentEEWData !== 'object' || !currentEEWData.Title || !currentEEWData.EventID || !currentEEWData.AnnouncedTime) {
-                    console.log('EEW data is empty or invalid format, or missing key fields.');
-                    eewTickerContainer.style.display = 'none'; // データがない場合は非表示
-                    eewTickerText.textContent = '';
-                    lastEEWData = null; // データがない場合はnullにリセット
-                    return;
+                if (!currentEEWData || !currentEEWData.Title || !currentEEWData.EventID || !currentEEWData.AnnouncedTime) {
+                    eewTickerContainer.style.display = 'none'; lastEEWData = null; return;
                 }
-
-                // AnnouncedTime をチェックし、古すぎるデータは処理しない
                 const announcedTime = new Date(currentEEWData.AnnouncedTime);
-                const currentTime = new Date();
-                const diffMinutes = (currentTime.getTime() - announcedTime.getTime()) / (1000 * 60);
-
-                if (diffMinutes > EEW_VALID_DURATION_MINUTES) {
-                    console.log(`EEW data is too old (announced ${diffMinutes.toFixed(1)} minutes ago). Hiding ticker.`);
-                    eewTickerContainer.style.display = 'none';
-                    eewTickerText.textContent = '';
-                    lastEEWData = null; // 古いデータは記憶しない
-                    return;
+                if ((new Date().getTime() - announcedTime.getTime()) / 60000 > EEW_VALID_DURATION_MINUTES) {
+                    eewTickerContainer.style.display = 'none'; lastEEWData = null; return;
                 }
-                
-                // EventIDとSerialを組み合わせてユニークなIDとし、それが前回と異なるかを判断する
                 const currentEventId = `${currentEEWData.EventID}-${currentEEWData.Serial}`;
                 const lastEventId = lastEEWData ? `${lastEEWData.EventID}-${lastEEWData.Serial}` : null;
-
                 if (currentEventId !== lastEventId) {
-                    console.log('New EEW data received:', currentEEWData);
                     processEEWData(currentEEWData);
-                    lastEEWData = currentEEWData; // データを更新
-                } else {
-                    console.log('EEW data unchanged.');
+                    lastEEWData = currentEEWData;
                 }
-
             } catch (error) {
                 console.error('Failed to fetch EEW data:', error);
-                // エラー時はテロップを非表示にする
-                eewTickerContainer.style.display = 'none';
-                eewTickerText.textContent = '';
-                lastEEWData = null;
+                eewTickerContainer.style.display = 'none'; lastEEWData = null;
             }
         }
 
-        /**
-         * EEWデータを処理し、テロップを表示または更新する
-         * @param {object} eewData - 受信したEEWデータ（単一オブジェクト）
-         */
         function processEEWData(eewData) {
-            // タイプが '取消' または '訓練' の場合はテロップを表示しない
             if (!eewData || eewData.isCancel || eewData.isTraining) {
-                console.log('EEW is cancelled or training data, or invalid. Hiding ticker.');
-                eewTickerContainer.style.display = 'none';
-                eewTickerText.textContent = '';
-                return;
+                eewTickerContainer.style.display = 'none'; return;
             }
-
-            let message = '';
-            let alertClass = '';
-
-            // 'isWarn' プロパティを使用して警報かどうかを判断
-            if (eewData.isWarn) { // isWarn が true の場合は警報
-                const hypocenterName = eewData.Hypocenter || '不明';
-                const depth = eewData.Depth ? `${eewData.Depth}キロメートル` : '不明'; // 読み上げやすいように「km」を「キロメートル」に
-                const magnitude = eewData.Magunitude || '不明'; // 注意: Magunitude (綴りがu)
-                const maxIntensity = eewData.MaxIntensity || '不明'; // 最大予測震度
-                
-                message = `【緊急地震速報 - 警報】震源地: ${hypocenterName}、深さ: 約${depth}、マグニチュード: ${magnitude}。予測最大震度: ${maxIntensity}。強い揺れに警戒してください。`;
+            let message = '', alertClass = '';
+            if (eewData.isWarn) {
+                message = `【緊急地震速報 - 警報】震源地: ${eewData.Hypocenter || '不明'}、深さ: 約${eewData.Depth ? eewData.Depth + 'km' : '不明'}、M${eewData.Magunitude || '不明'}。最大震度${eewData.MaxIntensity || '不明'}。強い揺れに警戒。`;
                 alertClass = 'eew-alert-warning';
-                // ★オプション: 音声読み上げをトリガーする
                 speakEEWAlert(message);
-            } else { // 警報ではない場合（予報、情報更新など）
-                const hypocenterName = eewData.Hypocenter || '不明';
-                const magnitude = eewData.Magunitude || '不明';
-
-                message = `【緊急地震速報 - 予報】震源地: ${hypocenterName}、マグニチュード: ${magnitude}。`;
-                alertClass = 'eew-alert-forecast';
-                // 予報も読み上げる場合は、ここで speakEEWAlert(message); を追加
-                // 現時点では、警報のみ読み上げるように設定しています
-            }
-
-            // テロップの表示と内容更新
-            eewTickerText.textContent = message;
-            eewTickerContainer.className = ''; // クラスをリセット
-            if (alertClass) {
-                eewTickerContainer.classList.add(alertClass);
-            }
-            eewTickerContainer.style.display = 'block'; // テロップコンテナを表示
-
-            // アニメーションのリセットと再開
-            // これにより、新しいメッセージが表示されるたびにアニメーションが最初から始まる
-            eewTickerText.style.animation = 'none';
-            eewTickerText.offsetHeight; // リフローを強制
-            eewTickerText.style.animation = null; // アニメーションを再開
-        }
-
-        // Web Speech APIを使ったEEW読み上げ関数
-        function speakEEWAlert(textToSpeak) {
-            if (!synth) {
-                console.warn("Web Speech API is not supported. Cannot speak EEW alert.");
-                return;
-            }
-            
-            // 現在読み上げ中の音声があればキャンセル（EEWは最優先で割り込む）
-            if (synth.speaking) {
-                synth.cancel();
-            }
-
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
-            utterance.lang = 'ja-JP'; // 日本語を設定
-
-            if (japaneseVoice) { // findJapaneseVoiceで選択された音声を使用
-                utterance.voice = japaneseVoice;
             } else {
-                console.warn("Japanese voice not specifically set for EEW, using default.");
+                message = `【緊急地震速報 - 予報】震源地: ${eewData.Hypocenter || '不明'}、M${eewData.Magunitude || '不明'}。`;
+                alertClass = 'eew-alert-forecast';
             }
-            
-            // スピードとピッチの調整（オプション）
-            utterance.rate = 1.1; // EEWは少し早めに設定 (例: 1.1 - 1.2 あたりが適度)
-            utterance.pitch = 1.0; // ピッチ (0 - 2)。デフォルトは1.0
-
-            synth.speak(utterance);
-            console.log("Speaking EEW alert:", textToSpeak);
-
-            // EEW読み上げ中にテロップのアニメーションを一時停止・再開
-            utterance.onstart = () => {
-                eewTickerText.classList.add('paused'); // CSSでアニメーションを一時停止するクラスを追加
-            };
-            utterance.onend = () => {
-                eewTickerText.classList.remove('paused'); // アニメーションを再開するクラスを削除
-            };
-            utterance.onerror = (event) => {
-                console.error('SpeechSynthesisUtterance.onerror for EEW:', event);
-                eewTickerText.classList.remove('paused'); // エラー時もアニメーション再開
-            };
+            eewTickerText.textContent = message;
+            eewTickerContainer.className = '';
+            if (alertClass) eewTickerContainer.classList.add(alertClass);
+            eewTickerContainer.style.display = 'block';
+            eewTickerText.style.animation = 'none'; eewTickerText.offsetHeight; eewTickerText.style.animation = null;
         }
 
+        function speakEEWAlert(textToSpeak) {
+            if (!synth) return;
+            if (synth.speaking) synth.cancel();
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'ja-JP';
+            if (japaneseVoice) utterance.voice = japaneseVoice;
+            utterance.rate = 1.1; utterance.pitch = 1.0;
+            utterance.onstart = () => eewTickerText.classList.add('paused');
+            utterance.onend = () => eewTickerText.classList.remove('paused');
+            utterance.onerror = () => eewTickerText.classList.remove('paused');
+            synth.speak(utterance);
+        }
 
-        // EEW情報のポーリングを開始
-        const EEW_POLLING_INTERVAL = 3000; // 3秒ごとにEEW情報をチェック (リアルタイム性重視)
-        setInterval(fetchEEWData, EEW_POLLING_INTERVAL);
-
-        // ページロード時に初回取得
+        setInterval(fetchEEWData, 3000);
         fetchEEWData();
-
-        // ページ離脱時に音声読み上げを停止
-        window.addEventListener('beforeunload', () => {
-            if (speechSynthesis && speechSynthesis.speaking) {
-                speechSynthesis.cancel();
-            }
-        });
-
+        window.addEventListener('beforeunload', () => { if (speechSynthesis && speechSynthesis.speaking) speechSynthesis.cancel(); });
     </script>
 </body>
 </html>
