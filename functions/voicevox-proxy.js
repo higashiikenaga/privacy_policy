@@ -49,7 +49,8 @@ export async function onRequest(context) {
   try {
     for (let i = 0; i < 5; i++) { // Max 5 redirects
       const headersToVoicevox = new Headers(); // Use Headers object for easier management
-      headersToVoicevox.set('Accept', clientRequest.headers.get('Accept') || 'application/json');
+      // tts.questのsynthesisはJSONを返すので、Acceptはapplication/jsonを優先
+      headersToVoicevox.set('Accept', 'application/json, */*');
       headersToVoicevox.set('User-Agent', 'VoicevoxProxy/1.0 (+https://yukiecho.com/news)');
 
       if (apiKey && targetApiEndpoint.includes('su-shiki.com')) { // su-shiki.com の場合のみAPIキーを付与（tts.questは不要）
@@ -81,10 +82,12 @@ export async function onRequest(context) {
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers.get('Location');
         if (!location) { // No Location header, treat as final response
+          console.error('[VoicevoxProxy] Redirect status without Location header.');
           const finalResponseHeaders = new Headers(response.headers);
           finalResponseHeaders.set('Access-Control-Allow-Origin', '*');
+          // Content-Typeを適切に設定
+          finalResponseHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
           return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
-          console.error('[VoicevoxProxy] Redirect status without Location header.');
         }
         currentTargetUrl = new URL(location, currentTargetUrl).toString(); // Resolve relative URLs
 
@@ -104,6 +107,8 @@ export async function onRequest(context) {
       } else {
         console.log(`[VoicevoxProxy] Attempt #${i + 1}: Status ${response.status} is final. Returning to client.`);
         const finalResponseHeaders = new Headers(response.headers);
+        // Content-Typeを適切に設定 (tts.questはJSONを返すはず)
+        finalResponseHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
         finalResponseHeaders.set('Access-Control-Allow-Origin', '*'); // Add CORS header
         return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
       }

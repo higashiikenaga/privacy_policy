@@ -38,8 +38,7 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
             const synthResponse = await fetch(`${voicevoxProxyBaseUrl}/synthesis?${queryParams}`, {
                 method: 'GET', // 新しいAPIはGET
                 headers: {
-                    // 'Accept': 'audio/wav' // tts.quest は audio/mpeg を返すことが多い
-                    'Accept': 'audio/wav', // Voicevox APIは通常WAVを返すため、より具体的に指定
+                    'Accept': 'application/json', // プロキシはJSONを返すように変更
                     ...(apiKey && voicevoxProxyBaseUrl.includes('voicevox-proxy') ? {'X-Custom-Voicevox-Key': apiKey} : {})
                 },
                 // body: JSON.stringify(audioQuery) // GETなのでボディは不要
@@ -53,13 +52,36 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
                         errorDetail += `, Body: ${bodyText.substring(0, 200)}`; // Limit body length in log
                     }
                 } catch (e) { /* ignore if body cannot be read */ }
-                console.error(`[speakWithVoicevox] Voicevox synthesis failed: ${errorDetail}`);
-                reject(new Error(`Voicevox synthesis failed: ${errorDetail}`));
+                console.error(`[speakWithVoicevox] Voicevox synthesis request failed: ${errorDetail}`);
+                reject(new Error(`Voicevox synthesis request failed: ${errorDetail}`));
                 return;
             }
 
-            const audioWavBlob = await synthResponse.blob();
-            const audioUrl = URL.createObjectURL(audioWavBlob);
+            const synthesisResult = await synthResponse.json();
+            console.log('[speakWithVoicevox] Synthesis API Result:', synthesisResult);
+
+            if (!synthesisResult.success || (!synthesisResult.mp3DownloadUrl && !synthesisResult.wavDownloadUrl)) {
+                const errorMsg = `Voicevox synthesis was not successful or no audio URL found. Success: ${synthesisResult.success}, Message: ${synthesisResult.message || 'N/A'}`;
+                console.error(`[speakWithVoicevox] ${errorMsg}`);
+                reject(new Error(errorMsg));
+                return;
+            }
+
+            // MP3を優先し、なければWAVを使用
+            const audioDownloadUrl = synthesisResult.mp3DownloadUrl || synthesisResult.wavDownloadUrl;
+            console.log(`[speakWithVoicevox] Attempting to download audio from: ${audioDownloadUrl}`);
+
+            const audioFileResponse = await fetch(audioDownloadUrl);
+            if (!audioFileResponse.ok) {
+                const errorMsg = `Failed to download audio file from ${audioDownloadUrl}. Status: ${audioFileResponse.status}`;
+                console.error(`[speakWithVoicevox] ${errorMsg}`);
+                reject(new Error(errorMsg));
+                return;
+            }
+
+            const audioBlob = await audioFileResponse.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+            console.log(`[speakWithVoicevox] Audio file downloaded and blob URL created: ${audioUrl}, Type: ${audioBlob.type}`);
             const audio = new Audio(audioUrl);
             
             let resolved = false;
