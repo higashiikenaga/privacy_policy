@@ -111,7 +111,7 @@ function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeigh
     const maxHeadlineWidth = canvasWidth - (paddingX * 2); // 最大幅もパディングに合わせて調整 (右パディングも考慮)
 
     ctx.fillStyle = 'black'; //「ヘッドライン一覧」の文字色
-    const listTitleFont = `${canvasHeight * 0.03}px 'Noto Sans JP', Arial, sans-serif`;
+    const listTitleFont = `${canvasHeight * 0.5}px 'Noto Sans JP', Arial, sans-serif`;
     ctx.font = listTitleFont;
     ctx.fillText("ヘッドライン一覧:", paddingX, startY - lineHeight * 0.5); // 描画開始位置をpaddingXに合わせる
     startY += lineHeight; // 「ヘッドライン一覧:」の下からのマージンを確保
