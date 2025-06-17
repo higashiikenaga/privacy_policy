@@ -229,7 +229,7 @@ function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeigh
  * @param {HTMLElement} outputContainer 生成された動画プレイヤーとリンクを表示するコンテナ
  * @param {Object} options 動画生成オプション
  */
-async function generateVideoFromNews(newsItems, canvasElement, outputContainer, options = {voicevoxApiKey:"v10-K5T38336107"}) {
+async function generateVideoFromNews(newsItems, canvasElement, outputContainer, options = {}) {
   const ctx = canvasElement.getContext('2d');
   console.log('[VideoGen] Received options:', JSON.parse(JSON.stringify(options, (key, value) => key === 'voice' && value instanceof SpeechSynthesisVoice ? {name: value.name, lang: value.lang} : value)));
   
