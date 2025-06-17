@@ -112,8 +112,14 @@ export async function onRequest(context) {
         // Check if the response from tts.quest was successful before assuming JSON
         if (!response.ok) {
           // If tts.quest returned an error, pass that status and body through
-          // but ensure Access-Control-Allow-Origin is set.
           console.warn(`[VoicevoxProxy] Target API responded with error: ${response.status}`);
+          try {
+            const errorBodyText = await response.clone().text(); // Clone to read body, original body still usable for client
+            console.warn(`[VoicevoxProxy] Target API error body (first 500 chars): ${errorBodyText.substring(0, 500)}`);
+          } catch (e) {
+            console.warn('[VoicevoxProxy] Could not read target API error body:', e.message);
+          }
+          // The Content-Type here will be whatever tts.quest sent for its error page.
         } else {
           finalResponseHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
         }
