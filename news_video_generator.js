@@ -34,10 +34,15 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
             });
 
             if (!queryResponse.ok) {
-                let errorText = `Status: ${queryResponse.status}`;
-                try { errorText = await queryResponse.text(); } catch (e) { /* ignore */ }
-                console.error(`[speakWithVoicevox] Voicevox audio_query failed: ${errorText}`);
-                reject(new Error(`Voicevox audio_query failed: ${errorText}`));
+                let errorDetail = `Status: ${queryResponse.status} ${queryResponse.statusText || ''}`.trim();
+                try {
+                    const bodyText = await queryResponse.text();
+                    if (bodyText) {
+                        errorDetail += `, Body: ${bodyText.substring(0, 200)}`; // Limit body length in log
+                    }
+                } catch (e) { /* ignore if body cannot be read */ }
+                console.error(`[speakWithVoicevox] Voicevox audio_query failed: ${errorDetail}`);
+                reject(new Error(`Voicevox audio_query failed: ${errorDetail}`));
                 return;
             }
             const audioQuery = await queryResponse.json();
@@ -55,10 +60,15 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
             });
 
             if (!synthResponse.ok) {
-                let errorText = `Status: ${synthResponse.status}`;
-                try { errorText = await synthResponse.text(); } catch (e) { /* ignore */ }
-                console.error(`[speakWithVoicevox] Voicevox synthesis failed: ${errorText}`);
-                reject(new Error(`Voicevox synthesis failed: ${errorText}`));
+                let errorDetail = `Status: ${synthResponse.status} ${synthResponse.statusText || ''}`.trim();
+                try {
+                    const bodyText = await synthResponse.text();
+                    if (bodyText) {
+                        errorDetail += `, Body: ${bodyText.substring(0, 200)}`; // Limit body length in log
+                    }
+                } catch (e) { /* ignore if body cannot be read */ }
+                console.error(`[speakWithVoicevox] Voicevox synthesis failed: ${errorDetail}`);
+                reject(new Error(`Voicevox synthesis failed: ${errorDetail}`));
                 return;
             }
 
