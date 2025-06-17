@@ -143,6 +143,16 @@ function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeigh
 async function generateVideoFromNews(newsItems, canvasElement, outputContainer, options = {}) {
   console.log('[VideoGen] ENTERING generateVideoFromNews function. Options:', options);
   const ctx = canvasElement.getContext('2d');
+
+  // 動画解説ニュースを除外する処理 (item.isVideoNews を使用)
+  const filteredNewsItems = newsItems.filter(item => {
+    if (item.isVideoNews === true) {
+      console.log(`[VideoGen] Excluding video news item: "${item.title}" (URL: ${item.link || 'N/A'})`);
+      return false; // 除外
+    }
+    return true; // 保持
+  });
+
   // 動画生成時にcanvasを非表示にする
   canvasElement.style.display = 'none';
 
@@ -312,8 +322,8 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
   }
 
   // --- ニュースアイテムシーン ---
-  for (let i = 0; i < newsItems.length; i++) {
-    const item = newsItems[i];
+  for (let i = 0; i < filteredNewsItems.length; i++) {
+    const item = filteredNewsItems[i];
     console.log(`[VideoGen] Item Scene: Starting generation for item ${i + 1}: "${item.title.substring(0,50)}..."`);
 
     // このアイテムで使用する背景画像とニュース画像を事前にロード/準備
@@ -332,20 +342,28 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     let newsImageDrawParams = null;
 
     let newsImageUrlToLoad = item.imageUrl;
-    // item.imageUrl がない場合、item.link (ニュース記事のURLと仮定) からOGP画像取得を試みる
-    if (!newsImageUrlToLoad && item.link) {
-        console.log(`[VideoGen] Item Scene: item.imageUrl not found for "${item.title.substring(0,50)}...". Attempting to fetch OGP image from ${item.link}`);
+
+    if (!newsImageUrlToLoad && item.ogpImageUrl) {
+        // item.imageUrl がなく、item.ogpImageUrl が事前に設定されていればそれを使用
+        console.log(`[VideoGen] Item Scene: item.imageUrl not found for "${item.title.substring(0,50)}...". Using pre-fetched OGP image from item.ogpImageUrl: ${item.ogpImageUrl}`);
+        newsImageUrlToLoad = item.ogpImageUrl;
+    } else if (!newsImageUrlToLoad && item.link) {
+        // item.imageUrl も item.ogpImageUrl もない場合、item.link から OGP 画像取得を試みる
+        console.log(`[VideoGen] Item Scene: No primary image or pre-fetched OGP image for "${item.title.substring(0,50)}...". Attempting to fetch OGP image dynamically from link: ${item.link}`);
         try {
-            const ogpImage = await fetchOgpImageUrl(item.link);
-            if (ogpImage) {
-                newsImageUrlToLoad = ogpImage;
-                console.log(`[VideoGen] Item Scene: Using OGP image "${newsImageUrlToLoad}" for "${item.title.substring(0,50)}..."`);
+            const dynamicallyFetchedOgpImage = await fetchOgpImageUrl(item.link);
+            if (dynamicallyFetchedOgpImage) {
+                newsImageUrlToLoad = dynamicallyFetchedOgpImage;
+                console.log(`[VideoGen] Item Scene: Successfully fetched OGP image dynamically: "${newsImageUrlToLoad}" for "${item.title.substring(0,50)}..."`);
             } else {
-                console.log(`[VideoGen] Item Scene: OGP image not found or failed to fetch for "${item.title.substring(0,50)}...". No news image will be loaded.`);
+                console.log(`[VideoGen] Item Scene: Failed to fetch OGP image dynamically from link for "${item.title.substring(0,50)}...". No news image will be loaded.`);
             }
         } catch (e) {
-            console.warn(`[VideoGen] Item Scene: Error during OGP image fetching for "${item.title.substring(0,50)}...": ${e.message}`);
+            console.warn(`[VideoGen] Item Scene: Error during dynamic OGP image fetching for "${item.title.substring(0,50)}...": ${e.message}`);
         }
+    } else if (!newsImageUrlToLoad) {
+        // item.imageUrl も item.ogpImageUrl もなく、item.link もない (またはOGP取得に失敗した) 場合
+        console.log(`[VideoGen] Item Scene: No primary image (item.imageUrl) or OGP image (item.ogpImageUrl) found for "${item.title.substring(0,50)}...". No news image will be loaded.`);
     }
 
     if (newsImageUrlToLoad) {
@@ -439,7 +457,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         }
 
         // 3. ヘッドライン一覧描画
-        drawHeadlines(ctx, newsItems, i, canvasElement.width, canvasElement.height);
+        drawHeadlines(ctx, filteredNewsItems, i, canvasElement.width, canvasElement.height);
 
         // 4. ニュース画像描画 (itemNewsImageElement またはプレースホルダー)
         if (newsImageDrawParams) {
@@ -500,7 +518,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
                 const tickerTapeY = canvasElement.height - tickerTapeHeight;
                 ctx.drawImage(mainTitleBgLoadedImg, 0, tickerTapeY, canvasElement.width, tickerTapeHeight);
             }
-            drawHeadlines(ctx, newsItems, i, canvasElement.width, canvasElement.height);
+            drawHeadlines(ctx, filteredNewsItems, i, canvasElement.width, canvasElement.height);
             if (newsImageDrawParams) {
                 console.log(`[VideoGen] Item Scene (Frame ${Math.round(elapsed/frameDuration)}): Drawing news image. Params:`, JSON.stringify(newsImageDrawParams, (k,v) => v instanceof HTMLImageElement ? {src: v.src, complete: v.complete} : v), `Actual img object:`, newsImageDrawParams.img);
                 ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
