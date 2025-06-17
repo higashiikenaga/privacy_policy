@@ -74,6 +74,7 @@ export async function onRequest(context) {
         redirect: 'manual', // Keep manual
       });
       console.log(`[VoicevoxProxy] Attempt #${i + 1}: Received status ${response.status} from ${currentTargetUrl}`);
+      console.log(`[VoicevoxProxy] Attempt #${i + 1}: Upstream Content-Type: ${response.headers.get('Content-Type')}`);
       response.headers.forEach((value, key) => {
         console.log(`[VoicevoxProxy] Attempt #${i + 1}: Response Header from Voicevox: ${key}: ${value}`);
       });
@@ -86,6 +87,10 @@ export async function onRequest(context) {
           const finalResponseHeaders = new Headers(response.headers);
           finalResponseHeaders.set('Access-Control-Allow-Origin', '*');
           // Content-Typeを適切に設定
+          console.log(`[VoicevoxProxy] Redirect (no location) - Final headers to client:`);
+          finalResponseHeaders.forEach((value, key) => {
+            console.log(`[VoicevoxProxy] Client-bound Header (Redirect no loc): ${key}: ${value}`);
+          });
           finalResponseHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
           return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
         }
@@ -139,11 +144,19 @@ export async function onRequest(context) {
           const errorResponsePayload = { success: false, message: errorMessage, detail: errorBodyDetail };
           finalResponseHeaders.set('Content-Type', 'application/json; charset=utf-8');
           finalResponseHeaders.set('Access-Control-Allow-Origin', '*');
+          console.log(`[VoicevoxProxy] Error path - Final headers to client:`);
+          finalResponseHeaders.forEach((value, key) => {
+            console.log(`[VoicevoxProxy] Client-bound Header (Error path): ${key}: ${value}`);
+          });
           return new Response(JSON.stringify(errorResponsePayload), { status: clientStatus, headers: finalResponseHeaders });
         } else {
           // Upstream response is OK and Content-Type is (presumably) application/json or will be defaulted
           finalResponseHeaders.set('Content-Type', upstreamContentType || 'application/json'); // Preserve upstream or default
           finalResponseHeaders.set('Access-Control-Allow-Origin', '*'); // Add CORS header
+          console.log(`[VoicevoxProxy] Success path - Final headers to client:`);
+          finalResponseHeaders.forEach((value, key) => {
+            console.log(`[VoicevoxProxy] Client-bound Header (Success path): ${key}: ${value}`);
+          });
           return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
         }
       }
