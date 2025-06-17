@@ -319,7 +319,9 @@
 
             currentNewsItemsForVideo = itemsToRender.map(item => ({
                 title: item.title, description: item.description, link: item.link,
-                sourceName: item.sourceName, imageUrl: item.imageUrl // OGP画像のURLを格納
+                sourceName: item.sourceName,
+                imageUrl: item.imageUrl,      // OGP画像のURLをimageUrlに格納
+                ogpImageUrl: item.imageUrl    // news_video_generator.js で参照される可能性のあるogpImageUrlにも同じ値を設定
             }));
 
             renderNews(itemsToRender);

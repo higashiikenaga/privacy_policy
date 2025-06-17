@@ -343,6 +343,9 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
     let newsImageUrlToLoad = item.imageUrl;
 
+    // デバッグログ: 画像URL選択前の item の状態を確認
+    console.log(`[VideoGen] Debug Img Select: Item: "${item.title.substring(0,30)}...", imageUrl: "${item.imageUrl}", ogpImageUrl: "${item.ogpImageUrl}", link: "${item.link}"`);
+
     if (!newsImageUrlToLoad && item.ogpImageUrl) {
         // item.imageUrl がなく、item.ogpImageUrl が事前に設定されていればそれを使用
         console.log(`[VideoGen] Item Scene: item.imageUrl not found for "${item.title.substring(0,50)}...". Using pre-fetched OGP image from item.ogpImageUrl: ${item.ogpImageUrl}`);
