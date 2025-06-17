@@ -1,170 +1,114 @@
 export async function onRequest(context) {
-  const { request: clientRequest } = context; // Renamed for clarity
+  const { request: clientRequest, env } = context;
   const clientRequestUrl = new URL(clientRequest.url);
 
-  console.log(`[VoicevoxProxy] Received request: ${clientRequest.method} ${clientRequestUrl.pathname}${clientRequestUrl.search}`);
-  clientRequest.headers.forEach((value, key) => {
-    console.log(`[VoicevoxProxy] Client Request Header: ${key}: ${value}`);
+  console.log(`[VoicevoxProxy] Request: ${clientRequest.method} ${clientRequestUrl.pathname}${clientRequestUrl.search}`);
+
+  const voicevoxPath = clientRequestUrl.pathname.replace(/^\/voicevox-proxy/, '');
+
+  if (voicevoxPath !== '/synthesis' && voicevoxPath !== '/audio_query') {
+    const message = `Unsupported API path: ${voicevoxPath}. Only /synthesis or /audio_query are supported.`;
+    console.warn(`[VoicevoxProxy] ${message}`);
+    return new Response(JSON.stringify({ success: false, message }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+
+  const text = clientRequestUrl.searchParams.get('text');
+  const speaker = clientRequestUrl.searchParams.get('speaker');
+
+  if (!text || !speaker) {
+    const missingParams = ['text', 'speaker'].filter(p => !clientRequestUrl.searchParams.get(p));
+    const message = `Missing query parameter(s): ${missingParams.join(', ')}. Both 'text' and 'speaker' are required.`;
+    console.warn(`[VoicevoxProxy] Bad request: ${message}`);
+    return new Response(JSON.stringify({ success: false, message }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+
+  const targetApiEndpoint = 'https://api.tts.quest/v3/voicevox/synthesis';
+  const targetUrl = new URL(targetApiEndpoint);
+  targetUrl.searchParams.set('text', text);
+  targetUrl.searchParams.set('speaker', speaker);
+
+  const headersToVoicevox = new Headers({
+    'Accept': 'application/json',
+    'User-Agent': 'VoicevoxProxy/1.1 (+https://yukiecho.com/news)',
   });
 
-
-  // クライアントからのリクエストパスをVoicevox APIのパスにマッピング
-  // 例: /voicevox-proxy/audio_query -> /audio_query
-  const voicevoxPath = clientRequestUrl.pathname.replace(/^\/voicevox-proxy/, '');
-  if (!voicevoxPath) {
-    console.error('[VoicevoxProxy] Voicevox API path missing');
-    return new Response('Voicevox API path missing', { status: 400 });
-  }
-
-  // 新しいAPIエンドポイント形式に対応
-  let targetApiEndpoint = '';
-  const queryParams = new URLSearchParams();
-
-  if (voicevoxPath === '/audio_query' || voicevoxPath === '/synthesis') {
-    // audio_query と synthesis の両方を新しい synthesis エンドポイントにマッピング
-    targetApiEndpoint = 'https://api.tts.quest/v3/voicevox/synthesis';
-    // クライアントからのクエリパラメータを取得
-    const text = clientRequestUrl.searchParams.get('text');
-    const speaker = clientRequestUrl.searchParams.get('speaker');
-
-    if (text) queryParams.set('text', text);
-    if (speaker) queryParams.set('speaker', speaker);
-  } else {
-    console.error(`[VoicevoxProxy] Unsupported path: ${voicevoxPath}`);
-    return new Response(`Unsupported API path: ${voicevoxPath}`, { status: 400 });
-  }
-
-  let currentTargetUrl = `${targetApiEndpoint}?${queryParams.toString()}`;
-
-  // クライアントから送られてきたAPIキーを取得
-  const apiKey = clientRequest.headers.get('X-Custom-Voicevox-Key');
-  console.log(`[VoicevoxProxy] API Key from client: ${apiKey ? 'Present' : 'Not Present'}`);
-  // 新しいAPIはGETメソッドで、ボディは不要
-  const initialMethod = 'GET'; // メソッドをGETに固定
-  const initialBody = null;    // ボディは不要
-
-  let currentMethod = initialMethod; // 常にGET
-  let currentBody = initialBody;   // 常にnull
-
   try {
-    for (let i = 0; i < 5; i++) { // Max 5 redirects
-      const headersToVoicevox = new Headers(); // Use Headers object for easier management
-      // tts.questのsynthesisはJSONを返すので、Acceptはapplication/jsonを優先
-      headersToVoicevox.set('Accept', 'application/json, */*');
-      headersToVoicevox.set('User-Agent', 'VoicevoxProxy/1.0 (+https://yukiecho.com/news)');
+    console.log(`[VoicevoxProxy] Fetching: GET ${targetUrl.toString()}`);
+    const responseFromVoicevox = await fetch(targetUrl.toString(), {
+      method: 'GET',
+      headers: headersToVoicevox,
+      // redirect: 'follow' は fetch のデフォルトなので省略可
+    });
 
-      if (apiKey && targetApiEndpoint.includes('su-shiki.com')) { // su-shiki.com の場合のみAPIキーを付与（tts.questは不要）
-        headersToVoicevox.set('X-Su-Shiki-Key', apiKey);
+    const upstreamStatus = responseFromVoicevox.status;
+    const upstreamContentType = responseFromVoicevox.headers.get('Content-Type');
+    console.log(`[VoicevoxProxy] Upstream status: ${upstreamStatus}, Content-Type: ${upstreamContentType}`);
+
+    const responseHeaders = new Headers();
+    responseHeaders.set('Access-Control-Allow-Origin', '*');
+    // クライアントはJSONを期待しているので、Content-Typeは 'application/json' にする
+    responseHeaders.set('Content-Type', 'application/json; charset=utf-8');
+
+
+    if (!responseFromVoicevox.ok || (responseFromVoicevox.ok && upstreamContentType && !upstreamContentType.toLowerCase().startsWith('application/json'))) {
+      let errorMessage;
+      let clientStatus = upstreamStatus;
+      let errorDetail = `Upstream API status: ${upstreamStatus} ${responseFromVoicevox.statusText || ''}, Content-Type: ${upstreamContentType || 'N/A'}`;
+
+      if (responseFromVoicevox.ok) { // Upstream sent 2xx but with wrong content type
+        errorMessage = `Target API responded with 2xx status (${upstreamStatus}) but unexpected Content-Type: '${upstreamContentType}'. Expected 'application/json'.`;
+        clientStatus = 502; // Bad Gateway
+        console.warn(`[VoicevoxProxy] ${errorMessage}`);
+      } else { // Upstream sent a non-2xx error status
+        errorMessage = `Target API responded with error: ${upstreamStatus} ${responseFromVoicevox.statusText || ''}`;
+        console.warn(`[VoicevoxProxy] ${errorMessage}`);
       }
-      // GETリクエストなのでContent-Typeは不要
 
-      console.log(`[VoicevoxProxy] Attempt #${i + 1}: Fetching ${currentMethod} ${currentTargetUrl}`);
-      headersToVoicevox.forEach((value, key) => {
-        console.log(`[VoicevoxProxy] Attempt #${i + 1}: Request Header to Voicevox: ${key}: ${value}`);
-      });
-      if (currentBody) {
-        console.log(`[VoicevoxProxy] Attempt #${i + 1}: Sending body of size ${currentBody.byteLength}`);
-      } // currentBodyは常にnullのはず
-
-
-      const response = await fetch(currentTargetUrl, {
-        method: currentMethod,
-        headers: headersToVoicevox,
-        body: currentBody,
-        redirect: 'manual', // Keep manual
-      });
-      console.log(`[VoicevoxProxy] Attempt #${i + 1}: Received status ${response.status} from ${currentTargetUrl}`);
-      console.log(`[VoicevoxProxy] Attempt #${i + 1}: Upstream Content-Type: ${response.headers.get('Content-Type')}`);
-      response.headers.forEach((value, key) => {
-        console.log(`[VoicevoxProxy] Attempt #${i + 1}: Response Header from Voicevox: ${key}: ${value}`);
-      });
-
-
-      if ([301, 302, 303, 307, 308].includes(response.status)) {
-        const location = response.headers.get('Location');
-        if (!location) { // No Location header, treat as final response
-          console.error('[VoicevoxProxy] Redirect status without Location header.');
-          const finalResponseHeaders = new Headers(response.headers);
-          finalResponseHeaders.set('Access-Control-Allow-Origin', '*');
-          // Content-Typeを適切に設定
-          console.log(`[VoicevoxProxy] Redirect (no location) - Final headers to client:`);
-          finalResponseHeaders.forEach((value, key) => {
-            console.log(`[VoicevoxProxy] Client-bound Header (Redirect no loc): ${key}: ${value}`);
-          });
-          finalResponseHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
-          return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
-        }
-        currentTargetUrl = new URL(location, currentTargetUrl).toString(); // Resolve relative URLs
-
-        // Adjust method and body for the next request based on redirect type
-        console.log(`[VoicevoxProxy] Redirect detected (status ${response.status}). New target: ${currentTargetUrl}`);
-        if (response.status === 303) {
-          console.log(`[VoicevoxProxy] Applying 303 redirect logic: method to GET, clear body.`);
-          currentMethod = 'GET';
-          currentBody = null;
-        } else { // Handles 301, 302, 307, 308
-          console.log(`[VoicevoxProxy] Applying ${response.status} redirect logic: restoring initial method and body.`);
-          currentMethod = initialMethod; // 常にGET
-          currentBody = initialBody;   // 常にnull
-        }
-        console.log(`[VoicevoxProxy] Next request will be: Method=${currentMethod}, HasBody=${!!currentBody}`);
-        continue; // Attempt next request in the redirect chain
-      } else {
-        // Not a redirect, treat as final response from target API
-        console.log(`[VoicevoxProxy] Attempt #${i + 1}: Status ${response.status} is final. Returning to client.`);
-        const finalResponseHeaders = new Headers(response.headers);
-        const upstreamContentType = response.headers.get('Content-Type');
-
-        // If the upstream response is not OK, or if it's OK but not JSON (which client expects),
-        // then construct a JSON error response.
-        if (!response.ok || (response.ok && upstreamContentType && !upstreamContentType.toLowerCase().startsWith('application/json'))) {
-          let errorMessage;
-          let clientStatus = response.status;
-          let errorBodyDetail = `Upstream API status: ${response.status} ${response.statusText || ''}, Content-Type: ${upstreamContentType || 'N/A'}`;
-
-          if (response.ok) { // Upstream sent 2xx but with wrong content type
-            errorMessage = `[VoicevoxProxy] Target API responded with 2xx status (${response.status}) but unexpected Content-Type: '${upstreamContentType}'. Expected 'application/json'.`;
-            clientStatus = 502; // Bad Gateway, as proxy received invalid response from upstream
-            console.warn(errorMessage);
-          } else { // Upstream sent a non-2xx error status
-            errorMessage = `[VoicevoxProxy] Target API responded with error: ${response.status} ${response.statusText || ''}`;
-            console.warn(errorMessage);
-          }
-
-          try {
-            // response.bodyがnullの場合があるため、clone()前にチェック
-            if (response.body) {
-              const bodyText = await response.clone().text(); // Clone to read body
-              console.warn(`[VoicevoxProxy] Target API response body (first 500 chars): ${bodyText.substring(0, 500)}`);
-              errorBodyDetail = bodyText.substring(0, 1000); // Include part of the upstream body in our JSON error
+      try {
+        const bodyText = await responseFromVoicevox.text();
+        console.warn(`[VoicevoxProxy] Upstream response body (first 500 chars): ${bodyText.substring(0, 500)}`);
+        // Try to parse and use detail from upstream error if available
+        try {
+            const parsedError = JSON.parse(bodyText);
+            if (parsedError && parsedError.detail) {
+                errorMessage = `Target API error: ${parsedError.detail}`;
+            } else if (parsedError && parsedError.message) {
+                errorMessage = `Target API error: ${parsedError.message}`;
+            } else if (bodyText.length < 200 && bodyText.length > 0) {
+                errorMessage = `Target API error (${upstreamStatus}): ${bodyText}`;
             }
-          } catch (e) {
-            console.warn('[VoicevoxProxy] Could not read target API response body:', e.message);
-          }
-          const errorResponsePayload = { success: false, message: errorMessage, detail: errorBodyDetail };
-          finalResponseHeaders.set('Content-Type', 'application/json; charset=utf-8');
-          finalResponseHeaders.set('Access-Control-Allow-Origin', '*');
-          console.log(`[VoicevoxProxy] Error path - Final headers to client:`);
-          finalResponseHeaders.forEach((value, key) => {
-            console.log(`[VoicevoxProxy] Client-bound Header (Error path): ${key}: ${value}`);
-          });
-          return new Response(JSON.stringify(errorResponsePayload), { status: clientStatus, headers: finalResponseHeaders });
-        } else {
-          // Upstream response is OK and Content-Type is (presumably) application/json or will be defaulted
-          finalResponseHeaders.set('Content-Type', upstreamContentType || 'application/json'); // Preserve upstream or default
-          finalResponseHeaders.set('Access-Control-Allow-Origin', '*'); // Add CORS header
-          console.log(`[VoicevoxProxy] Success path - Final headers to client:`);
-          finalResponseHeaders.forEach((value, key) => {
-            console.log(`[VoicevoxProxy] Client-bound Header (Success path): ${key}: ${value}`);
-          });
-          return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
-        }
+        } catch (e) { /* ignore JSON parse error, use previous errorMessage */ }
+        errorDetail = bodyText.substring(0, 1000); // Include part of the upstream body in our JSON error
+      } catch (e) {
+        console.warn('[VoicevoxProxy] Could not read target API response body:', e.message);
       }
+
+      return new Response(JSON.stringify({ success: false, message: errorMessage, detail: errorDetail }), {
+        status: clientStatus,
+        headers: responseHeaders,
+      });
     }
-    console.error('[VoicevoxProxy] Too many redirects.');
-    return new Response('Too many redirects', { status: 508 }); // Loop Detected
+
+    // Success: Upstream response is OK and Content-Type is application/json
+    // The body from tts.quest should be { success: true, mp3DownloadUrl: ..., ... }
+    // We pass it through.
+    return new Response(responseFromVoicevox.body, {
+      status: upstreamStatus,
+      headers: responseHeaders, // Already set Content-Type to application/json
+    });
+
   } catch (error) {
-    console.error('[VoicevoxProxy] Error in proxy:', error.message, error.stack);
-    return new Response(`Error proxying to Voicevox API: ${error.message}`, { status: 500 });
+    console.error('[VoicevoxProxy] General proxy error:', error.message, error.stack);
+    const message = `Proxy error: ${error.message}`;
+    return new Response(JSON.stringify({ success: false, message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' },
+    });
   }
 }
