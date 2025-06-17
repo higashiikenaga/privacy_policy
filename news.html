@@ -234,7 +234,9 @@
 
         async function fetchFeed(feedConfig) {
             try {
-                const response = await fetch(feedConfig.url);
+                // プロキシ経由でフィードを取得
+                const proxyUrl = `/rss-proxy?url=${encodeURIComponent(feedConfig.url)}`;
+                const response = await fetch(proxyUrl);
                 if (!response.ok) {
                     throw new Error(`Failed to fetch ${feedConfig.name}: ${response.status} ${response.statusText}`);
                 }
