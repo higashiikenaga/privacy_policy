@@ -57,7 +57,16 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
                 return;
             }
 
-            const synthesisResult = await synthResponse.json();
+            const contentType = synthResponse.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const errorBody = await synthResponse.text();
+                const errorMsg = `Expected JSON response from proxy, but got ${contentType || 'unknown'}. Body: ${errorBody.substring(0,200)}`;
+                console.error(`[speakWithVoicevox] ${errorMsg}`);
+                reject(new Error(errorMsg));
+                return;
+            }
+
+            const synthesisResult = await synthResponse.json(); // ここでエラーが発生している
             console.log('[speakWithVoicevox] Synthesis API Result:', synthesisResult);
 
             if (!synthesisResult.success || (!synthesisResult.mp3DownloadUrl && !synthesisResult.wavDownloadUrl)) {

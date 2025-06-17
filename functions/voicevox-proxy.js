@@ -105,10 +105,18 @@ export async function onRequest(context) {
         console.log(`[VoicevoxProxy] Next request will be: Method=${currentMethod}, HasBody=${!!currentBody}`);
         continue; // Attempt next request in the redirect chain
       } else {
+        // Not a redirect, treat as final response from target API
         console.log(`[VoicevoxProxy] Attempt #${i + 1}: Status ${response.status} is final. Returning to client.`);
         const finalResponseHeaders = new Headers(response.headers);
-        // Content-Typeを適切に設定 (tts.questはJSONを返すはず)
-        finalResponseHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
+
+        // Check if the response from tts.quest was successful before assuming JSON
+        if (!response.ok) {
+          // If tts.quest returned an error, pass that status and body through
+          // but ensure Access-Control-Allow-Origin is set.
+          console.warn(`[VoicevoxProxy] Target API responded with error: ${response.status}`);
+        } else {
+          finalResponseHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
+        }
         finalResponseHeaders.set('Access-Control-Allow-Origin', '*'); // Add CORS header
         return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
       }
