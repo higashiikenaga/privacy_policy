@@ -1,5 +1,5 @@
 export async function onRequest(context) {
-  const { request: clientRequest, env } = context;
+  const { request: clientRequest } = context;
   const clientRequestUrl = new URL(clientRequest.url);
 
   console.log(`[VoicevoxProxy] Request: ${clientRequest.method} ${clientRequestUrl.pathname}${clientRequestUrl.search}`);
