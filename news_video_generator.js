@@ -103,15 +103,15 @@ function wrapText(context, text, x, y, maxWidth, lineHeight, font, color = 'blac
  */
 function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeight) {
     ctx.textAlign = 'left'; // テキストアラインメントを左揃えに明示的に設定
-    const headlineFontSize = canvasHeight * 0.025; // サイズを小さく
+    const headlineFontSize = canvasHeight * 0.045; // フォントサイズを調整 (例: 0.025 -> 0.035)
     const headlineFont = `${headlineFontSize}px 'Noto Sans JP', Arial, sans-serif`;
-    const lineHeight = canvasHeight * 0.03; // フォントサイズに合わせて調整
-    const paddingX = canvasWidth * 0.05; // 左パディングを増やす (0.03 から 0.05 へ)
+    const lineHeight = canvasHeight * 0.04; // フォントサイズに合わせて行間を調整 (例: 0.03 -> 0.04)
+    const paddingX = canvasWidth * 0.1; // 左パディングを増やす (0.03 から 0.05 へ)
     let startY = canvasHeight * 0.08; 
     const maxHeadlineWidth = canvasWidth - (paddingX * 2); // 最大幅もパディングに合わせて調整 (右パディングも考慮)
 
     ctx.fillStyle = 'black'; //「ヘッドライン一覧」の文字色
-    const listTitleFont = `${canvasHeight * 0.5}px 'Noto Sans JP', Arial, sans-serif`;
+    const listTitleFont = `${canvasHeight * 0.03}px 'Noto Sans JP', Arial, sans-serif`;
     ctx.font = listTitleFont;
     ctx.fillText("ヘッドライン一覧:", paddingX, startY - lineHeight * 0.5); // 描画開始位置をpaddingXに合わせる
     startY += lineHeight; // 「ヘッドライン一覧:」の下からのマージンを確保
@@ -600,7 +600,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
   // 「終：newsAI」テロップを描画
   const endingText = "終：newsAI";
   const endingFont = `${canvasElement.height * 0.08}px 'Noto Sans JP', Arial, sans-serif`;
-  const endingColor = 'white';
+  const endingColor = 'black'; // 文字色を黒に変更
   const endingMaxWidth = canvasElement.width * 0.8;
   const endingLineHeight = canvasElement.height * 0.09;
   wrapText(ctx, endingText, 0, canvasElement.height * 0.45, endingMaxWidth, endingLineHeight, endingFont, endingColor, 'center');
