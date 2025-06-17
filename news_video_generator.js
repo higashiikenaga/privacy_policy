@@ -20,6 +20,38 @@ function loadImage(src) {
   });
 }
 
+/**
+ * 指定されたURLからOGP画像のURLを取得する非同期関数
+ * @param {string} url ニュース記事のURL
+ * @returns {Promise<string|null>} OGP画像のURL、または見つからない場合はnull
+ * @note クライアントサイドでの外部サイトへのfetchはCORSポリシーにより失敗する可能性があります。
+ *       安定した動作のためにはサーバーサイドでOGP情報を取得するAPIエンドポイントの利用を推奨します。
+ */
+async function fetchOgpImageUrl(url) {
+  if (!url) return null;
+  try {
+    // 注意: このfetchはCORSエラーで失敗する可能性が高いです。
+    // 実際にはサーバーサイドプロキシ等を経由してHTMLを取得する必要があります。
+    const response = await fetch(url, { mode: 'cors' }); // mode: 'cors' を明示
+    if (!response.ok) {
+      console.warn(`[fetchOgpImageUrl] Failed to fetch HTML from ${url}. Status: ${response.status}`);
+      return null;
+    }
+    const htmlText = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, 'text/html');
+    const ogImageMeta = doc.querySelector('meta[property="og:image"]');
+    if (ogImageMeta && ogImageMeta.content) {
+      console.log(`[fetchOgpImageUrl] Found OGP image for ${url}: ${ogImageMeta.content}`);
+      return new URL(ogImageMeta.content, url).href; // 絶対URLに変換
+    }
+    console.log(`[fetchOgpImageUrl] OGP image meta tag not found for ${url}.`);
+    return null;
+  } catch (error) {
+    console.error(`[fetchOgpImageUrl] Error fetching or parsing OGP image for ${url}:`, error);
+    return null;
+  }
+}
 
 /**
  * Canvasにテキストを折り返して描画する関数
@@ -70,12 +102,13 @@ function wrapText(context, text, x, y, maxWidth, lineHeight, font, color = 'blac
  * @param {number} canvasHeight Canvasの高さ
  */
 function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeight) {
+    ctx.textAlign = 'left'; // テキストアラインメントを左揃えに明示的に設定
     const headlineFontSize = canvasHeight * 0.025; // サイズを小さく
     const headlineFont = `${headlineFontSize}px 'Noto Sans JP', Arial, sans-serif`;
     const lineHeight = canvasHeight * 0.03; // フォントサイズに合わせて調整
-    const paddingX = canvasWidth * 0.03; // 左パディングを少し増やす
+    const paddingX = canvasWidth * 0.05; // 左パディングを増やす (0.03 から 0.05 へ)
     let startY = canvasHeight * 0.08; 
-    const maxHeadlineWidth = canvasWidth - (paddingX * 1.5); // 最大幅もパディングに合わせて調整
+    const maxHeadlineWidth = canvasWidth - (paddingX * 2); // 最大幅もパディングに合わせて調整 (右パディングも考慮)
 
     ctx.fillStyle = 'black'; //「ヘッドライン一覧」の文字色
     const listTitleFont = `${canvasHeight * 0.03}px 'Noto Sans JP', Arial, sans-serif`;
@@ -186,7 +219,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
   console.log("動画生成を開始しました。");
 
   // --- オープニングシーン ---
-  if (opening && opening.title) {
+  if (opening && (opening.title || opening.backgroundVideo)) { // タイトルまたは背景動画があればオープニング処理
     console.log("[VideoGen] Opening: Starting generation...");
     let opRenderedSuccessfully = false;
 
@@ -216,16 +249,18 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
         const opFrameInterval = 1000 / 30; // 30fps
         let opElapsedTime = 0;
-        const opDuration = opening.duration || 5000;
+        const opDuration = (video.duration && video.duration > 0 && isFinite(video.duration)) ? video.duration * 1000 : (opening.duration || 5000); // video.duration (秒) をミリ秒に変換、フォールバックあり
 
         while (opElapsedTime < opDuration && !video.ended) {
           // console.log(`[VideoGen] Opening: Drawing video frame. Elapsed: ${opElapsedTime}, Video currentTime: ${video.currentTime}`);
           ctx.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-          const opTitleFont = `${canvasElement.height * 0.08}px 'Noto Sans JP', Arial, sans-serif`;
-          const opTitleColor = opening.titleColor || 'white';
-          const opTitleMaxWidth = canvasElement.width * 0.8;
-          const opTitleLineHeight = canvasElement.height * 0.09; // Noto Sans JPに合わせて若干調整
-          wrapText(ctx, opening.title, 0, canvasElement.height * 0.45, opTitleMaxWidth, opTitleLineHeight, opTitleFont, opTitleColor, 'center');
+          if (opening.title) { // タイトルがある場合のみ描画
+            const opTitleFont = `${canvasElement.height * 0.08}px 'Noto Sans JP', Arial, sans-serif`;
+            const opTitleColor = opening.titleColor || 'white'; // 動画の上なので白が良いことが多い
+            const opTitleMaxWidth = canvasElement.width * 0.8;
+            const opTitleLineHeight = canvasElement.height * 0.09;
+            wrapText(ctx, opening.title, 0, canvasElement.height * 0.45, opTitleMaxWidth, opTitleLineHeight, opTitleFont, opTitleColor, 'center');
+          }
           
           await new Promise(r => setTimeout(r, opFrameInterval));
           opElapsedTime += opFrameInterval;
@@ -256,18 +291,24 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
     }
 
-    // タイトル描画 (動画・静止画背景が成功しなかった場合、または動画の上に重ねない場合)
-    if (!opRenderedSuccessfully || !opening.backgroundVideo) { // 動画の場合は描画ループ内でタイトル描画済み
+    // タイトル描画 (動画背景が使用されなかった場合で、かつタイトルが指定されている場合)
+    // 動画背景の場合はループ内で描画済みなので、ここでは動画背景でない場合のみタイトルを描画
+    if (!opening.backgroundVideo && opening.title) {
         const opTitleFont = `${canvasElement.height * 0.08}px 'Noto Sans JP', Arial, sans-serif`;
-        const opTitleColor = opening.titleColor || 'black'; // デフォルト色を黒に
+        // 背景画像が成功していれば白、そうでなければ黒をデフォルトの文字色とする
+        const opTitleColor = opening.titleColor || (opRenderedSuccessfully ? 'white' : 'black');
         const opTitleMaxWidth = canvasElement.width * 0.8;
-        const opTitleLineHeight = canvasElement.height * 0.09; // Noto Sans JPに合わせて若干調整
+        const opTitleLineHeight = canvasElement.height * 0.09;
         wrapText(ctx, opening.title, 0, canvasElement.height * 0.45, opTitleMaxWidth, opTitleLineHeight, opTitleFont, opTitleColor, 'center');
     }
 
     // オープニングの表示時間
-    const openingDuration = (opening && opening.duration) ? opening.duration : (opening && opening.backgroundVideo ? 0 : 3000); // 動画がない場合はデフォルト3秒
-    await new Promise(resolve => setTimeout(resolve, openingDuration));
+    // 動画がある場合は動画の再生時間で制御されるため、ここでの追加待機は不要
+    // 動画がなく、静止画または背景色のみの場合は指定されたdurationまたはデフォルト時間待機
+    if (!opening.backgroundVideo) {
+        const staticOpeningDuration = (opening && typeof opening.duration === 'number') ? opening.duration : 3000; // デフォルト3秒
+        if (staticOpeningDuration > 0) await new Promise(resolve => setTimeout(resolve, staticOpeningDuration));
+    }
   }
 
   // --- ニュースアイテムシーン ---
@@ -288,22 +329,41 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     }
 
     let itemNewsImageElement = null;
-    let newsImageDrawParams = null; // 描画パラメータを保持
-    if (item.imageUrl) {
+    let newsImageDrawParams = null;
+
+    let newsImageUrlToLoad = item.imageUrl;
+    // item.imageUrl がない場合、item.link (ニュース記事のURLと仮定) からOGP画像取得を試みる
+    if (!newsImageUrlToLoad && item.link) {
+        console.log(`[VideoGen] Item Scene: item.imageUrl not found for "${item.title.substring(0,50)}...". Attempting to fetch OGP image from ${item.link}`);
         try {
-            console.log(`[VideoGen] Item Scene: Attempting to load item.imageUrl "${item.imageUrl}" for "${item.title.substring(0,50)}..."`);
-            itemNewsImageElement = await loadImage(item.imageUrl);
-            console.log(`[VideoGen] Item Scene: Successfully loaded item.imageUrl for "${item.title.substring(0,50)}".`);
-            // 描画サイズ計算
-            const imgMaxHeight = canvasElement.height * 0.5 * 0.4; // さらに小さく (基準高さの50%の、さらに40%)
-            const imgMaxWidth = canvasElement.width * 0.7 * 0.4;   // さらに小さく (基準幅の70%の、さらに40%)
+            const ogpImage = await fetchOgpImageUrl(item.link);
+            if (ogpImage) {
+                newsImageUrlToLoad = ogpImage;
+                console.log(`[VideoGen] Item Scene: Using OGP image "${newsImageUrlToLoad}" for "${item.title.substring(0,50)}..."`);
+            } else {
+                console.log(`[VideoGen] Item Scene: OGP image not found or failed to fetch for "${item.title.substring(0,50)}...". No news image will be loaded.`);
+            }
+        } catch (e) {
+            console.warn(`[VideoGen] Item Scene: Error during OGP image fetching for "${item.title.substring(0,50)}...": ${e.message}`);
+        }
+    }
+
+    if (newsImageUrlToLoad) {
+        try {
+            console.log(`[VideoGen] Item Scene: Attempting to load news image (URL: "${newsImageUrlToLoad}") for "${item.title.substring(0,50)}..."`);
+            itemNewsImageElement = await loadImage(newsImageUrlToLoad);
+            console.log(`[VideoGen] Item Scene: Successfully loaded news image (URL: "${newsImageUrlToLoad}") for "${item.title.substring(0,50)}".`);
+            // 描画サイズ計算 (「二回り小さく」するためスケールファクターを調整)
+            const scaleFactor = 0.25; // 元は0.4。値を小さくして「二回り小さく」を表現
+            const imgMaxHeight = canvasElement.height * 0.5 * scaleFactor;
+            const imgMaxWidth = canvasElement.width * 0.7 * scaleFactor;
             let drawWidth = itemNewsImageElement.width;
             let drawHeight = itemNewsImageElement.height;
             const aspectRatio = itemNewsImageElement.width / itemNewsImageElement.height;
             if (drawHeight > imgMaxHeight) { drawHeight = imgMaxHeight; drawWidth = drawHeight * aspectRatio; }
             if (drawWidth > imgMaxWidth) { drawWidth = imgMaxWidth; drawHeight = drawWidth / aspectRatio; }
             const x = (canvasElement.width - drawWidth) / 2;
-            const y = canvasElement.height * 0.15;
+            const y = canvasElement.height * 0.15; // 垂直方向の位置は既存のまま (画面上部15%)
             newsImageDrawParams = { img: itemNewsImageElement, x, y, width: drawWidth, height: drawHeight };
             console.log(`[VideoGen] Item Scene: newsImageDrawParams SET for "${item.title.substring(0,50)}":`, JSON.stringify(newsImageDrawParams, (k,v) => v instanceof HTMLImageElement ? {src: v.src, width: v.width, height: v.height, complete: v.complete, naturalWidth: v.naturalWidth } : v));
         } catch (error) {
@@ -384,7 +444,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         // 4. ニュース画像描画 (itemNewsImageElement またはプレースホルダー)
         if (newsImageDrawParams) {
             ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
-        } else { // item.imageUrl がないか、ロード失敗した場合
+        } else { // ニュース画像がないか、ロード失敗した場合
             const placeholderText = "[タイトル画像]";
             const placeholderFont = `${canvasElement.height * 0.04}px 'Noto Sans JP', Arial, sans-serif`;
             ctx.font = placeholderFont;
@@ -494,6 +554,24 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         console.log(`[VideoGen] Item Scene: Finished displaying subtitle "${displaySubtitle.substring(0,50)}"`);
     }
   }
+
+  // --- エンディングシーン ---
+  console.log("[VideoGen] Ending Scene: Starting generation...");
+  // 背景を黒にする
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+  // 「終：newsAI」テロップを描画
+  const endingText = "終：newsAI";
+  const endingFont = `${canvasElement.height * 0.08}px 'Noto Sans JP', Arial, sans-serif`;
+  const endingColor = 'white';
+  const endingMaxWidth = canvasElement.width * 0.8;
+  const endingLineHeight = canvasElement.height * 0.09;
+  wrapText(ctx, endingText, 0, canvasElement.height * 0.45, endingMaxWidth, endingLineHeight, endingFont, endingColor, 'center');
+  
+  const endingDuration = 3000; // エンディングの表示時間 (3秒)
+  await new Promise(resolve => setTimeout(resolve, endingDuration));
+  console.log("[VideoGen] Ending Scene: Finished.");
 
   recorder.stop();
   console.log("[VideoGen] Video generation process stopped. Recorder stopped.");
