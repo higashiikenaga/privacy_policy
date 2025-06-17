@@ -309,13 +309,18 @@
             newsCanvas.height = newsCanvas.width * (9/16);
 
             generateVideoButton.addEventListener('click', async () => {
+                if (!newsCanvas.getContext) { alert("お使いのブラウザはCanvasをサポートしていません。"); return; }
+                if (typeof MediaRecorder === 'undefined') { alert("お使いのブラウザはMediaRecorder APIをサポートしていません。"); return; }
+                if (currentNewsItemsForVideo.length === 0) { alert("動画に変換するニュースがありません。"); return; }
+
+                const newsItemPromises = currentNewsItemsForVideo.slice(0, 5).map(async (item, index) => {
                     let displayTitle = item.title;
                     let audioTextToSpeak = item.title;
 
                     // 英語ニュースの判定 (ソース名で判定) と翻訳
                     if (model && (item.sourceName === "BBC World News" || item.sourceName === "Bloomberg Markets")) {
                         try {
-                            console.log(`[Translation] Attempting to translate: "${item.title}"`);
+                            console.log(`[Translation] Attempting to translate: "${item.title}" for item index ${index}`);
                             const prompt = `以下の英語のニュースヘッドラインを、日本のニュース番組で読み上げるような自然な日本語に翻訳してください。翻訳結果のテキストのみを返してください。:\n"${item.title}"`;
                             const safetySettings = [ // 翻訳時にもセーフティ設定を適用
                                 { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
@@ -332,12 +337,12 @@
                             if (translated) {
                                 displayTitle = translated;
                                 audioTextToSpeak = translated;
-                                console.log(`[Translation] Success: "${item.title}" -> "${translated}"`);
+                                console.log(`[Translation] Success for index ${index}: "${item.title}" -> "${translated}"`);
                             } else {
-                                console.warn(`[Translation] Empty result for: ${item.title}`);
+                                console.warn(`[Translation] Empty result for index ${index}: ${item.title}`);
                             }
                         } catch (e) {
-                            console.error(`[Translation] Failed for title: "${item.title}"`, formatErrorDetail(e.message || e));
+                            console.error(`[Translation] Failed for title at index ${index}: "${item.title}"`, formatErrorDetail(e.message || e));
                             // 翻訳失敗時は元のタイトルを使用
                         }
                     }
@@ -346,12 +351,12 @@
                         title: displayTitle, // 動画のテロップ表示に使われる
                         audioText: audioTextToSpeak, // 動画の読み上げに使われる
                         originalTitle: item.title, // 元のタイトルも保持
+                        imageUrl: item.link, // 画像URLとして元のニュースのリンクを仮指定 (news_video_generator.js側で画像として扱えるようにする必要がある場合)
                         backgroundImage: 'back.png', // 各スライドの背景
                         slideDuration: 7000
                     };
                 });
                 const newsItemsForVideo = await Promise.all(newsItemPromises);
-
                 const selectedSpeakerId = 1; // 例: ずんだもん（ノーマル）など、使いたい話者のID
                 const videoOptions = {
                     opening: {
@@ -391,11 +396,8 @@
                     videoLoadingIndicator.style.display = 'none'; // 読み込み中非表示
                     // newsCanvas.style.display = 'none'; // 生成後Canvasを非表示にする場合
                 }
-            };
-        
-        
-        
-
+            });
+        }
         const eewTickerContainer = document.getElementById('eew-ticker-container');
         const eewTickerText = document.getElementById('eew-ticker-text');
         const EEW_API_URL = 'https://api.wolfx.jp/jma_eew.json';
