@@ -228,6 +228,16 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
   recorder.start();
   console.log("動画生成を開始しました。");
 
+  // エンディングシーン用のデフォルト背景画像を事前にロード
+  let endingBgLoadedImg = null;
+  const defaultEndingBackgroundImagePath = 'back.png'; // デフォルトの背景画像パス
+  try {
+      endingBgLoadedImg = await loadImage(defaultEndingBackgroundImagePath);
+      console.log(`[VideoGen] Ending background image "${defaultEndingBackgroundImagePath}" loaded successfully.`);
+  } catch (e) {
+      console.warn(`[VideoGen] Failed to load default ending background image "${defaultEndingBackgroundImagePath}". Error: ${e.message}`, e);
+  }
+
   // --- オープニングシーン ---
   if (opening && (opening.title || opening.backgroundVideo)) { // タイトルまたは背景動画があればオープニング処理
     console.log("[VideoGen] Opening: Starting generation...");
@@ -578,9 +588,14 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
   // --- エンディングシーン ---
   console.log("[VideoGen] Ending Scene: Starting generation...");
-  // 背景を黒にする
-  ctx.fillStyle = 'black';
-  ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+  // 背景を描画 (デフォルト背景画像または黒)
+  if (endingBgLoadedImg) {
+      ctx.drawImage(endingBgLoadedImg, 0, 0, canvasElement.width, canvasElement.height);
+      console.log("[VideoGen] Ending Scene: Default background image drawn.");
+  } else {
+      ctx.fillStyle = 'black'; // 画像がロードできない場合は黒背景
+      ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+  }
 
   // 「終：newsAI」テロップを描画
   const endingText = "終：newsAI";
