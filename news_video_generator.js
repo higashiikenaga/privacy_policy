@@ -70,27 +70,31 @@ function wrapText(context, text, x, y, maxWidth, lineHeight, font, color = 'blac
  * @param {number} canvasHeight Canvasの高さ
  */
 function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeight) {
-    const headlineFont = `${canvasHeight * 0.03}px Meiryo, Arial, sans-serif`;
-    const lineHeight = canvasHeight * 0.035;
-    let startY = canvasHeight * 0.05;
+    const headlineFontSize = canvasHeight * 0.025; // サイズを小さく
+    const headlineFont = `${headlineFontSize}px Meiryo, Arial, sans-serif`;
+    const lineHeight = canvasHeight * 0.03; // フォントサイズに合わせて調整
+    let startY = canvasHeight * 0.08; // 少し下に
     const paddingX = canvasWidth * 0.02;
     const maxHeadlineWidth = canvasWidth - (paddingX * 2);
 
-    // ctx.font = headlineFont; // drawHeadlines内で設定
-    // 必要であればヘッドラインエリアの背景を描画
-    // ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    // ctx.fillRect(0, startY - lineHeight * 0.8, canvasWidth, lineHeight * (Math.min(allNewsItems.length, 5)) * 1.1 + (canvasHeight * 0.01) );
-
     ctx.fillStyle = 'black'; //「ヘッドライン一覧」の文字色
-    ctx.fillText("ヘッドライン一覧:", paddingX, startY - lineHeight * 0.5);
-    startY += lineHeight * 0.5; // 少し下にずらす
-    ctx.font = headlineFont; // フォント設定をここで行う
+    // 「ヘッドライン一覧:」テキストのフォントサイズも headlineFont に合わせるか、別途定義
+    const listTitleFont = `${canvasHeight * 0.03}px Meiryo, Arial, sans-serif`; // 少し大きめでも良い
+    ctx.font = listTitleFont;
+    ctx.fillText("ヘッドライン一覧:", paddingX, startY - lineHeight * 0.5); // 位置調整
+    startY += lineHeight; // 「ヘッドライン一覧:」の下からのマージンを確保
+
+    ctx.font = headlineFont; // 個々のヘッドラインのフォント設定
 
     allNewsItems.slice(0, 5).forEach((news, index) => { // 表示するヘッドライン数を制限 (例: 5件)
         let title = news.originalTitle || news.title; // 強調表示には翻訳前のタイトルを使うか、翻訳後を使うか選択。ここでは翻訳前を優先
-        if (ctx.measureText(title).width > maxHeadlineWidth) {
-            while (ctx.measureText(title + "...").width > maxHeadlineWidth && title.length > 0) { title = title.slice(0, -1); }
-            title += "...";
+        // 1行に収まるように省略処理を強化 (measureTextの前にフォント設定が必要)
+        if (ctx.measureText(title).width > maxHeadlineWidth) { 
+            let tempTitle = title;
+            while (ctx.measureText(tempTitle + "...").width > maxHeadlineWidth && tempTitle.length > 0) {
+                tempTitle = tempTitle.slice(0, -1);
+            }
+            title = tempTitle + "...";
         }
         ctx.fillStyle = (index === currentIndex) ? '#007bff' : 'black'; // 現在のアイテムを強調、他は黒
         ctx.fillText((index === currentIndex ? '▶ ' : '') + title, paddingX, startY + (index * lineHeight));
@@ -107,6 +111,9 @@ function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeigh
 async function generateVideoFromNews(newsItems, canvasElement, outputContainer, options = {}) {
   console.log('[VideoGen] ENTERING generateVideoFromNews function. Options:', options);
   const ctx = canvasElement.getContext('2d');
+  // 動画生成時にcanvasを非表示にする
+  canvasElement.style.display = 'none';
+
   console.log('[VideoGen] Received options:', JSON.parse(JSON.stringify(options, (key, value) => key === 'voice' && value instanceof SpeechSynthesisVoice ? {name: value.name, lang: value.lang} : value)));
   
   let mainTitleBgLoadedImg = null;
@@ -336,10 +343,10 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         const y = canvasElement.height * 0.15;
         ctx.drawImage(img, x, y, drawWidth, drawHeight);
       } catch (error) {
-        console.warn("ニュース画像の読み込みに失敗しました:", item.imageUrl, error);
         // 画像読み込み失敗時、またはimageUrlがない場合にプレースホルダーテキストを描画
         const placeholderText = "[タイトル画像]";
         const placeholderFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
+        // このcatchブロックはloadImageがrejectされた場合にのみ実行される
         ctx.font = placeholderFont;
         ctx.fillStyle = 'grey';
         ctx.textAlign = 'center';
@@ -347,19 +354,43 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         console.error("ニュース画像の読み込みに失敗しました:", item.imageUrl, error);
       }
     }
+    else { // item.imageUrl が元々ない場合
+        const placeholderText = "[タイトル画像]";
+        const placeholderFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
+        ctx.font = placeholderFont;
+        ctx.fillStyle = 'grey';
+        ctx.textAlign = 'center';
+        ctx.fillText(placeholderText, canvasElement.width / 2, canvasElement.height * 0.4);
+    }
     
     const titleFont = `${canvasElement.height * 0.06}px Meiryo, Arial, sans-serif`;
     const titleColor = 'black'; // メインテロップの文字色を黒に固定
 
     const titleMaxWidth = canvasElement.width * 0.9;
     const titleLineHeight = canvasElement.height * 0.07;
-    // メインテロップを画面下部のテロップ帯の上に配置
-    // テロップ帯の高さが canvasHeight * 0.15 なので、その中心あたりに来るように調整
-    const titleBaseY = canvasElement.height - (canvasElement.height * 0.15 * 0.5); // テロップ帯の中心Y
-    const titleActualY = titleBaseY - (titleLineHeight / 2); // 1行の場合、中央にくるように調整 (複数行の場合は wrapText内で処理)
 
-    // ニュースの要約テロップとしてitem.titleを描画
-    wrapText(ctx, item.title, 0, titleActualY, titleMaxWidth, titleLineHeight, titleFont, titleColor, 'center');
+    // 見出しテロップをもう少し下に配置
+    const tickerTapeHeight = canvasElement.height * 0.15; // テロップ帯の高さ
+    // テキストがテロップ帯の垂直中央に来るように、描画の基準となるY座標を計算
+    const titleCenterYInTicker = canvasElement.height - (tickerTapeHeight / 2);
+
+    let displayTitle = item.title;
+    ctx.font = titleFont; // measureText のためにフォントを設定
+    // ニュースの要約テロップ (item.title) を1行に収まるように調整 (2行以上の場合は要約)
+    if (ctx.measureText(displayTitle).width > titleMaxWidth) { // まず幅でチェック
+        let tempTitle = displayTitle;
+        while(ctx.measureText(tempTitle + "...").width > titleMaxWidth && tempTitle.length > 0) {
+            tempTitle = tempTitle.slice(0, -1);
+        }
+        displayTitle = tempTitle + "...";
+    }
+    // 1行のテキストをテロップ帯の垂直中央に配置するためのベースラインY座標を計算
+    const textMetrics = ctx.measureText("あ"); // 代表的な文字で高さを取得 (より正確には actualBoundingBoxAscent/Descent)
+    const ascent = textMetrics.actualBoundingBoxAscent || titleLineHeight * 0.7; // フォールバック
+    const descent = textMetrics.actualBoundingBoxDescent || titleLineHeight * 0.3; // フォールバック
+    const singleLineTitleBaselineY = titleCenterYInTicker + ascent / 2 - descent / 2;
+
+    wrapText(ctx, displayTitle, 0, singleLineTitleBaselineY, titleMaxWidth, titleLineHeight, titleFont, titleColor, 'center');
 
     const slideDuration = item.slideDuration || defaultSlideDuration;
 
