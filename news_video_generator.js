@@ -1,73 +1,115 @@
 // c/homepages/news_video_generator.js
 
 /**
- * 指定されたテキストをWeb Speech APIで読み上げる非同期関数
+ * Voicevox API (su-shiki.com版) を使用してテキストを読み上げ、再生する非同期関数
  * @param {string} text 読み上げるテキスト
- * @param {SpeechSynthesisVoice} voice 使用する音声 (オプション)
- * @returns {Promise<void>} 読み上げ完了時に解決されるPromise
+ * @param {number} speakerId Voicevoxの話者ID (例: 1)
+ * @param {string} voicevoxApiBaseUrl Voicevox APIのベースURL
+ * @returns {Promise<void>} 音声再生完了時に解決されるPromise
  */
-function speakText(text, voice = null) {
-  return new Promise((resolve) => { // reject を削除し、常に resolve するように変更
-    if (!window.speechSynthesis) {
-      console.warn("Web Speech API is not supported in this browser.");
-      resolve(); // 音声なしで進行
-      return;
+async function speakWithVoicevox(text, speakerId = 1, voicevoxApiBaseUrl = 'https://voicevox.su-shiki.com', apiKey = null) {
+    console.log(`[speakWithVoicevox] Attempting to speak with speaker ${speakerId}: "${text.substring(0, 70)}..."`);
+    // APIキーが必要なエンドポイントでキーが提供されていない場合に警告
+    if (voicevoxApiBaseUrl && voicevoxApiBaseUrl.includes('su-shiki.com') && !apiKey) {
+        console.warn(`[speakWithVoicevox] Warning: An API key is likely required for ${voicevoxApiBaseUrl} but was not provided. Requests may fail if an API key is necessary.`);
     }
 
-    // 以前の読み上げが残っていればキャンセル
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    console.log(`[speakText] Attempting to speak: "${text.substring(0, 70)}..."`);
-    utterance.lang = 'ja-JP';
-
-    if (voice) {
-      utterance.voice = voice;
-      console.log(`[speakText] Using provided voice: ${voice.name} (lang: ${voice.lang}, default: ${voice.default})`);
-    } else {
-      const defaultJpVoice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP' && v.default);
-      const firstJpVoice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP');
-      utterance.voice = defaultJpVoice || firstJpVoice || null;
-      console.log(`[speakText] No voice provided. Attempting to use default/first Japanese voice: ${utterance.voice ? utterance.voice.name + ` (lang: ${utterance.voice.lang}, default: ${utterance.voice.default})` : 'Not found'}`);
-    }
-
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-
-    let resolved = false; // 二重解決を防ぐフラグ
-
-    utterance.onend = () => {
-      if (!resolved) {
-        resolved = true;
-        resolve();
-      }
-    };
-
-    utterance.onerror = (event) => {
-      if (!resolved) {
-        resolved = true;
-        console.error(`[speakText] Speech synthesis error for text "${text.substring(0,70)}...":`, event.error, "Utterance details:", {text: utterance.text.substring(0,70), lang: utterance.lang, voice: utterance.voice ? utterance.voice.name : 'N/A'});
-        resolve(); // エラーが発生してもPromiseを解決し、処理を続行する
-      }
-    };
-    
-    const timeoutDuration = 30000; // 30秒
-    const timeoutId = setTimeout(() => {
-        if (!resolved) {
-            resolved = true;
-            console.warn(`[speakText] Speech synthesis timed out for text "${text.substring(0,70)}..." after ${timeoutDuration / 1000} seconds.`);
-            window.speechSynthesis.cancel(); // 念のためキャンセル
-            resolve(); // タイムアウトでも処理は続行
+    return new Promise(async (resolve, reject) => {
+        if (!text || text.trim() === "") {
+            console.warn("[speakWithVoicevox] Text is empty, resolving.");
+            resolve();
+            return;
         }
-    }, timeoutDuration);
+        try {
+            // Step 1: audio_query (音声合成用のクエリ作成)
+            const commonHeaders = { 'Accept': 'application/json' };
+            // APIキーは su-shiki.com 版のVoicevox API の場合にのみ設定
+            if (apiKey && voicevoxApiBaseUrl && voicevoxApiBaseUrl.includes('su-shiki.com')) {
+                commonHeaders['X-Su-Shiki-Key'] = apiKey;
+            }
+            const queryParams = new URLSearchParams({ text: text, speaker: speakerId });
+            const queryResponse = await fetch(`${voicevoxApiBaseUrl}/audio_query?${queryParams}`, {
+                method: 'POST',
+                headers: commonHeaders,
+            });
 
-    utterance.onstart = () => {
-        clearTimeout(timeoutId); 
-        console.log(`[speakText] Speech synthesis started for: "${text.substring(0, 70)}..." with voice: ${utterance.voice ? utterance.voice.name : 'System default'}`);
-    };
+            if (!queryResponse.ok) {
+                let errorText = `Status: ${queryResponse.status}`;
+                try { errorText = await queryResponse.text(); } catch (e) { /* ignore */ }
+                console.error(`[speakWithVoicevox] Voicevox audio_query failed: ${errorText}`);
+                reject(new Error(`Voicevox audio_query failed: ${errorText}`));
+                return;
+            }
+            const audioQuery = await queryResponse.json();
 
-    window.speechSynthesis.speak(utterance);
-  });
+            // Step 2: synthesis (音声合成)
+            const synthesisParams = new URLSearchParams({ speaker: speakerId });
+            const synthesisHeaders = { ...commonHeaders, 'Content-Type': 'application/json', 'Accept': 'audio/wav' };
+            const synthResponse = await fetch(`${voicevoxApiBaseUrl}/synthesis?${synthesisParams}`, {
+                method: 'POST',
+                headers: synthesisHeaders,
+                body: JSON.stringify(audioQuery)
+            });
+
+            if (!synthResponse.ok) {
+                let errorText = `Status: ${synthResponse.status}`;
+                try { errorText = await synthResponse.text(); } catch (e) { /* ignore */ }
+                console.error(`[speakWithVoicevox] Voicevox synthesis failed: ${errorText}`);
+                reject(new Error(`Voicevox synthesis failed: ${errorText}`));
+                return;
+            }
+
+            const audioWavBlob = await synthResponse.blob();
+            const audioUrl = URL.createObjectURL(audioWavBlob);
+            const audio = new Audio(audioUrl);
+            
+            let resolved = false;
+            const timeoutDuration = 30000; // 30秒のタイムアウト
+
+            const timeoutId = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    audio.pause();
+                    URL.revokeObjectURL(audioUrl);
+                    console.warn(`[speakWithVoicevox] Playback timed out for text "${text.substring(0,70)}..."`);
+                    resolve(); // タイムアウトでもPromiseは解決
+                }
+            }, timeoutDuration);
+
+            audio.onended = () => {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeoutId);
+                    URL.revokeObjectURL(audioUrl);
+                    console.log(`[speakWithVoicevox] Playback ended for "${text.substring(0, 70)}..."`);
+                    resolve();
+                }
+            };
+            audio.onerror = (e) => {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeoutId);
+                    URL.revokeObjectURL(audioUrl);
+                    console.error(`[speakWithVoicevox] Error playing Voicevox audio for "${text.substring(0,70)}...":`, e);
+                    resolve(); // エラーでもPromiseは解決 (処理を続行するため)
+                }
+            };
+            audio.play().catch(playError => { // play()が失敗するケースも考慮
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeoutId);
+                    URL.revokeObjectURL(audioUrl);
+                    console.error(`[speakWithVoicevox] audio.play() failed for "${text.substring(0,70)}...":`, playError);
+                    resolve();
+                }
+            });
+            console.log(`[speakWithVoicevox] Audio element created and play() called for "${text.substring(0, 70)}..."`);
+
+        } catch (error) {
+            console.error("[speakWithVoicevox] General error:", error);
+            resolve(); // キャッチしたエラーでもPromiseは解決
+        }
+    });
 }
 
 /**
@@ -146,7 +188,7 @@ function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeigh
     const paddingX = canvasWidth * 0.02;
     const maxHeadlineWidth = canvasWidth - (paddingX * 2);
 
-    ctx.font = headlineFont;
+    // ctx.font = headlineFont; // drawHeadlines内で設定
     // 必要であればヘッドラインエリアの背景を描画
     // ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     // ctx.fillRect(0, startY - lineHeight * 0.8, canvasWidth, lineHeight * (Math.min(allNewsItems.length, 5)) * 1.1 + (canvasHeight * 0.01) );
@@ -154,9 +196,10 @@ function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeigh
     ctx.fillStyle = 'black'; //「ヘッドライン一覧」の文字色
     ctx.fillText("ヘッドライン一覧:", paddingX, startY - lineHeight * 0.5);
     startY += lineHeight * 0.5; // 少し下にずらす
+    ctx.font = headlineFont; // フォント設定をここで行う
 
     allNewsItems.slice(0, 5).forEach((news, index) => { // 表示するヘッドライン数を制限 (例: 5件)
-        let title = news.title;
+        let title = news.originalTitle || news.title; // 強調表示には翻訳前のタイトルを使うか、翻訳後を使うか選択。ここでは翻訳前を優先
         if (ctx.measureText(title).width > maxHeadlineWidth) {
             while (ctx.measureText(title + "...").width > maxHeadlineWidth && title.length > 0) { title = title.slice(0, -1); }
             title += "...";
@@ -173,10 +216,21 @@ function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeigh
  * @param {HTMLElement} outputContainer 生成された動画プレイヤーとリンクを表示するコンテナ
  * @param {Object} options 動画生成オプション
  */
-async function generateVideoFromNews(newsItems, canvasElement, outputContainer, options = {}) {
+async function generateVideoFromNews(newsItems, canvasElement, outputContainer, options = {voicevoxApiKey:"v10-K5T38336107"}) {
   const ctx = canvasElement.getContext('2d');
   console.log('[VideoGen] Received options:', JSON.parse(JSON.stringify(options, (key, value) => key === 'voice' && value instanceof SpeechSynthesisVoice ? {name: value.name, lang: value.lang} : value)));
-  const { opening, defaultSlideDuration = 7000, voice = null } = options; 
+  
+  let mainTitleBgLoadedImg = null;
+  if (options.mainTitleBackgroundImage) {
+      try {
+          mainTitleBgLoadedImg = await loadImage(options.mainTitleBackgroundImage);
+          console.log(`[VideoGen] Main title background image "${options.mainTitleBackgroundImage}" loaded successfully.`);
+      } catch (e) {
+          console.warn(`[VideoGen] Failed to load main title background image "${options.mainTitleBackgroundImage}". Error: ${e.message}`, e);
+      }
+  }
+
+  const { opening, defaultSlideDuration = 7000, speakerId = 1, voicevoxApiBaseUrl = 'https://voicevox.su-shiki.com', voicevoxApiKey = null } = options;
 
   // 追加ログ: opening オブジェクトと backgroundVideo/backgroundImage の存在確認
   if (opening) {
@@ -318,7 +372,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
     if (opening.audioText) {
         console.log(`[VideoGen] Opening: Attempting to speak audioText: "${opening.audioText.substring(0,50)}..."`);
-        await speakText(opening.audioText, voice); // speakTextはエラーでもresolveする
+        await speakWithVoicevox(opening.audioText, speakerId, voicevoxApiBaseUrl, voicevoxApiKey);
     }
     // オープニングの表示時間（音声がない場合や、音声再生後の追加待機）
     // 動画の場合はopDurationで制御済みなので、ここでは音声がない場合の待機のみ考慮
@@ -361,6 +415,23 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
       ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
     }
 
+    // メインテロップの背景画像を描画 (item.title がある場合のみ)
+    if (mainTitleBgLoadedImg && item.title) {
+        try {
+            const img = mainTitleBgLoadedImg;
+            // テロップ帯の高さをCanvasの高さの15%程度に設定
+            constテロップ帯の高さ = canvasElement.height * 0.15;
+            // テロップ帯を画面下部に配置
+            constテロップ帯のY座標 = canvasElement.height - テロップ帯の高さ;
+            // 画像をテロップ帯の領域いっぱいに描画（アスペクト比は無視して引き伸ばし）
+            ctx.drawImage(img, 0, テロップ帯のY座標, canvasElement.width, テロップ帯の高さ);
+            console.log(`[VideoGen] Item Scene: Main title background drawn for "${item.title.substring(0,50)}".`);
+        } catch (e) {
+            console.warn(`[VideoGen] Item Scene: Failed to draw main title background for "${item.title.substring(0,50)}". Error: ${e.message}`, e);
+        }
+    }
+
+
     // ヘッドライン一覧を描画 (背景描画後、メインタイトル描画前)
     drawHeadlines(ctx, newsItems, i, canvasElement.width, canvasElement.height);
 
@@ -390,34 +461,22 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     }
     
     const titleFont = `${canvasElement.height * 0.06}px Meiryo, Arial, sans-serif`;
-    const currentBgFill = ctx.fillStyle; // 現在の背景色を取得 (近似)
-    let titleColor = 'black'; // メインタイトルの基本色を黒に
-    // 背景が暗い色かを簡易的に判定 (より正確には輝度計算が必要)
-    if (typeof currentBgFill === 'string') {
-        const lowerFill = currentBgFill.toLowerCase();
-        if (lowerFill === 'black' || lowerFill === '#000000' || lowerFill.startsWith('rgb(0,0,0') || lowerFill.startsWith('rgba(0,0,0')) {
-            titleColor = 'white';
-        } else if (lowerFill.startsWith('#')) { // HEX
-            const r = parseInt(lowerFill.substring(1,3), 16);
-            const g = parseInt(lowerFill.substring(3,5), 16);
-            const b = parseInt(lowerFill.substring(5,7), 16);
-            if ((r*0.299 + g*0.587 + b*0.114) < 128) titleColor = 'white'; // 簡易輝度
-        }
-    }
-
+    const titleColor = 'black'; // メインテロップの文字色を黒に固定
 
     const titleMaxWidth = canvasElement.width * 0.9;
     const titleLineHeight = canvasElement.height * 0.07;
-    // メインタイトルのY座標をヘッドライン表示エリアより下に調整
-    const titleY = item.imageUrl ? canvasElement.height * 0.75 : canvasElement.height * 0.55; 
+    // メインテロップを画面下部のテロップ帯の上に配置
+    // テロップ帯の高さが canvasHeight * 0.15 なので、その中心あたりに来るように調整
+    const titleBaseY = canvasElement.height - (canvasElement.height * 0.15 * 0.5); // テロップ帯の中心Y
+    const titleActualY = titleBaseY - (titleLineHeight / 2); // 1行の場合、中央にくるように調整 (複数行の場合は wrapText内で処理)
 
-    wrapText(ctx, item.title, 0, titleY, titleMaxWidth, titleLineHeight, titleFont, titleColor, 'center');
+    wrapText(ctx, item.title, 0, titleActualY, titleMaxWidth, titleLineHeight, titleFont, titleColor, 'center');
 
     const audioToSpeak = item.audioText || item.title;
     const slideDuration = item.slideDuration || defaultSlideDuration;
 
     console.log(`[VideoGen] Item Scene: Attempting to speak audioText for "${item.title.substring(0,50)}...": "${audioToSpeak.substring(0,50)}..."`);
-    await speakText(audioToSpeak, voice); // speakTextはエラーでもresolveする
+    await speakWithVoicevox(audioToSpeak, speakerId, voicevoxApiBaseUrl, voicevoxApiKey);
     console.log(`[VideoGen] Item Scene: Finished speakText for "${item.title.substring(0,50)}". Waiting for slide duration.`);
     await new Promise(resolve => setTimeout(resolve, Math.max(1000, slideDuration / 2) )); // 音声再生後、またはエラー後も少し待つ
   }

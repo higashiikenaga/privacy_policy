@@ -166,11 +166,11 @@
     <div class="container">
         <h1>最新ニュース</h1>
         <div class="global-summary-controls" style="margin-bottom: 20px;"> 
-            <button id="summarize-all-button" style="padding: 8px 15px; font-size: 1em; display: none;">今日のニュースをまとめて聞く (AI)</button>
+            <!-- <button id="summarize-all-button" style="padding: 8px 15px; font-size: 1em; display: none;">今日のニュースをまとめて聞く (AI)</button>
             <div id="global-summary-output" class="summary-section" style="display: none; margin-top: 15px;"></div>
             <div id="tts-controls" style="margin-top: 10px; display: none;">
                 <p id="tts-status" class="summary-loading" style="font-size: 0.9em; margin-top: 5px;"></p>
-            </div>
+            </div> -->
             <canvas id="newsCanvas" style="border: 1px solid black; display: none; margin-top: 15px; max-width: 100%;"></canvas>
             <button id="generateVideoButton" style="padding: 8px 15px; font-size: 1em; margin-top: 10px; display: none;">ニュース動画を生成 (β)</button>
             <p id="video-loading-indicator" style="display: none;">動画を生成しています。しばらくお待ちください...</p>
@@ -442,15 +442,52 @@
                 if (!window.speechSynthesis) { alert("お使いのブラウザは音声合成APIをサポートしていません。"); return; }
                 if (currentNewsItemsForSummary.length === 0) { alert("動画に変換するニュースがありません。"); return; }
 
-                const newsItemsForVideo = currentNewsItemsForSummary.slice(0, 5).map((item, index) => ({
-                    title: item.title,
-                    audioText: item.title,
-                    // imageUrl: `images/news_image_${index}.png`,
-                    backgroundImage: 'back.png', // ルートにある back.png を指定
-                    slideDuration: 7000
-                }));
+                const newsItemPromises = currentNewsItemsForSummary.slice(0, 5).map(async (item, index) => {
+                    let displayTitle = item.title;
+                    let audioTextToSpeak = item.title;
 
-                console.log("[Video Generation] Current japaneseVoice before creating videoOptions:", japaneseVoice ? japaneseVoice.name : "Not set");
+                    // 英語ニュースの判定 (ソース名で判定) と翻訳
+                    if (model && (item.sourceName === "BBC World News" || item.sourceName === "Bloomberg Markets")) {
+                        try {
+                            console.log(`[Translation] Attempting to translate: "${item.title}"`);
+                            const prompt = `以下の英語のニュースヘッドラインを、日本のニュース番組で読み上げるような自然な日本語に翻訳してください。翻訳結果のテキストのみを返してください。:\n"${item.title}"`;
+                            const safetySettings = [ // 翻訳時にもセーフティ設定を適用
+                                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                            ];
+                            const result = await model.generateContent({
+                                contents: [{ role: "user", parts: [{text: prompt}] }],
+                                generationConfig: { temperature: 0.3, maxOutputTokens: 200 }, // 翻訳なのでtemperatureは少し低めに
+                                safetySettings
+                            });
+                            const translated = result.response.text().trim();
+                            if (translated) {
+                                displayTitle = translated;
+                                audioTextToSpeak = translated;
+                                console.log(`[Translation] Success: "${item.title}" -> "${translated}"`);
+                            } else {
+                                console.warn(`[Translation] Empty result for: ${item.title}`);
+                            }
+                        } catch (e) {
+                            console.error(`[Translation] Failed for title: "${item.title}"`, formatErrorDetail(e.message || e));
+                            // 翻訳失敗時は元のタイトルを使用
+                        }
+                    }
+
+                    return {
+                        title: displayTitle, // 動画のテロップ表示に使われる
+                        audioText: audioTextToSpeak, // 動画の読み上げに使われる
+                        originalTitle: item.title, // 元のタイトルも保持
+                        backgroundImage: 'back.png', // 各スライドの背景
+                        slideDuration: 7000
+                    };
+                });
+                const newsItemsForVideo = await Promise.all(newsItemPromises);
+
+                // console.log("[Video Generation] Current japaneseVoice before creating videoOptions:", japaneseVoice ? japaneseVoice.name : "Not set");
+                const selectedSpeakerId = 1; // 例: ずんだもん（ノーマル）など、使いたい話者のID
                 const videoOptions = {
                     opening: {
                         title: "", // オープニングタイトルを空にする
@@ -461,22 +498,10 @@
                         audioText: "本日の主要なニュースをお伝えします。"
                     },
                     defaultSlideDuration: 7000,
-                    voice: japaneseVoice
+                    speakerId: selectedSpeakerId, // Voicevoxの話者ID
+                    // voicevoxApiBaseUrl: 'https://api.example.com/voicevox', // 必要ならプロキシURLなどを指定
+                    mainTitleBackgroundImage: 'headline_bg.png' // メインテロップの背景画像
                 };
-                if (!videoOptions.voice && window.speechSynthesis) { // フォールバックで音声を探す
-                    videoOptions.voice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP' && (v.name.includes('Google') || v.name.includes('Male') || v.name.includes('男性')));
-                    if (videoOptions.voice) {
-                        console.log("Fallback: Selected Japanese voice for video:", videoOptions.voice.name);
-                    } else { // フォールバックでも見つからなかった場合、さらに探す
-                        console.warn("Fallback: No specific Japanese male/Google voice found for video. Trying any Japanese voice.");
-                        videoOptions.voice = window.speechSynthesis.getVoices().find(v => v.lang === 'ja-JP');
-                        if (videoOptions.voice) {
-                            console.log("Fallback: Found any Japanese voice for video:", videoOptions.voice.name);
-                        } else { // 該当のelseブロックのコメントアウトを解除
-                            console.warn("Fallback: No Japanese voice found for video."); 
-                        } // この閉じ括弧が、直前の else (L499) に対応します
-                    } // この閉じ括弧が、L494の else に対応します
-                }
 
                 console.log("[Video Generation] videoOptions to be used:", JSON.parse(JSON.stringify(videoOptions, (key, value) => key === 'voice' && value instanceof SpeechSynthesisVoice ? {name: value.name, lang: value.lang, default: value.default} : value)));
                 try {
