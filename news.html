@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>yukiecho.com - ニュース</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
         .container {
@@ -28,6 +29,10 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            line-height: 1.6;
         }
         h1 {
             color: #333;
@@ -78,6 +83,13 @@
         .summary-loading, .summary-error {
             font-style: italic;
             color: #777;
+        }
+        .news-item img.ogp-image {
+            max-width: 100px;
+            max-height: 75px;
+            object-fit: cover;
+            margin-right: 10px;
+            float: left; /* 画像を左に寄せてテキストを回り込ませる */
         }
         /* 横スライド用スタイル */
         .news-feed-slider {
@@ -189,8 +201,7 @@
     <script type="module">
         import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "https://esm.run/@google/generative-ai";
 
-        const MAX_NEWS_ITEMS_TOTAL = 20;
-        const EFFECTIVE_GEMINI_API_KEY = window.APP_CONFIG && window.APP_CONFIG.GEMINI_API_KEY;
+        const MAX_NEWS_ITEMS_TOTAL = 20; // この変数は直接APIキーを参照しなくなる
 
         const rssFeeds = [
             { name: "NHK 主要ニュース", url: "https://www.nhk.or.jp/rss/news/cat0.xml" },
@@ -199,30 +210,43 @@
         ];
 
         const newsFeedContainer = document.getElementById('news-feed');
-        let genAI;
-        let model;
+        let modelInitialized = false; // Geminiモデルが利用可能かどうかのフラグ
         let currentNewsItemsForVideo = []; // 変数名を変更 (以前は currentNewsItemsForSummary)
         const generateVideoButton = document.getElementById('generateVideoButton');
         const newsCanvas = document.getElementById('newsCanvas');
         const videoOutputArea = document.getElementById('video-output-area');
         const videoLoadingIndicator = document.getElementById('video-loading-indicator'); // 読み込み中インジケータ
 
-        if (EFFECTIVE_GEMINI_API_KEY && EFFECTIVE_GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY_PLACEHOLDER") {
-            try {
-                genAI = new GoogleGenerativeAI(EFFECTIVE_GEMINI_API_KEY);
-                model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-                if (generateVideoButton) generateVideoButton.style.display = 'block';
-            } catch (error) {
-                console.error("Failed to initialize Gemini model:", formatErrorDetail(error.message || error));
-                model = null;
-            }
-        } else {
-
+        // Gemini APIキーのクライアントサイドでの直接参照を削除
+        // 代わりに、プロキシが利用可能であることを示すフラグやUI制御を行う
+        // ここでは、Geminiを利用する機能（翻訳など）がプロキシ経由で動作すると仮定
+        modelInitialized = true; // プロキシ経由で利用するので、クライアント側では常に初期化済みとみなす
+        if (modelInitialized) {
             if (generateVideoButton) generateVideoButton.style.display = 'none';
-            console.warn("Gemini API Key not found or is a placeholder.");
-            model = null;
         }
 
+        async function fetchAndExtractOGPImage(pageUrl, proxyUrl = '/fetch-ogp-proxy?url=') {
+            if (!pageUrl) return null;
+            console.log(`[OGP] Attempting to fetch OGP for: ${pageUrl}`);
+            try {
+                const fetchUrl = `${proxyUrl}${encodeURIComponent(pageUrl)}`;
+                const response = await fetch(fetchUrl);
+                if (!response.ok) {
+                    console.error(`[OGP] Failed to fetch HTML via proxy for: ${pageUrl}, Status: ${response.status}`);
+                    return null;
+                }
+                const htmlText = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlText, 'text/html');
+                const ogImageMeta = doc.querySelector('meta[property="og:image"]');
+                if (ogImageMeta && ogImageMeta.content) {
+                    return new URL(ogImageMeta.content, pageUrl).href; // 相対URLを絶対URLに解決
+                }
+            } catch (error) {
+                console.error(`[OGP] Error fetching or parsing OGP for ${pageUrl}:`, error);
+            }
+            return null;
+        }
         function formatErrorDetail(detail) {
             if (typeof detail === 'string') return detail;
             if (typeof detail === 'object' && detail !== null) return JSON.stringify(detail);
@@ -276,13 +300,30 @@
                 else if (result.status === 'rejected') console.error(`フィード取得失敗: ${result.reason}`);
             });
             if (allItems.length === 0) {
-                newsFeedContainer.innerHTML = `<p class="error">表示するニュースがありません。</p>`;
+                newsFeedContainer.innerHTML = `<p class="error">表示するニュースがありません。フィードの読み込みに失敗した可能性があります。</p>`;
+                if (generateVideoButton) generateVideoButton.style.display = 'none';
                 return;
             }
             allItems.sort((a, b) => (new Date(b.pubDate || 0)) - (new Date(a.pubDate || 0)));
-            const itemsToRender = allItems.slice(0, MAX_NEWS_ITEMS_TOTAL);
-            currentNewsItemsForVideo = itemsToRender.map(item => ({ title: item.title, description: item.description, link: item.link, sourceName: item.sourceName }));
+
+            // OGP画像取得処理を追加
+            const itemsWithOGPPromises = allItems.slice(0, MAX_NEWS_ITEMS_TOTAL).map(async (item) => {
+                let ogpImageUrl = null;
+                if (item.link) { // 記事の元URLがある場合のみOGP取得を試みる
+                    ogpImageUrl = await fetchAndExtractOGPImage(item.link);
+                }
+                return { ...item, imageUrl: ogpImageUrl };
+            });
+
+            const itemsToRender = await Promise.all(itemsWithOGPPromises);
+
+            currentNewsItemsForVideo = itemsToRender.map(item => ({
+                title: item.title, description: item.description, link: item.link,
+                sourceName: item.sourceName, imageUrl: item.imageUrl // OGP画像のURLを格納
+            }));
+
             renderNews(itemsToRender);
+            if (generateVideoButton) generateVideoButton.style.display = 'block'; // ニュースが読み込めたらボタン表示
         }
 
         function renderNews(items) {
@@ -300,6 +341,14 @@
                 linkElement.textContent = item.title;
                 linkElement.target = "_blank";
                 linkElement.rel = "noopener noreferrer";
+
+                if (item.imageUrl) {
+                    const imageElement = document.createElement('img');
+                    imageElement.src = item.imageUrl;
+                    imageElement.alt = `Image for ${item.title}`;
+                    imageElement.classList.add('ogp-image');
+                    newsItemDiv.appendChild(imageElement);
+                }
                 titleElement.appendChild(linkElement);
                 const descriptionElement = document.createElement('p');
                 descriptionElement.classList.add('description');
@@ -349,32 +398,48 @@
                 if (currentNewsItemsForVideo.length === 0) { alert("動画に変換するニュースがありません。"); return; }
 
                 const newsItemPromises = currentNewsItemsForVideo.slice(0, 5).map(async (item, index) => {
+                    // item には imageUrl (OGP画像URL) が含まれている想定
                     let displayTitle = item.title;
                     let audioTextToSpeak = item.title;
 
                     // 英語ニュースの判定 (ソース名で判定) と翻訳
-                    if (model && (item.sourceName === "BBC World News" || item.sourceName === "Bloomberg Markets")) {
+                    // modelInitialized フラグでGeminiが利用可能か判断
+                    if (modelInitialized && (item.sourceName === "BBC World News" || item.sourceName === "Bloomberg Markets")) {
                         try {
                             console.log(`[Translation] Attempting to translate: "${item.title}" for item index ${index}`);
                             const prompt = `以下の英語のニュースヘッドラインを、日本のニュース番組で読み上げるような自然な日本語に翻訳してください。翻訳結果のテキストのみを返してください。:\n"${item.title}"`;
-                            const safetySettings = [ // 翻訳時にもセーフティ設定を適用
-                                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                            ];
-                            const result = await model.generateContent({
-                                contents: [{ role: "user", parts: [{text: prompt}] }],
-                                generationConfig: { temperature: 0.3, maxOutputTokens: 200 }, // 翻訳なのでtemperatureは少し低めに
-                                safetySettings
+                            
+                            // プロキシ経由でGemini APIを呼び出す
+                            const proxyResponse = await fetch('/gemini-proxy', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{ role: "user", parts: [{text: prompt}] }],
+                                    generationConfig: { temperature: 0.3, maxOutputTokens: 200 },
+                                    safetySettings: [
+                                        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                                        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                                        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                                        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+                                    ]
+                                })
                             });
-                            const translated = result.response.text().trim();
+
+                            if (!proxyResponse.ok) {
+                                const errorText = await proxyResponse.text();
+                                throw new Error(`Gemini proxy failed: ${proxyResponse.status} ${errorText}`);
+                            }
+
+                            const result = await proxyResponse.json();
+                            // Gemini APIのレスポンス構造に合わせて翻訳結果を抽出
+                            const translated = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
                             if (translated) {
                                 displayTitle = translated;
                                 audioTextToSpeak = translated;
                                 console.log(`[Translation] Success for index ${index}: "${item.title}" -> "${translated}"`);
                             } else {
-                                console.warn(`[Translation] Empty result for index ${index}: ${item.title}`);
+                                console.warn(`[Translation] Empty or unexpected result for index ${index}: ${item.title}`, result);
                             }
                         } catch (e) {
                             console.error(`[Translation] Failed for title at index ${index}: "${item.title}"`, formatErrorDetail(e.message || e));
@@ -382,12 +447,39 @@
                         }
                     }
 
+                    // 要約文の生成
+                    let summarySentences = [];
+                    const textToSummarize = item.description || displayTitle; // 適切なテキストを選択
+                    if (modelInitialized && textToSummarize) {
+                        try {
+                            console.log(`[Summary] Attempting to summarize: "${textToSummarize.substring(0, 100)}..." for item index ${index}`);
+                            const summaryPrompt = `以下のテキストを3文程度の短い日本語のニュース要約にしてください。各文は独立して完결するようにし、文末は「。」で終えてください。:\n"${textToSummarize}"`;
+                            const proxyResponse = await fetch('/gemini-proxy', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{ role: "user", parts: [{text: summaryPrompt}] }],
+                                    generationConfig: { temperature: 0.3, maxOutputTokens: 300 }, // 少しトークン上限を増やす
+                                    safetySettings: [ /* ... 安全設定 ... */ ]
+                                })
+                            });
+                            if (!proxyResponse.ok) throw new Error(`Gemini proxy for summary failed: ${proxyResponse.status} ${await proxyResponse.text()}`);
+                            const result = await proxyResponse.json();
+                            const summarizedText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                            if (summarizedText) {
+                                summarySentences = summarizedText.split('。').map(s => s.trim()).filter(s => s.length > 0).map(s => s + '。');
+                                if (summarySentences.length > 3) summarySentences = summarySentences.slice(0, 3);
+                                console.log(`[Summary] Success for index ${index}. Sentences:`, summarySentences);
+                            } else { console.warn(`[Summary] Empty or unexpected summary result for index ${index}`); }
+                        } catch (e) { console.error(`[Summary] Failed for index ${index}:`, formatErrorDetail(e.message || e)); }
+                    }
+
                     return {
                         title: displayTitle, // 動画のテロップ表示に使われる
-                        audioText: audioTextToSpeak, // 動画の読み上げに使われる
                         originalTitle: item.title, // 元のタイトルも保持
-                        // imageUrl: item.link, // item.link は画像URLではないためコメントアウト。必要なら別途画像URLを指定するロジックを検討。
+                        imageUrl: item.imageUrl, // OGP画像のURLを渡す
                         backgroundImage: 'back.png', // 各スライドの背景
+                        summarySentences: summarySentences, // 生成された要約文
                         slideDuration: 7000
                     };
                 });
@@ -400,7 +492,7 @@
                         backgroundVideo:'op.mp4', // ルートにある op.mp4 を動画として指定
                         backgroundImage: 'op_fallback.png', // 例: op.mp4がダメな場合の静止画背景 (ファイル名を適宜変更してください)
                         backgroundColor: "#1a237e",
-                        audioText: "本日の主要なニュースをお伝えします。"
+                        // audioText: "本日の主要なニュースをお伝えします。" // オープニングの読み上げは一旦削除 (字幕メインのため)
                     },
                     defaultSlideDuration: 7000,
                     speakerId: selectedSpeakerId, // Voicevoxの話者ID

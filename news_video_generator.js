@@ -25,7 +25,7 @@ function loadImage(src) {
  * Canvasにテキストを折り返して描画する関数
  */
 function wrapText(context, text, x, y, maxWidth, lineHeight, font, color = 'black', textAlign = 'left') {
-  context.font = font;
+  context.font = font || `'Noto Sans JP', Arial, sans-serif`; // フォント指定がない場合のデフォルトを追加
   context.fillStyle = color;
   context.textAlign = textAlign;
 
@@ -71,17 +71,16 @@ function wrapText(context, text, x, y, maxWidth, lineHeight, font, color = 'blac
  */
 function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeight) {
     const headlineFontSize = canvasHeight * 0.025; // サイズを小さく
-    const headlineFont = `${headlineFontSize}px Meiryo, Arial, sans-serif`;
+    const headlineFont = `${headlineFontSize}px 'Noto Sans JP', Arial, sans-serif`;
     const lineHeight = canvasHeight * 0.03; // フォントサイズに合わせて調整
-    let startY = canvasHeight * 0.08; // 少し下に
-    const paddingX = canvasWidth * 0.02;
-    const maxHeadlineWidth = canvasWidth - (paddingX * 2);
+    const paddingX = canvasWidth * 0.03; // 左パディングを少し増やす
+    let startY = canvasHeight * 0.08; 
+    const maxHeadlineWidth = canvasWidth - (paddingX * 1.5); // 最大幅もパディングに合わせて調整
 
     ctx.fillStyle = 'black'; //「ヘッドライン一覧」の文字色
-    // 「ヘッドライン一覧:」テキストのフォントサイズも headlineFont に合わせるか、別途定義
-    const listTitleFont = `${canvasHeight * 0.03}px Meiryo, Arial, sans-serif`; // 少し大きめでも良い
+    const listTitleFont = `${canvasHeight * 0.03}px 'Noto Sans JP', Arial, sans-serif`;
     ctx.font = listTitleFont;
-    ctx.fillText("ヘッドライン一覧:", paddingX, startY - lineHeight * 0.5); // 位置調整
+    ctx.fillText("ヘッドライン一覧:", paddingX, startY - lineHeight * 0.5); // 描画開始位置をpaddingXに合わせる
     startY += lineHeight; // 「ヘッドライン一覧:」の下からのマージンを確保
 
     ctx.font = headlineFont; // 個々のヘッドラインのフォント設定
@@ -222,10 +221,10 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         while (opElapsedTime < opDuration && !video.ended) {
           // console.log(`[VideoGen] Opening: Drawing video frame. Elapsed: ${opElapsedTime}, Video currentTime: ${video.currentTime}`);
           ctx.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-          const opTitleFont = `${canvasElement.height * 0.08}px Meiryo, Arial, sans-serif`;
+          const opTitleFont = `${canvasElement.height * 0.08}px 'Noto Sans JP', Arial, sans-serif`;
           const opTitleColor = opening.titleColor || 'white';
           const opTitleMaxWidth = canvasElement.width * 0.8;
-          const opTitleLineHeight = canvasElement.height * 0.1;
+          const opTitleLineHeight = canvasElement.height * 0.09; // Noto Sans JPに合わせて若干調整
           wrapText(ctx, opening.title, 0, canvasElement.height * 0.45, opTitleMaxWidth, opTitleLineHeight, opTitleFont, opTitleColor, 'center');
           
           await new Promise(r => setTimeout(r, opFrameInterval));
@@ -259,10 +258,10 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
     // タイトル描画 (動画・静止画背景が成功しなかった場合、または動画の上に重ねない場合)
     if (!opRenderedSuccessfully || !opening.backgroundVideo) { // 動画の場合は描画ループ内でタイトル描画済み
-        const opTitleFont = `${canvasElement.height * 0.08}px Meiryo, Arial, sans-serif`; // フォントサイズは維持
+        const opTitleFont = `${canvasElement.height * 0.08}px 'Noto Sans JP', Arial, sans-serif`;
         const opTitleColor = opening.titleColor || 'black'; // デフォルト色を黒に
         const opTitleMaxWidth = canvasElement.width * 0.8;
-        const opTitleLineHeight = canvasElement.height * 0.1;
+        const opTitleLineHeight = canvasElement.height * 0.09; // Noto Sans JPに合わせて若干調整
         wrapText(ctx, opening.title, 0, canvasElement.height * 0.45, opTitleMaxWidth, opTitleLineHeight, opTitleFont, opTitleColor, 'center');
     }
 
@@ -296,8 +295,8 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
             itemNewsImageElement = await loadImage(item.imageUrl);
             console.log(`[VideoGen] Item Scene: Successfully loaded item.imageUrl for "${item.title.substring(0,50)}".`);
             // 描画サイズ計算
-            const imgMaxHeight = canvasElement.height * 0.5;
-            const imgMaxWidth = canvasElement.width * 0.7;
+            const imgMaxHeight = canvasElement.height * 0.5 * 0.7; // 高さを70%に
+            const imgMaxWidth = canvasElement.width * 0.7 * 0.7;   // 幅も70%に
             let drawWidth = itemNewsImageElement.width;
             let drawHeight = itemNewsImageElement.height;
             const aspectRatio = itemNewsImageElement.width / itemNewsImageElement.height;
@@ -386,7 +385,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
             ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
         } else { // item.imageUrl がないか、ロード失敗した場合
             const placeholderText = "[タイトル画像]";
-            const placeholderFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
+            const placeholderFont = `${canvasElement.height * 0.04}px 'Noto Sans JP', Arial, sans-serif`;
             ctx.font = placeholderFont;
             ctx.fillStyle = 'grey';
             ctx.textAlign = 'center';
@@ -395,10 +394,10 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         }
 
         // 5. 現在の字幕 (subtitleText) を描画
-        const subtitleFont = `${canvasElement.height * 0.06}px Meiryo, Arial, sans-serif`;
+        const subtitleFont = `${canvasElement.height * 0.055}px 'Noto Sans JP', Arial, sans-serif`; // Noto Sans JPは若干大きめに見えることがあるので微調整
         const subtitleColor = 'black';
         const subtitleMaxWidth = canvasElement.width * 0.9;
-        const subtitleLineHeight = canvasElement.height * 0.07;
+        const subtitleLineHeight = canvasElement.height * 0.065; // フォントサイズに合わせて調整
         const tickerTapeHeightVal = canvasElement.height * 0.15; // テロップ帯の高さ
         const subtitleCenterYInTicker = canvasElement.height - (tickerTapeHeightVal / 2); // テロップ帯の垂直中心
 
@@ -445,7 +444,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
                 ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
             } else {
                 const placeholderText = "[タイトル画像]";
-                const phFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
+                const phFont = `${canvasElement.height * 0.04}px 'Noto Sans JP', Arial, sans-serif`;
                 ctx.font = phFont; ctx.fillStyle = 'grey'; ctx.textAlign = 'center';
                 ctx.fillText(placeholderText, canvasElement.width / 2, canvasElement.height * 0.4);
             }
