@@ -39,7 +39,7 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
                 method: 'GET', // 新しいAPIはGET
                 headers: {
                     // 'Accept': 'audio/wav' // tts.quest は audio/mpeg を返すことが多い
-                    'Accept': 'audio/mpeg, audio/wav, application/json', // クライアントが期待するMIMEタイプを指定
+                    'Accept': 'audio/wav', // Voicevox APIは通常WAVを返すため、より具体的に指定
                     ...(apiKey && voicevoxProxyBaseUrl.includes('voicevox-proxy') ? {'X-Custom-Voicevox-Key': apiKey} : {})
                 },
                 // body: JSON.stringify(audioQuery) // GETなのでボディは不要
@@ -418,12 +418,12 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     if (mainTitleBgLoadedImg && item.title) {
         try {
             const img = mainTitleBgLoadedImg;
-            // テロップ帯の高さをCanvasの高さの15%程度に設定
-            constテロップ帯の高さ = canvasElement.height * 0.15;
-            // テロップ帯を画面下部に配置
-            constテロップ帯のY座標 = canvasElement.height - テロップ帯の高さ;
+            // Define ticker tape height and Y coordinate
+            const tickerTapeHeight = canvasElement.height * 0.15;
+            // Position the ticker tape at the bottom of the screen
+            const tickerTapeY = canvasElement.height - tickerTapeHeight;
             // 画像をテロップ帯の領域いっぱいに描画（アスペクト比は無視して引き伸ばし）
-            ctx.drawImage(img, 0, テロップ帯のY座標, canvasElement.width, テロップ帯の高さ);
+            ctx.drawImage(img, 0, tickerTapeY, canvasElement.width, tickerTapeHeight);
             console.log(`[VideoGen] Item Scene: Main title background drawn for "${item.title.substring(0,50)}".`);
         } catch (e) {
             console.warn(`[VideoGen] Item Scene: Failed to draw main title background for "${item.title.substring(0,50)}". Error: ${e.message}`, e);
