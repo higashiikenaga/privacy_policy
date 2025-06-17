@@ -3,8 +3,7 @@
   "include": [
     "/rss-proxy/*",
     "/gemini-proxy/*",
-    "/voicevox-proxy/*",
-    "/*"
+    "/voicevox-proxy/*"
   ],
   "exclude": [
   ]
