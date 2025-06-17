@@ -94,7 +94,7 @@ function loadImage(src) {
 /**
  * Canvasにテキストを折り返して描画する関数
  */
-function wrapText(context, text, x, y, maxWidth, lineHeight, font, color, textAlign = 'left') {
+function wrapText(context, text, x, y, maxWidth, lineHeight, font, color = 'black', textAlign = 'left') {
   context.font = font;
   context.fillStyle = color;
   context.textAlign = textAlign;
@@ -131,6 +131,40 @@ function wrapText(context, text, x, y, maxWidth, lineHeight, font, color, textAl
   context.textAlign = 'left'; // デフォルトに戻す
 }
 
+/**
+ * ヘッドライン一覧をCanvasに描画する関数
+ * @param {CanvasRenderingContext2D} ctx Canvasの2Dコンテキスト
+ * @param {Array<Object>} allNewsItems 全ニュースアイテムの配列
+ * @param {number} currentIndex 現在のニュースアイテムのインデックス
+ * @param {number} canvasWidth Canvasの幅
+ * @param {number} canvasHeight Canvasの高さ
+ */
+function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeight) {
+    const headlineFont = `${canvasHeight * 0.03}px Meiryo, Arial, sans-serif`;
+    const lineHeight = canvasHeight * 0.035;
+    let startY = canvasHeight * 0.05;
+    const paddingX = canvasWidth * 0.02;
+    const maxHeadlineWidth = canvasWidth - (paddingX * 2);
+
+    ctx.font = headlineFont;
+    // 必要であればヘッドラインエリアの背景を描画
+    // ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    // ctx.fillRect(0, startY - lineHeight * 0.8, canvasWidth, lineHeight * (Math.min(allNewsItems.length, 5)) * 1.1 + (canvasHeight * 0.01) );
+
+    ctx.fillStyle = 'black'; //「ヘッドライン一覧」の文字色
+    ctx.fillText("ヘッドライン一覧:", paddingX, startY - lineHeight * 0.5);
+    startY += lineHeight * 0.5; // 少し下にずらす
+
+    allNewsItems.slice(0, 5).forEach((news, index) => { // 表示するヘッドライン数を制限 (例: 5件)
+        let title = news.title;
+        if (ctx.measureText(title).width > maxHeadlineWidth) {
+            while (ctx.measureText(title + "...").width > maxHeadlineWidth && title.length > 0) { title = title.slice(0, -1); }
+            title += "...";
+        }
+        ctx.fillStyle = (index === currentIndex) ? '#007bff' : 'black'; // 現在のアイテムを強調、他は黒
+        ctx.fillText((index === currentIndex ? '▶ ' : '') + title, paddingX, startY + (index * lineHeight));
+    });
+}
 
 /**
  * ニュースアイテムから動画を生成するメイン関数
@@ -275,8 +309,8 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
     // タイトル描画 (動画・静止画背景が成功しなかった場合、または動画の上に重ねない場合)
     if (!opRenderedSuccessfully || !opening.backgroundVideo) { // 動画の場合は描画ループ内でタイトル描画済み
-        const opTitleFont = `${canvasElement.height * 0.08}px Meiryo, Arial, sans-serif`;
-        const opTitleColor = opening.titleColor || 'white';
+        const opTitleFont = `${canvasElement.height * 0.08}px Meiryo, Arial, sans-serif`; // フォントサイズは維持
+        const opTitleColor = opening.titleColor || 'black'; // デフォルト色を黒に
         const opTitleMaxWidth = canvasElement.width * 0.8;
         const opTitleLineHeight = canvasElement.height * 0.1;
         wrapText(ctx, opening.title, 0, canvasElement.height * 0.45, opTitleMaxWidth, opTitleLineHeight, opTitleFont, opTitleColor, 'center');
@@ -297,8 +331,10 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
   }
 
   // --- ニュースアイテムシーン ---
-  for (const item of newsItems) {
+  for (let i = 0; i < newsItems.length; i++) {
+    const item = newsItems[i];
     console.log(`[VideoGen] Item Scene: Starting generation for "${item.title.substring(0,50)}..."`);
+
     // 追加ログ: item.backgroundImage の存在確認
     if (item.backgroundImage) {
         console.log(`[VideoGen] Item Scene Debug: item.backgroundImage for "${item.title.substring(0,50)}..." is set to: "${item.backgroundImage}"`);
@@ -324,6 +360,10 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
       ctx.fillStyle = item.backgroundColor || 'white';
       ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
     }
+
+    // ヘッドライン一覧を描画 (背景描画後、メインタイトル描画前)
+    drawHeadlines(ctx, newsItems, i, canvasElement.width, canvasElement.height);
+
     if (item.imageUrl) {
       try {
         const img = await loadImage(item.imageUrl);
@@ -351,7 +391,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     
     const titleFont = `${canvasElement.height * 0.06}px Meiryo, Arial, sans-serif`;
     const currentBgFill = ctx.fillStyle; // 現在の背景色を取得 (近似)
-    let titleColor = 'black';
+    let titleColor = 'black'; // メインタイトルの基本色を黒に
     // 背景が暗い色かを簡易的に判定 (より正確には輝度計算が必要)
     if (typeof currentBgFill === 'string') {
         const lowerFill = currentBgFill.toLowerCase();
@@ -368,7 +408,8 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
     const titleMaxWidth = canvasElement.width * 0.9;
     const titleLineHeight = canvasElement.height * 0.07;
-    const titleY = item.imageUrl ? canvasElement.height * 0.7 : canvasElement.height * 0.45;
+    // メインタイトルのY座標をヘッドライン表示エリアより下に調整
+    const titleY = item.imageUrl ? canvasElement.height * 0.75 : canvasElement.height * 0.55; 
 
     wrapText(ctx, item.title, 0, titleY, titleMaxWidth, titleLineHeight, titleFont, titleColor, 'center');
 

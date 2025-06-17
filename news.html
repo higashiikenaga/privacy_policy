@@ -453,7 +453,7 @@
                 console.log("[Video Generation] Current japaneseVoice before creating videoOptions:", japaneseVoice ? japaneseVoice.name : "Not set");
                 const videoOptions = {
                     opening: {
-                        title: "本日のニュース",
+                        title: "", // オープニングタイトルを空にする
                         duration: 5000,
                         backgroundVideo:'op.mp4', // ルートにある op.mp4 を動画として指定
                         backgroundImage: 'op_fallback.png', // 例: op.mp4がダメな場合の静止画背景 (ファイル名を適宜変更してください)
