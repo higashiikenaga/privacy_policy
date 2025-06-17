@@ -274,13 +274,41 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
   // --- ニュースアイテムシーン ---
   for (let i = 0; i < newsItems.length; i++) {
     const item = newsItems[i];
-    console.log(`[VideoGen] Item Scene: Starting generation for "${item.title.substring(0,50)}..."`);
+    console.log(`[VideoGen] Item Scene: Starting generation for item ${i + 1}: "${item.title.substring(0,50)}..."`);
 
-    // 追加ログ: item.backgroundImage の存在確認
+    // このアイテムで使用する背景画像とニュース画像を事前にロード/準備
+    let itemBackgroundImageElement = null;
     if (item.backgroundImage) {
-        console.log(`[VideoGen] Item Scene Debug: item.backgroundImage for "${item.title.substring(0,50)}..." is set to: "${item.backgroundImage}"`);
-    } else {
-        console.log(`[VideoGen] Item Scene Debug: item.backgroundImage for "${item.title.substring(0,50)}..." is NOT set.`);
+        try {
+            console.log(`[VideoGen] Item Scene: Attempting to load item.backgroundImage "${item.backgroundImage}" for "${item.title.substring(0,50)}..."`);
+            itemBackgroundImageElement = await loadImage(item.backgroundImage);
+            console.log(`[VideoGen] Item Scene: Successfully loaded item.backgroundImage for "${item.title.substring(0,50)}".`);
+        } catch (e) {
+            console.warn(`[VideoGen] Item Scene: Failed to load item.backgroundImage "${item.backgroundImage}" for "${item.title.substring(0,50)}". Error: ${e.message}`);
+        }
+    }
+
+    let itemNewsImageElement = null;
+    let newsImageDrawParams = null; // 描画パラメータを保持
+    if (item.imageUrl) {
+        try {
+            console.log(`[VideoGen] Item Scene: Attempting to load item.imageUrl "${item.imageUrl}" for "${item.title.substring(0,50)}..."`);
+            itemNewsImageElement = await loadImage(item.imageUrl);
+            console.log(`[VideoGen] Item Scene: Successfully loaded item.imageUrl for "${item.title.substring(0,50)}".`);
+            // 描画サイズ計算
+            const imgMaxHeight = canvasElement.height * 0.5;
+            const imgMaxWidth = canvasElement.width * 0.7;
+            let drawWidth = itemNewsImageElement.width;
+            let drawHeight = itemNewsImageElement.height;
+            const aspectRatio = itemNewsImageElement.width / itemNewsImageElement.height;
+            if (drawHeight > imgMaxHeight) { drawHeight = imgMaxHeight; drawWidth = drawHeight * aspectRatio; }
+            if (drawWidth > imgMaxWidth) { drawWidth = imgMaxWidth; drawHeight = drawWidth / aspectRatio; }
+            const x = (canvasElement.width - drawWidth) / 2;
+            const y = canvasElement.height * 0.15;
+            newsImageDrawParams = { img: itemNewsImageElement, x, y, width: drawWidth, height: drawHeight };
+        } catch (error) {
+            console.error(`[VideoGen] Item Scene: Failed to load news image (item.imageUrl: ${item.imageUrl}). Error:`, error);
+        }
     }
 
     let itemBgRendered = false;
@@ -318,84 +346,152 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         }
     }
 
+    // 字幕として表示するテキストの配列を準備
+    // item.summarySentences が配列で、各要素が1文の文字列であることを期待
+    const subtitles = (item.summarySentences && Array.isArray(item.summarySentences) && item.summarySentences.length > 0)
+        ? item.summarySentences
+        : [item.title]; // 要約がない場合はタイトルを字幕として扱う
 
-    // ヘッドライン一覧を描画 (背景描画後、メインタイトル描画前)
-    drawHeadlines(ctx, newsItems, i, canvasElement.width, canvasElement.height);
+    const numSubtitles = subtitles.length;
+    const totalItemDuration = item.slideDuration || defaultSlideDuration;
+    const durationPerSubtitle = totalItemDuration / numSubtitles;
 
-    if (item.imageUrl) {
-      try {
-        const img = await loadImage(item.imageUrl);
-        const imgMaxHeight = canvasElement.height * 0.5;
-        const imgMaxWidth = canvasElement.width * 0.7;
-        let drawWidth = img.width;
-        let drawHeight = img.height;
-        const aspectRatio = img.width / img.height;
+    const animationDuration = 500; // ms, フェードイン/アウトそれぞれのアニメーション時間
+    const fps = 30;
+    const frameDuration = 1000 / fps;
 
-        if (drawHeight > imgMaxHeight) {
-          drawHeight = imgMaxHeight;
-          drawWidth = drawHeight * aspectRatio;
+    for (let subtitleIndex = 0; subtitleIndex < subtitles.length; subtitleIndex++) {
+        const subtitleText = subtitles[subtitleIndex];
+        // 1. 背景描画 (itemBackgroundImageElement またはデフォルト色)
+        if (itemBackgroundImageElement) {
+            ctx.drawImage(itemBackgroundImageElement, 0, 0, canvasElement.width, canvasElement.height);
+        } else {
+            // item.backgroundImage がない場合は、item.backgroundColor を使用
+            ctx.fillStyle = item.backgroundColor || 'white'; // デフォルトは白
+            ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
         }
-        if (drawWidth > imgMaxWidth) {
-          drawWidth = imgMaxWidth;
-          drawHeight = drawWidth / aspectRatio;
+
+        // 2. メインテロップの背景画像 (mainTitleBgLoadedImg) - 字幕表示エリアの背景
+        if (mainTitleBgLoadedImg) {
+            const tickerTapeHeight = canvasElement.height * 0.15;
+            const tickerTapeY = canvasElement.height - tickerTapeHeight;
+            ctx.drawImage(mainTitleBgLoadedImg, 0, tickerTapeY, canvasElement.width, tickerTapeHeight);
         }
-        const x = (canvasElement.width - drawWidth) / 2;
-        const y = canvasElement.height * 0.15;
-        ctx.drawImage(img, x, y, drawWidth, drawHeight);
-      } catch (error) {
-        // 画像読み込み失敗時、またはimageUrlがない場合にプレースホルダーテキストを描画
-        const placeholderText = "[タイトル画像]";
-        const placeholderFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
-        // このcatchブロックはloadImageがrejectされた場合にのみ実行される
-        ctx.font = placeholderFont;
-        ctx.fillStyle = 'grey';
-        ctx.textAlign = 'center';
-        ctx.fillText(placeholderText, canvasElement.width / 2, canvasElement.height * 0.4);
-        console.error("ニュース画像の読み込みに失敗しました:", item.imageUrl, error);
-      }
-    }
-    else { // item.imageUrl が元々ない場合
-        const placeholderText = "[タイトル画像]";
-        const placeholderFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
-        ctx.font = placeholderFont;
-        ctx.fillStyle = 'grey';
-        ctx.textAlign = 'center';
-        ctx.fillText(placeholderText, canvasElement.width / 2, canvasElement.height * 0.4);
-    }
-    
-    const titleFont = `${canvasElement.height * 0.06}px Meiryo, Arial, sans-serif`;
-    const titleColor = 'black'; // メインテロップの文字色を黒に固定
 
-    const titleMaxWidth = canvasElement.width * 0.9;
-    const titleLineHeight = canvasElement.height * 0.07;
+        // 3. ヘッドライン一覧描画
+        drawHeadlines(ctx, newsItems, i, canvasElement.width, canvasElement.height);
 
-    // 見出しテロップをもう少し下に配置
-    const tickerTapeHeight = canvasElement.height * 0.15; // テロップ帯の高さ
-    // テキストがテロップ帯の垂直中央に来るように、描画の基準となるY座標を計算
-    const titleCenterYInTicker = canvasElement.height - (tickerTapeHeight / 2);
-
-    let displayTitle = item.title;
-    ctx.font = titleFont; // measureText のためにフォントを設定
-    // ニュースの要約テロップ (item.title) を1行に収まるように調整 (2行以上の場合は要約)
-    if (ctx.measureText(displayTitle).width > titleMaxWidth) { // まず幅でチェック
-        let tempTitle = displayTitle;
-        while(ctx.measureText(tempTitle + "...").width > titleMaxWidth && tempTitle.length > 0) {
-            tempTitle = tempTitle.slice(0, -1);
+        // 4. ニュース画像描画 (itemNewsImageElement またはプレースホルダー)
+        if (newsImageDrawParams) {
+            ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
+        } else { // item.imageUrl がないか、ロード失敗した場合
+            const placeholderText = "[タイトル画像]";
+            const placeholderFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
+            ctx.font = placeholderFont;
+            ctx.fillStyle = 'grey';
+            ctx.textAlign = 'center';
+            ctx.fillText(placeholderText, canvasElement.width / 2, canvasElement.height * 0.4);
+            // ctx.textAlign = 'left'; // wrapText内でtextAlignは設定・リセットされるので、ここでは不要かも
         }
-        displayTitle = tempTitle + "...";
+
+        // 5. 現在の字幕 (subtitleText) を描画
+        const subtitleFont = `${canvasElement.height * 0.06}px Meiryo, Arial, sans-serif`;
+        const subtitleColor = 'black';
+        const subtitleMaxWidth = canvasElement.width * 0.9;
+        const subtitleLineHeight = canvasElement.height * 0.07;
+        const tickerTapeHeightVal = canvasElement.height * 0.15; // テロップ帯の高さ
+        const subtitleCenterYInTicker = canvasElement.height - (tickerTapeHeightVal / 2); // テロップ帯の垂直中心
+
+        let displaySubtitle = subtitleText;
+        ctx.font = subtitleFont; // measureText の前にフォントを設定
+        // 字幕が1行に収まるように調整 (2行以上の場合は末尾に...)
+        if (ctx.measureText(displaySubtitle).width > subtitleMaxWidth) {
+            let tempSubtitle = displaySubtitle;
+            while(ctx.measureText(tempSubtitle + "...").width > subtitleMaxWidth && tempSubtitle.length > 0) {
+                tempSubtitle = tempSubtitle.slice(0, -1);
+            }
+            displaySubtitle = tempSubtitle + "...";
+        }
+        
+        // 1行のテキストをテロップ帯の垂直中央に配置するためのベースラインY座標を計算
+        const textMetricsSub = ctx.measureText("あ"); // アセント・ディセント取得用 (日本語文字が良い)
+        const ascentSub = textMetricsSub.actualBoundingBoxAscent || subtitleLineHeight * 0.7; // フォールバック
+        const descentSub = textMetricsSub.actualBoundingBoxDescent || subtitleLineHeight * 0.3; // フォールバック
+        // ベースラインY = 中心Y + (アセント/2) - (ディセント/2) (おおよその中央揃え)
+        // wrapTextはYをベースラインとして受け取るので、これで良いはず
+        const singleLineSubtitleBaselineY = subtitleCenterYInTicker + (ascentSub - descentSub) / 2;
+
+        const subtitleStayDuration = Math.max(0, durationPerSubtitle - 2 * animationDuration);
+        const subtitleMetrics = ctx.measureText(displaySubtitle); // 事前に幅を取得
+        const subtitleActualWidth = subtitleMetrics.width;
+
+        // アニメーションループ
+        let elapsed = 0;
+        while (elapsed < durationPerSubtitle) {
+            // --- 再描画処理 (各フレーム共通) ---
+            if (itemBackgroundImageElement) {
+                ctx.drawImage(itemBackgroundImageElement, 0, 0, canvasElement.width, canvasElement.height);
+            } else {
+                ctx.fillStyle = item.backgroundColor || 'white';
+                ctx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+            }
+            if (mainTitleBgLoadedImg) {
+                const tickerTapeHeight = canvasElement.height * 0.15;
+                const tickerTapeY = canvasElement.height - tickerTapeHeight;
+                ctx.drawImage(mainTitleBgLoadedImg, 0, tickerTapeY, canvasElement.width, tickerTapeHeight);
+            }
+            drawHeadlines(ctx, newsItems, i, canvasElement.width, canvasElement.height);
+            if (newsImageDrawParams) {
+                ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
+            } else {
+                const placeholderText = "[タイトル画像]";
+                const phFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
+                ctx.font = phFont; ctx.fillStyle = 'grey'; ctx.textAlign = 'center';
+                ctx.fillText(placeholderText, canvasElement.width / 2, canvasElement.height * 0.4);
+            }
+            // --- ここまで再描画処理 ---
+
+            ctx.save();
+
+            let currentAlpha = 1.0;
+            let offsetX = 0;
+            const targetXForCenter = 0; // wrapTextが中央揃えするので、オフセットの基準は0
+
+            if (elapsed < animationDuration) { // フェードイン
+                const progress = elapsed / animationDuration;
+                currentAlpha = progress; // 0 to 1
+                // 右から登場: canvas.width/2 (画面右端中央) から targetXForCenter (画面中央) へ
+                offsetX = (canvasElement.width / 2) * (1 - progress);
+            } else if (elapsed < animationDuration + subtitleStayDuration) { // 表示中
+                currentAlpha = 1.0;
+                offsetX = targetXForCenter;
+            } else { // フェードアウト (elapsed < durationPerSubtitle)
+                const progress = (elapsed - (animationDuration + subtitleStayDuration)) / animationDuration;
+                currentAlpha = 1.0 - progress; // 1 to 0
+                // 左へ退場: targetXForCenter (画面中央) から -canvas.width/2 - subtitleActualWidth/2 (画面左端外) へ
+                offsetX = -(canvasElement.width / 2 + subtitleActualWidth / 2) * progress;
+            }
+
+            ctx.globalAlpha = Math.max(0, Math.min(1, currentAlpha)); // 0-1の範囲に収める
+            
+            // wrapTextはtextAlign: 'center' の場合、canvas幅の中心を基準にする。
+            // そのため、translateで描画位置をオフセットする。
+            ctx.translate(offsetX, 0);
+            wrapText(ctx, displaySubtitle, 0, singleLineSubtitleBaselineY, subtitleMaxWidth, subtitleLineHeight, subtitleFont, subtitleColor, 'center');
+            
+            ctx.restore();
+
+            await new Promise(r => setTimeout(r, frameDuration));
+            elapsed += frameDuration;
+        }
+        // Ensure the full durationPerSubtitle is waited for, even if animation frames don't perfectly align
+        // This also ensures the last frame of fade-out is "held" if needed, though alpha should be 0.
+        const remainingTime = durationPerSubtitle - elapsed;
+        if (remainingTime > 0) {
+            await new Promise(r => setTimeout(r, remainingTime));
+        }
+        console.log(`[VideoGen] Item Scene: Finished displaying subtitle "${displaySubtitle.substring(0,50)}"`);
     }
-    // 1行のテキストをテロップ帯の垂直中央に配置するためのベースラインY座標を計算
-    const textMetrics = ctx.measureText("あ"); // 代表的な文字で高さを取得 (より正確には actualBoundingBoxAscent/Descent)
-    const ascent = textMetrics.actualBoundingBoxAscent || titleLineHeight * 0.7; // フォールバック
-    const descent = textMetrics.actualBoundingBoxDescent || titleLineHeight * 0.3; // フォールバック
-    const singleLineTitleBaselineY = titleCenterYInTicker + ascent / 2 - descent / 2;
-
-    wrapText(ctx, displayTitle, 0, singleLineTitleBaselineY, titleMaxWidth, titleLineHeight, titleFont, titleColor, 'center');
-
-    const slideDuration = item.slideDuration || defaultSlideDuration;
-
-    console.log(`[VideoGen] Item Scene: Displaying item "${item.title.substring(0,50)}" for ${slideDuration}ms.`);
-    await new Promise(resolve => setTimeout(resolve, slideDuration));
   }
 
   recorder.stop();
