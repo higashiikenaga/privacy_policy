@@ -39,7 +39,7 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
                 method: 'GET', // 新しいAPIはGET
                 headers: {
                     // 'Accept': 'audio/wav' // tts.quest は audio/mpeg を返すことが多い
-                    'Accept': clientRequest.headers.get('Accept') || 'audio/mpeg, audio/wav, application/json', // プロキシ側でAcceptヘッダを転送するので、クライアント側では柔軟に
+                    'Accept': 'audio/mpeg, audio/wav, application/json', // クライアントが期待するMIMEタイプを指定
                     ...(apiKey && voicevoxProxyBaseUrl.includes('voicevox-proxy') ? {'X-Custom-Voicevox-Key': apiKey} : {})
                 },
                 // body: JSON.stringify(audioQuery) // GETなのでボディは不要
