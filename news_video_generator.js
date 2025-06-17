@@ -144,6 +144,23 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
   console.log('[VideoGen] Received options:', JSON.parse(JSON.stringify(options, (key, value) => key === 'voice' && value instanceof SpeechSynthesisVoice ? {name: value.name, lang: value.lang} : value)));
   const { opening, defaultSlideDuration = 7000, voice = null } = options; 
 
+  // 追加ログ: opening オブジェクトと backgroundVideo/backgroundImage の存在確認
+  if (opening) {
+    console.log('[VideoGen] Debug: `opening` options object is present.');
+    if (opening.backgroundVideo) {
+      console.log(`[VideoGen] Debug: opening.backgroundVideo is set to: "${opening.backgroundVideo}"`);
+    } else {
+      console.log('[VideoGen] Debug: opening.backgroundVideo is NOT set.');
+    }
+    if (opening.backgroundImage) {
+      console.log(`[VideoGen] Debug: opening.backgroundImage is set to: "${opening.backgroundImage}"`);
+    } else {
+      console.log('[VideoGen] Debug: opening.backgroundImage is NOT set.');
+    }
+  } else {
+    console.log('[VideoGen] Debug: `opening` options object is NOT present.');
+  }
+
   const stream = canvasElement.captureStream(30); 
   const recorderOptions = { mimeType: 'video/webm;codecs=vp9' };
   if (!MediaRecorder.isTypeSupported(recorderOptions.mimeType)) {
@@ -191,7 +208,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     let opRenderedSuccessfully = false;
 
     if (opening.backgroundVideo) {
-      console.log(`[VideoGen] Opening: Attempting to use background video: ${opening.backgroundVideo}`);
+      console.log(`[VideoGen] Opening Scene: Attempting to use background video: "${opening.backgroundVideo}"`);
       try {
         const video = document.createElement('video');
         // video.crossOrigin = 'anonymous'; // ローカルファイルの場合、影響する可能性があるので一時的にコメントアウト
@@ -239,7 +256,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     }
 
     if (!opRenderedSuccessfully && opening.backgroundImage) {
-      console.log(`[VideoGen] Opening: Attempting to use background image: ${opening.backgroundImage}`);
+      console.log(`[VideoGen] Opening Scene: Fallback - Attempting to use background image: "${opening.backgroundImage}"`);
       try {
         const bgImg = await loadImage(opening.backgroundImage);
         ctx.drawImage(bgImg, 0, 0, canvasElement.width, canvasElement.height);
@@ -282,9 +299,16 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
   // --- ニュースアイテムシーン ---
   for (const item of newsItems) {
     console.log(`[VideoGen] Item Scene: Starting generation for "${item.title.substring(0,50)}..."`);
+    // 追加ログ: item.backgroundImage の存在確認
+    if (item.backgroundImage) {
+        console.log(`[VideoGen] Item Scene Debug: item.backgroundImage for "${item.title.substring(0,50)}..." is set to: "${item.backgroundImage}"`);
+    } else {
+        console.log(`[VideoGen] Item Scene Debug: item.backgroundImage for "${item.title.substring(0,50)}..." is NOT set.`);
+    }
+
     let itemBgRendered = false;
     if (item.backgroundImage) {
-      console.log(`[VideoGen] Item Scene: Attempting to use background image: ${item.backgroundImage}`);
+      console.log(`[VideoGen] Item Scene: Attempting to use background image: "${item.backgroundImage}" for item "${item.title.substring(0,50)}..."`);
       try {
         const bgImg = await loadImage(item.backgroundImage);
         ctx.drawImage(bgImg, 0, 0, canvasElement.width, canvasElement.height);
