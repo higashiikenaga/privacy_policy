@@ -17,7 +17,7 @@ export async function onRequest(context) {
   const initialMethod = clientRequest.method;
   // Read body only if it's a method that typically has one
   const initialBody = (initialMethod === 'POST' || initialMethod === 'PUT' || initialMethod === 'PATCH')
-    ? await clientRequest.blob()
+    ? await clientRequest.arrayBuffer() // Use arrayBuffer for easier cloning
     : null;
 
   let currentMethod = initialMethod;
@@ -33,7 +33,7 @@ export async function onRequest(context) {
         headersToVoicevox['X-Su-Shiki-Key'] = apiKey;
       }
       // Add Content-Type only if there's a body and client sent it, and not GET/HEAD
-      if (currentBody && clientRequest.headers.get('Content-Type') && currentMethod !== 'GET' && currentMethod !== 'HEAD') {
+      if (initialBody && clientRequest.headers.get('Content-Type') && currentMethod !== 'GET' && currentMethod !== 'HEAD') { // Check initialBody for Content-Type
         headersToVoicevox['Content-Type'] = clientRequest.headers.get('Content-Type');
       }
 
@@ -41,7 +41,7 @@ export async function onRequest(context) {
         method: currentMethod,
         headers: headersToVoicevox,
         body: currentBody,
-        redirect: 'manual', // Handle redirects manually
+        redirect: 'manual', // Keep manual
       });
 
       if ([301, 302, 303, 307, 308].includes(response.status)) {
@@ -54,23 +54,27 @@ export async function onRequest(context) {
         currentTargetUrl = new URL(location, currentTargetUrl).toString(); // Resolve relative URLs
 
         // Adjust method and body for the next request based on redirect type
+        console.log(`[VoicevoxProxy] Redirect detected (status ${response.status}). New target: ${currentTargetUrl}`);
         if (response.status === 303) {
+          console.log(`[VoicevoxProxy] Applying 303 redirect logic: method to GET, clear body.`);
           currentMethod = 'GET';
           currentBody = null;
-        } else if ((response.status === 301 || response.status === 302) && currentMethod === 'POST') {
-          // Preserve POST method for 301/302 redirects, common for APIs
-          // currentMethod remains 'POST' (or initialMethod if it was POST)
-          // currentBody remains initialBody (or the body from the previous POST)
+        } else { // Handles 301, 302, 307, 308
+          // For 301, 302, 307, 308, preserve the original method and re-use/clone the body
+          console.log(`[VoicevoxProxy] Applying ${response.status} redirect logic: restoring initial method and body.`);
+          currentMethod = initialMethod;
+          currentBody = initialBody; // Re-use the ArrayBuffer from initial request
         }
-        // For 307, 308, method and body are preserved (no changes to currentMethod/currentBody needed here)
-        // For GET/HEAD on 301/302, method and body are also preserved.
+        console.log(`[VoicevoxProxy] Next request will be: Method=${currentMethod}, HasBody=${!!currentBody}`);
         continue; // Attempt next request in the redirect chain
+      } else {
+        // Not a redirect status we are handling in the loop, or it's a status we don't want to follow further.
+        // This is the final response from the current fetch attempt.
+        console.log(`[VoicevoxProxy] Fetch attempt ${i + 1}: Received status ${response.status}. Treating as final response.`);
+        const finalResponseHeaders = new Headers(response.headers);
+        finalResponseHeaders.set('Access-Control-Allow-Origin', '*'); // Add CORS header
+        return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
       }
-
-      // Not a redirect we are handling in a loop, or it's the final response
-      const finalResponseHeaders = new Headers(response.headers);
-      finalResponseHeaders.set('Access-Control-Allow-Origin', '*'); // Add CORS header
-      return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
     }
     return new Response('Too many redirects', { status: 508 }); // Loop Detected
   } catch (error) {
