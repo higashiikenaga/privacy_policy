@@ -305,6 +305,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
             const x = (canvasElement.width - drawWidth) / 2;
             const y = canvasElement.height * 0.15;
             newsImageDrawParams = { img: itemNewsImageElement, x, y, width: drawWidth, height: drawHeight };
+            console.log(`[VideoGen] Item Scene: newsImageDrawParams SET for "${item.title.substring(0,50)}":`, JSON.stringify(newsImageDrawParams, (k,v) => v instanceof HTMLImageElement ? {src: v.src, width: v.width, height: v.height, complete: v.complete, naturalWidth: v.naturalWidth } : v));
         } catch (error) {
             console.error(`[VideoGen] Item Scene: Failed to load news image (item.imageUrl: ${item.imageUrl}). Error:`, error);
         }
@@ -441,6 +442,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
             }
             drawHeadlines(ctx, newsItems, i, canvasElement.width, canvasElement.height);
             if (newsImageDrawParams) {
+                console.log(`[VideoGen] Item Scene (Frame ${Math.round(elapsed/frameDuration)}): Drawing news image. Params:`, JSON.stringify(newsImageDrawParams, (k,v) => v instanceof HTMLImageElement ? {src: v.src, complete: v.complete} : v), `Actual img object:`, newsImageDrawParams.img);
                 ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
             } else {
                 const placeholderText = "[タイトル画像]";

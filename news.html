@@ -453,7 +453,7 @@
                     if (modelInitialized && textToSummarize) {
                         try {
                             console.log(`[Summary] Attempting to summarize: "${textToSummarize.substring(0, 100)}..." for item index ${index}`);
-                            const summaryPrompt = `以下のテキストを3文程度の短い日本語のニュース要約にしてください。各文は独立して完결するようにし、文末は「。」で終えてください。:\n"${textToSummarize}"`;
+                            const summaryPrompt = `以下のテキストを3文程度の短い日本語のニュース要約にしてください。各文は独立して完結するようにし、文末は「。」で終え、かつ各文を日本語で約25文字以内にしてください。:\n"${textToSummarize}"`;
                             const proxyResponse = await fetch('/gemini-proxy', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
