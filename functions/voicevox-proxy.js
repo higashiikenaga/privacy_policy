@@ -108,23 +108,44 @@ export async function onRequest(context) {
         // Not a redirect, treat as final response from target API
         console.log(`[VoicevoxProxy] Attempt #${i + 1}: Status ${response.status} is final. Returning to client.`);
         const finalResponseHeaders = new Headers(response.headers);
+        const upstreamContentType = response.headers.get('Content-Type');
 
-        // Check if the response from tts.quest was successful before assuming JSON
-        if (!response.ok) {
-          // If tts.quest returned an error, pass that status and body through
-          console.warn(`[VoicevoxProxy] Target API responded with error: ${response.status}`);
-          try {
-            const errorBodyText = await response.clone().text(); // Clone to read body, original body still usable for client
-            console.warn(`[VoicevoxProxy] Target API error body (first 500 chars): ${errorBodyText.substring(0, 500)}`);
-          } catch (e) {
-            console.warn('[VoicevoxProxy] Could not read target API error body:', e.message);
+        // If the upstream response is not OK, or if it's OK but not JSON (which client expects),
+        // then construct a JSON error response.
+        if (!response.ok || (response.ok && upstreamContentType && !upstreamContentType.toLowerCase().startsWith('application/json'))) {
+          let errorMessage;
+          let clientStatus = response.status;
+          let errorBodyDetail = `Upstream API status: ${response.status} ${response.statusText || ''}, Content-Type: ${upstreamContentType || 'N/A'}`;
+
+          if (response.ok) { // Upstream sent 2xx but with wrong content type
+            errorMessage = `[VoicevoxProxy] Target API responded with 2xx status (${response.status}) but unexpected Content-Type: '${upstreamContentType}'. Expected 'application/json'.`;
+            clientStatus = 502; // Bad Gateway, as proxy received invalid response from upstream
+            console.warn(errorMessage);
+          } else { // Upstream sent a non-2xx error status
+            errorMessage = `[VoicevoxProxy] Target API responded with error: ${response.status} ${response.statusText || ''}`;
+            console.warn(errorMessage);
           }
-          // The Content-Type here will be whatever tts.quest sent for its error page.
+
+          try {
+            // response.bodyがnullの場合があるため、clone()前にチェック
+            if (response.body) {
+              const bodyText = await response.clone().text(); // Clone to read body
+              console.warn(`[VoicevoxProxy] Target API response body (first 500 chars): ${bodyText.substring(0, 500)}`);
+              errorBodyDetail = bodyText.substring(0, 1000); // Include part of the upstream body in our JSON error
+            }
+          } catch (e) {
+            console.warn('[VoicevoxProxy] Could not read target API response body:', e.message);
+          }
+          const errorResponsePayload = { success: false, message: errorMessage, detail: errorBodyDetail };
+          finalResponseHeaders.set('Content-Type', 'application/json; charset=utf-8');
+          finalResponseHeaders.set('Access-Control-Allow-Origin', '*');
+          return new Response(JSON.stringify(errorResponsePayload), { status: clientStatus, headers: finalResponseHeaders });
         } else {
-          finalResponseHeaders.set('Content-Type', response.headers.get('Content-Type') || 'application/json');
+          // Upstream response is OK and Content-Type is (presumably) application/json or will be defaulted
+          finalResponseHeaders.set('Content-Type', upstreamContentType || 'application/json'); // Preserve upstream or default
+          finalResponseHeaders.set('Access-Control-Allow-Origin', '*'); // Add CORS header
+          return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
         }
-        finalResponseHeaders.set('Access-Control-Allow-Origin', '*'); // Add CORS header
-        return new Response(response.body, { status: response.status, headers: finalResponseHeaders });
       }
     }
     console.error('[VoicevoxProxy] Too many redirects.');
