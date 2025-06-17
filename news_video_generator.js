@@ -295,8 +295,8 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
             itemNewsImageElement = await loadImage(item.imageUrl);
             console.log(`[VideoGen] Item Scene: Successfully loaded item.imageUrl for "${item.title.substring(0,50)}".`);
             // 描画サイズ計算
-            const imgMaxHeight = canvasElement.height * 0.5 * 0.7; // 高さを70%に
-            const imgMaxWidth = canvasElement.width * 0.7 * 0.7;   // 幅も70%に
+            const imgMaxHeight = canvasElement.height * 0.5 * 0.4; // さらに小さく (基準高さの50%の、さらに40%)
+            const imgMaxWidth = canvasElement.width * 0.7 * 0.4;   // さらに小さく (基準幅の70%の、さらに40%)
             let drawWidth = itemNewsImageElement.width;
             let drawHeight = itemNewsImageElement.height;
             const aspectRatio = itemNewsImageElement.width / itemNewsImageElement.height;
