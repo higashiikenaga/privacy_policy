@@ -386,7 +386,7 @@
                         title: displayTitle, // 動画のテロップ表示に使われる
                         audioText: audioTextToSpeak, // 動画の読み上げに使われる
                         originalTitle: item.title, // 元のタイトルも保持
-                        imageUrl: item.link, // 画像URLとして元のニュースのリンクを仮指定 (news_video_generator.js側で画像として扱えるようにする必要がある場合)
+                        // imageUrl: item.link, // item.link は画像URLではないためコメントアウト。必要なら別途画像URLを指定するロジックを検討。
                         backgroundImage: 'back.png', // 各スライドの背景
                         slideDuration: 7000
                     };
@@ -404,7 +404,7 @@
                     },
                     defaultSlideDuration: 7000,
                     speakerId: selectedSpeakerId, // Voicevoxの話者ID
-                    // voicevoxApiBaseUrl: 'https://api.example.com/voicevox', // 必要ならプロキシURLなどを指定
+                    // voicevoxProxyBaseUrl: '/voicevox-proxy', // デフォルトでプロキシを使用するよう変更済み
                     mainTitleBackgroundImage: 'headline_bg.png' // メインテロップの背景画像
                 };
 

@@ -7,11 +7,11 @@
  * @param {string} voicevoxApiBaseUrl Voicevox APIのベースURL
  * @returns {Promise<void>} 音声再生完了時に解決されるPromise
  */
-async function speakWithVoicevox(text, speakerId = 1, voicevoxApiBaseUrl = 'https://voicevox.su-shiki.com', apiKey = null) {
+async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/voicevox-proxy', apiKey = null) {
     console.log(`[speakWithVoicevox] Attempting to speak with speaker ${speakerId}: "${text.substring(0, 70)}..."`);
     // APIキーが必要なエンドポイントでキーが提供されていない場合に警告
-    if (voicevoxApiBaseUrl && voicevoxApiBaseUrl.includes('su-shiki.com') && !apiKey) {
-        console.warn(`[speakWithVoicevox] Warning: An API key is likely required for ${voicevoxApiBaseUrl} but was not provided. Requests may fail if an API key is necessary.`);
+    if (voicevoxProxyBaseUrl && voicevoxProxyBaseUrl.includes('voicevox-proxy') && !apiKey) {
+        console.warn(`[speakWithVoicevox] Warning: An API key was not provided for the Voicevox proxy. Requests may fail if an API key is necessary for su-shiki.com.`);
     }
 
     return new Promise(async (resolve, reject) => {
@@ -23,12 +23,12 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxApiBaseUrl = 'http
         try {
             // Step 1: audio_query (音声合成用のクエリ作成)
             const commonHeaders = { 'Accept': 'application/json' };
-            // APIキーは su-shiki.com 版のVoicevox API の場合にのみ設定
-            if (apiKey && voicevoxApiBaseUrl && voicevoxApiBaseUrl.includes('su-shiki.com')) {
-                commonHeaders['X-Su-Shiki-Key'] = apiKey;
+            // APIキーをカスタムヘッダーでプロキシに渡す
+            if (apiKey) {
+                commonHeaders['X-Custom-Voicevox-Key'] = apiKey;
             }
             const queryParams = new URLSearchParams({ text: text, speaker: speakerId });
-            const queryResponse = await fetch(`${voicevoxApiBaseUrl}/audio_query?${queryParams}`, {
+            const queryResponse = await fetch(`${voicevoxProxyBaseUrl}/audio_query?${queryParams}`, {
                 method: 'POST',
                 headers: commonHeaders,
             });
@@ -44,8 +44,11 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxApiBaseUrl = 'http
 
             // Step 2: synthesis (音声合成)
             const synthesisParams = new URLSearchParams({ speaker: speakerId });
-            const synthesisHeaders = { ...commonHeaders, 'Content-Type': 'application/json', 'Accept': 'audio/wav' };
-            const synthResponse = await fetch(`${voicevoxApiBaseUrl}/synthesis?${synthesisParams}`, {
+            const synthesisHeaders = {
+                ...commonHeaders, // X-Custom-Voicevox-Key を含む
+                'Content-Type': 'application/json',
+                'Accept': 'audio/wav' };
+            const synthResponse = await fetch(`${voicevoxProxyBaseUrl}/synthesis?${synthesisParams}`, {
                 method: 'POST',
                 headers: synthesisHeaders,
                 body: JSON.stringify(audioQuery)
@@ -230,7 +233,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
       }
   }
 
-  const { opening, defaultSlideDuration = 7000, speakerId = 1, voicevoxApiBaseUrl = 'https://voicevox.su-shiki.com', voicevoxApiKey = null } = options;
+  const { opening, defaultSlideDuration = 7000, speakerId = 1, voicevoxProxyBaseUrl = '/voicevox-proxy', voicevoxApiKey = null } = options;
 
   // 追加ログ: opening オブジェクトと backgroundVideo/backgroundImage の存在確認
   if (opening) {
@@ -372,7 +375,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
 
     if (opening.audioText) {
         console.log(`[VideoGen] Opening: Attempting to speak audioText: "${opening.audioText.substring(0,50)}..."`);
-        await speakWithVoicevox(opening.audioText, speakerId, voicevoxApiBaseUrl, voicevoxApiKey);
+        await speakWithVoicevox(opening.audioText, speakerId, voicevoxProxyBaseUrl, voicevoxApiKey);
     }
     // オープニングの表示時間（音声がない場合や、音声再生後の追加待機）
     // 動画の場合はopDurationで制御済みなので、ここでは音声がない場合の待機のみ考慮
@@ -476,7 +479,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     const slideDuration = item.slideDuration || defaultSlideDuration;
 
     console.log(`[VideoGen] Item Scene: Attempting to speak audioText for "${item.title.substring(0,50)}...": "${audioToSpeak.substring(0,50)}..."`);
-    await speakWithVoicevox(audioToSpeak, speakerId, voicevoxApiBaseUrl, voicevoxApiKey);
+    await speakWithVoicevox(audioToSpeak, speakerId, voicevoxProxyBaseUrl, voicevoxApiKey);
     console.log(`[VideoGen] Item Scene: Finished speakText for "${item.title.substring(0,50)}". Waiting for slide duration.`);
     await new Promise(resolve => setTimeout(resolve, Math.max(1000, slideDuration / 2) )); // 音声再生後、またはエラー後も少し待つ
   }
