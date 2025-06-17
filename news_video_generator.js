@@ -1,158 +1,6 @@
 // c/homepages/news_video_generator.js
 
 /**
- * Voicevox API (su-shiki.com版) を使用してテキストを読み上げ、再生する非同期関数
- * @param {string} text 読み上げるテキスト
- * @param {number} speakerId Voicevoxの話者ID (例: 1)
- * @param {string} voicevoxApiBaseUrl Voicevox APIのベースURL
- * @returns {Promise<void>} 音声再生完了時に解決されるPromise
- */
-async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/voicevox-proxy', apiKey = null) {
-    console.log(`[speakWithVoicevox] ENTERING FUNCTION. Text: "${text ? text.substring(0, 70) : 'N/A'}...", Speaker: ${speakerId}, ProxyBase: ${voicevoxProxyBaseUrl}, APIKeyPresent: ${!!apiKey}`);
-    // APIキーが必要なエンドポイントでキーが提供されていない場合に警告
-    if (voicevoxProxyBaseUrl && voicevoxProxyBaseUrl.includes('voicevox-proxy') && !apiKey) {
-        console.warn(`[speakWithVoicevox] Warning: An API key was not provided for the Voicevox proxy. Requests may fail if an API key is necessary for su-shiki.com.`);
-    }
-
-    return new Promise(async (resolve, reject) => {
-        if (!text || text.trim() === "") {
-            console.warn("[speakWithVoicevox] Text is empty, resolving.");
-            resolve();
-            return;
-        }
-        try {
-            // 新しいAPIでは audio_query は不要、直接 synthesis (GETリクエスト)
-            const commonHeaders = { 'Accept': 'application/json' };
-            // APIキーをカスタムヘッダーでプロキシに渡す
-            if (apiKey && voicevoxProxyBaseUrl.includes('voicevox-proxy')) { // プロキシ経由かつAPIキーがある場合
-                commonHeaders['X-Custom-Voicevox-Key'] = apiKey;
-            }
-
-            const queryParams = new URLSearchParams({ text: text, speaker: speakerId });
-            // プロキシは /audio_query や /synthesis のパスを解釈して新しいAPI形式に変換する
-            // クライアントからは従来通り /audio_query (または /synthesis) を呼び出す想定で良いが、
-            // APIが一本化されたので、ここでは /synthesis を呼び出す形に統一しても良い。
-            // プロキシ側でどちらのパスでも対応できるようにしている。
-            // ここでは、新しいAPIがsynthesisに一本化されたことを意識し、便宜上/synthesisパスを使う。
-            // ただし、プロキシは text と speaker をクエリから取得するので、POSTボディは不要。
-            const fetchUrl = `${voicevoxProxyBaseUrl}/synthesis?${queryParams}`;
-            console.log(`[speakWithVoicevox] Attempting to fetch: ${fetchUrl}`);
-            const synthResponse = await fetch(fetchUrl, {
-                method: 'GET', // 新しいAPIはGET
-                headers: {
-                    'Accept': 'application/json', // プロキシはJSONを返すように変更
-                    ...(apiKey && voicevoxProxyBaseUrl.includes('voicevox-proxy') ? {'X-Custom-Voicevox-Key': apiKey} : {})
-                },
-                // body: JSON.stringify(audioQuery) // GETなのでボディは不要
-            });
-
-            if (!synthResponse.ok) {
-                let errorDetail = `Status: ${synthResponse.status} ${synthResponse.statusText || ''}`.trim();
-                try {
-                    const bodyText = await synthResponse.text();
-                    if (bodyText) {
-                        errorDetail += `, Body: ${bodyText.substring(0, 200)}`; // Limit body length in log
-                    }
-                } catch (e) { /* ignore if body cannot be read */ }
-                console.error(`[speakWithVoicevox] Voicevox synthesis request failed: ${errorDetail}`);
-                reject(new Error(`Voicevox synthesis request failed: ${errorDetail}`));
-                return;
-            }
-
-            const contentType = synthResponse.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                const errorBody = await synthResponse.text();
-                const errorMsg = `Expected JSON response from proxy, but got ${contentType || 'unknown'}. Body: ${errorBody.substring(0,200)}`;
-                console.error(`[speakWithVoicevox] ${errorMsg}`);
-                reject(new Error(errorMsg));
-                return;
-            }
-
-            const synthesisResult = await synthResponse.json(); // ここでエラーが発生している
-            console.log('[speakWithVoicevox] Synthesis API Result:', synthesisResult);
-
-            if (!synthesisResult.success || (!synthesisResult.mp3DownloadUrl && !synthesisResult.wavDownloadUrl)) {
-                const errorMsg = `Voicevox synthesis was not successful or no audio URL found. Success: ${synthesisResult.success}, Message: ${synthesisResult.message || 'N/A'}`;
-                console.error(`[speakWithVoicevox] ${errorMsg}`);
-                reject(new Error(errorMsg));
-                return;
-            }
-
-            // MP3を優先し、なければWAVを使用
-            const audioDownloadUrl = synthesisResult.mp3DownloadUrl || synthesisResult.wavDownloadUrl;
-            console.log(`[speakWithVoicevox] Attempting to download audio from: ${audioDownloadUrl}`);
-
-            const audioFileResponse = await fetch(audioDownloadUrl);
-            if (!audioFileResponse.ok) {
-                const errorMsg = `Failed to download audio file from ${audioDownloadUrl}. Status: ${audioFileResponse.status}`;
-                console.error(`[speakWithVoicevox] ${errorMsg}`);
-                reject(new Error(errorMsg));
-                return;
-            }
-
-            const audioBlob = await audioFileResponse.blob();
-            const audioUrl = URL.createObjectURL(audioBlob);
-            console.log(`[speakWithVoicevox] Audio file downloaded and blob URL created: ${audioUrl}, Type: ${audioBlob.type}`);
-            const audio = new Audio(audioUrl);
-            
-            let resolved = false;
-            const timeoutDuration = 30000; // 30秒のタイムアウト
-
-            const timeoutId = setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    audio.pause();
-                    URL.revokeObjectURL(audioUrl);
-                    console.warn(`[speakWithVoicevox] Playback timed out for text "${text.substring(0,70)}..."`);
-                    resolve(); // タイムアウトでもPromiseは解決
-                }
-            }, timeoutDuration);
-
-            audio.onended = () => {
-                if (!resolved) {
-                    resolved = true;
-                    clearTimeout(timeoutId);
-                    URL.revokeObjectURL(audioUrl);
-                    console.log(`[speakWithVoicevox] Playback ended for "${text.substring(0, 70)}..."`);
-                    resolve();
-                }
-            };
-            audio.onerror = (e) => {
-                if (!resolved) {
-                    resolved = true;
-                    clearTimeout(timeoutId);
-                    URL.revokeObjectURL(audioUrl);
-                    let errorDetails = "Unknown audio playback error";
-                    if (e && e.target && e.target.error) {
-                        errorDetails = `MediaError code: ${e.target.error.code}, message: ${e.target.error.message}`;
-                    }
-                    console.error(`[speakWithVoicevox] Error playing Voicevox audio for "${text.substring(0,70)}...":`, errorDetails, e);
-                    resolve(); // エラーでもPromiseは解決 (処理を続行するため)
-                }
-            };
-            audio.play().catch(playError => { // play()が失敗するケースも考慮
-                if (!resolved) {
-                    resolved = true;
-                    clearTimeout(timeoutId);
-                    URL.revokeObjectURL(audioUrl);
-                    let playErrorDetails = "audio.play() failed";
-                    if (playError instanceof Error) {
-                        playErrorDetails = `audio.play() failed: ${playError.name} - ${playError.message}`;
-                    }
-                    console.error(`[speakWithVoicevox] ${playErrorDetails} for "${text.substring(0,70)}..."`, playError);
-                    resolve();
-                }
-            });
-            console.log(`[speakWithVoicevox] Audio element created and play() called for "${text.substring(0, 70)}..."`);
-
-        } catch (error) {
-            console.error("[speakWithVoicevox] General error:", error);
-            resolve(); // キャッチしたエラーでもPromiseは解決
-        }
-    });
-}
-
-/**
  * 画像を読み込む非同期関数
  * @param {string} src 画像のURL
  * @returns {Promise<HTMLImageElement>} 読み込み完了時に解決されるPromise (画像要素)
@@ -271,7 +119,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
       }
   }
 
-  const { opening, defaultSlideDuration = 7000, speakerId = 1, voicevoxProxyBaseUrl = '/voicevox-proxy', voicevoxApiKey = null } = options;
+  const { opening, defaultSlideDuration = 7000 } = options;
 
   // 追加ログ: opening オブジェクトと backgroundVideo/backgroundImage の存在確認
   if (opening) {
@@ -411,19 +259,9 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         wrapText(ctx, opening.title, 0, canvasElement.height * 0.45, opTitleMaxWidth, opTitleLineHeight, opTitleFont, opTitleColor, 'center');
     }
 
-    if (opening.audioText) {
-        console.log(`[VideoGen] Opening: Preparing to speak audioText: "${opening.audioText.substring(0,50)}..."`);
-        await speakWithVoicevox(opening.audioText, speakerId, voicevoxProxyBaseUrl, voicevoxApiKey);
-        console.log(`[VideoGen] Opening: Finished speaking audioText.`);
-    }
-    // オープニングの表示時間（音声がない場合や、音声再生後の追加待機）
-    // 動画の場合はopDurationで制御済みなので、ここでは音声がない場合の待機のみ考慮
-    if (!opening.backgroundVideo && !opening.audioText) {
-        await new Promise(resolve => setTimeout(resolve, opening.duration || 3000));
-    } else if (!opening.backgroundVideo && opening.audioText) {
-        // 音声再生後、指定durationからある程度引いた時間待つか、固定時間待つ
-        await new Promise(resolve => setTimeout(resolve, Math.max(500, (opening.duration || 3000) / 2) ));
-    }
+    // オープニングの表示時間
+    const openingDuration = (opening && opening.duration) ? opening.duration : (opening && opening.backgroundVideo ? 0 : 3000); // 動画がない場合はデフォルト3秒
+    await new Promise(resolve => setTimeout(resolve, openingDuration));
   }
 
   // --- ニュースアイテムシーン ---
@@ -498,6 +336,14 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         const y = canvasElement.height * 0.15;
         ctx.drawImage(img, x, y, drawWidth, drawHeight);
       } catch (error) {
+        console.warn("ニュース画像の読み込みに失敗しました:", item.imageUrl, error);
+        // 画像読み込み失敗時、またはimageUrlがない場合にプレースホルダーテキストを描画
+        const placeholderText = "[タイトル画像]";
+        const placeholderFont = `${canvasElement.height * 0.04}px Meiryo, Arial, sans-serif`;
+        ctx.font = placeholderFont;
+        ctx.fillStyle = 'grey';
+        ctx.textAlign = 'center';
+        ctx.fillText(placeholderText, canvasElement.width / 2, canvasElement.height * 0.4);
         console.error("ニュース画像の読み込みに失敗しました:", item.imageUrl, error);
       }
     }
@@ -512,15 +358,13 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     const titleBaseY = canvasElement.height - (canvasElement.height * 0.15 * 0.5); // テロップ帯の中心Y
     const titleActualY = titleBaseY - (titleLineHeight / 2); // 1行の場合、中央にくるように調整 (複数行の場合は wrapText内で処理)
 
+    // ニュースの要約テロップとしてitem.titleを描画
     wrapText(ctx, item.title, 0, titleActualY, titleMaxWidth, titleLineHeight, titleFont, titleColor, 'center');
 
-    const audioToSpeak = item.audioText || item.title;
     const slideDuration = item.slideDuration || defaultSlideDuration;
 
-    console.log(`[VideoGen] Item Scene: Preparing to speak audioText for "${item.title.substring(0,50)}...": "${audioToSpeak.substring(0,50)}..."`);
-    await speakWithVoicevox(audioToSpeak, speakerId, voicevoxProxyBaseUrl, voicevoxApiKey);
-    console.log(`[VideoGen] Item Scene: Finished speaking audioText for "${item.title.substring(0,50)}". Waiting for slide duration.`);
-    await new Promise(resolve => setTimeout(resolve, Math.max(1000, slideDuration / 2) )); // 音声再生後、またはエラー後も少し待つ
+    console.log(`[VideoGen] Item Scene: Displaying item "${item.title.substring(0,50)}" for ${slideDuration}ms.`);
+    await new Promise(resolve => setTimeout(resolve, slideDuration));
   }
 
   recorder.stop();
