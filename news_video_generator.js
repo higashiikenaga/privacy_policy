@@ -476,7 +476,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
         if (newsImageDrawParams) {
             ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
         } else { // ニュース画像がないか、ロード失敗した場合
-            const placeholderText = "[タイトル画像]";
+            const placeholderText = "";
             const placeholderFont = `${canvasElement.height * 0.04}px 'Noto Sans JP', Arial, sans-serif`;
             ctx.font = placeholderFont;
             ctx.fillStyle = 'grey';
@@ -536,7 +536,7 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
                 console.log(`[VideoGen] Item Scene (Frame ${Math.round(elapsed/frameDuration)}): Drawing news image. Params:`, JSON.stringify(newsImageDrawParams, (k,v) => v instanceof HTMLImageElement ? {src: v.src, complete: v.complete} : v), `Actual img object:`, newsImageDrawParams.img);
                 ctx.drawImage(newsImageDrawParams.img, newsImageDrawParams.x, newsImageDrawParams.y, newsImageDrawParams.width, newsImageDrawParams.height);
             } else {
-                const placeholderText = "[タイトル画像]";
+                const placeholderText = "";
                 const phFont = `${canvasElement.height * 0.04}px 'Noto Sans JP', Arial, sans-serif`;
                 ctx.font = phFont; ctx.fillStyle = 'grey'; ctx.textAlign = 'center';
                 ctx.fillText(placeholderText, canvasElement.width / 2, canvasElement.height * 0.4);

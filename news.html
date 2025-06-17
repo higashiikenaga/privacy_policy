@@ -84,13 +84,6 @@
             font-style: italic;
             color: #777;
         }
-        .news-item img.ogp-image {
-            max-width: 100px;
-            max-height: 75px;
-            object-fit: cover;
-            margin-right: 10px;
-            float: left; /* 画像を左に寄せてテキストを回り込ませる */
-        }
         /* 横スライド用スタイル */
         .news-feed-slider {
             display: flex;
@@ -100,11 +93,12 @@
         }
         .news-feed-slider .news-item {
             flex: 0 0 auto; 
-            width: 300px; 
+            width: 450px; /* ニュースアイテムの幅を大きくする (例: 300px -> 450px) */
             margin-right: 15px;
             border-bottom: none; 
             border-right: 1px solid #eee; 
             padding: 15px; 
+            height: auto; /* 高さを自動調整 */
             box-sizing: border-box; 
         }
         .news-feed-slider .news-item:last-child {
@@ -225,28 +219,6 @@
             if (generateVideoButton) generateVideoButton.style.display = 'none';
         }
 
-        async function fetchAndExtractOGPImage(pageUrl, proxyUrl = '/fetch-ogp-proxy?url=') {
-            if (!pageUrl) return null;
-            console.log(`[OGP] Attempting to fetch OGP for: ${pageUrl}`);
-            try {
-                const fetchUrl = `${proxyUrl}${encodeURIComponent(pageUrl)}`;
-                const response = await fetch(fetchUrl);
-                if (!response.ok) {
-                    console.error(`[OGP] Failed to fetch HTML via proxy for: ${pageUrl}, Status: ${response.status}`);
-                    return null;
-                }
-                const htmlText = await response.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlText, 'text/html');
-                const ogImageMeta = doc.querySelector('meta[property="og:image"]');
-                if (ogImageMeta && ogImageMeta.content) {
-                    return new URL(ogImageMeta.content, pageUrl).href; // 相対URLを絶対URLに解決
-                }
-            } catch (error) {
-                console.error(`[OGP] Error fetching or parsing OGP for ${pageUrl}:`, error);
-            }
-            return null;
-        }
         function formatErrorDetail(detail) {
             if (typeof detail === 'string') return detail;
             if (typeof detail === 'object' && detail !== null) return JSON.stringify(detail);
@@ -281,14 +253,8 @@
                     const description = itemNode.querySelector("description, summary, content")?.textContent || "";
                     const pubDate = itemNode.querySelector("pubDate, published, updated")?.textContent || "";
 
-                    // OGP画像取得処理をここに追加
-                    let ogpImageUrl = null;
-                    if (link) { // 記事の元URLがある場合のみOGP取得を試みる
-                         // for...of ループ内なので await が正しく機能する
-                         ogpImageUrl = await fetchAndExtractOGPImage(link);
-                    }
-
-                    items.push({ title, link, description, pubDate, sourceName: feedConfig.name, sourceUrl: feedConfig.url, ogpImageUrl: ogpImageUrl }); // ogpImageUrl をアイテムに追加
+                    // OGP画像取得処理を削除
+                    items.push({ title, link, description, pubDate, sourceName: feedConfig.name, sourceUrl: feedConfig.url, ogpImageUrl: null });
                 }
 
                 if (items.length === 0 && xml.documentElement.nodeName === 'rss') { // Check if it's RSS and still no items
@@ -316,15 +282,15 @@
             }
             allItems.sort((a, b) => (new Date(b.pubDate || 0)) - (new Date(a.pubDate || 0)));
 
-            // fetchFeed内でOGPを取得済みなので、ここではスライスとimageUrlの設定のみ行う
+            // OGP画像取得処理を削除したため、imageUrl は null または未設定になる
             const itemsToRender = allItems.slice(0, MAX_NEWS_ITEMS_TOTAL).map(item => ({
-                ...item, imageUrl: item.ogpImageUrl // OGP画像をimageUrlとして設定 (news_video_generator.jsの既存ロジックに合わせる)
+                ...item, imageUrl: null // OGP画像は取得しないのでnull
             }));
             currentNewsItemsForVideo = itemsToRender.map(item => ({
                 title: item.title, description: item.description, link: item.link,
                 sourceName: item.sourceName,
-                imageUrl: item.imageUrl,      // OGP画像のURLをimageUrlに格納
-                ogpImageUrl: item.imageUrl    // news_video_generator.js で参照される可能性のあるogpImageUrlにも同じ値を設定
+                imageUrl: null,      // OGP画像は取得しない
+                ogpImageUrl: null    // OGP画像は取得しない
             }));
 
             renderNews(itemsToRender);
@@ -347,13 +313,7 @@
                 linkElement.target = "_blank";
                 linkElement.rel = "noopener noreferrer";
 
-                if (item.imageUrl) {
-                    const imageElement = document.createElement('img');
-                    imageElement.src = item.imageUrl;
-                    imageElement.alt = `Image for ${item.title}`;
-                    imageElement.classList.add('ogp-image');
-                    newsItemDiv.appendChild(imageElement);
-                }
+                // OGP画像表示処理を削除
                 titleElement.appendChild(linkElement);
                 const descriptionElement = document.createElement('p');
                 descriptionElement.classList.add('description');
