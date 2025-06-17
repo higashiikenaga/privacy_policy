@@ -201,26 +201,23 @@
         const newsFeedContainer = document.getElementById('news-feed');
         let genAI;
         let model;
-        let currentNewsItemsForSummary = [];
-        const ttsControlsDiv = document.getElementById('tts-controls');
+        let currentNewsItemsForVideo = []; // 変数名を変更 (以前は currentNewsItemsForSummary)
         const generateVideoButton = document.getElementById('generateVideoButton');
         const newsCanvas = document.getElementById('newsCanvas');
         const videoOutputArea = document.getElementById('video-output-area');
-        const ttsStatusElement = document.getElementById('tts-status');
         const videoLoadingIndicator = document.getElementById('video-loading-indicator'); // 読み込み中インジケータ
 
         if (EFFECTIVE_GEMINI_API_KEY && EFFECTIVE_GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY_PLACEHOLDER") {
             try {
                 genAI = new GoogleGenerativeAI(EFFECTIVE_GEMINI_API_KEY);
                 model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-                document.getElementById('summarize-all-button').style.display = 'block';
                 if (generateVideoButton) generateVideoButton.style.display = 'block';
             } catch (error) {
                 console.error("Failed to initialize Gemini model:", formatErrorDetail(error.message || error));
                 model = null;
             }
         } else {
-            document.getElementById('summarize-all-button').style.display = 'none';
+
             if (generateVideoButton) generateVideoButton.style.display = 'none';
             console.warn("Gemini API Key not found or is a placeholder.");
             model = null;
@@ -232,132 +229,8 @@
             return '不明なエラー詳細';
         }
 
-        async function fetchFeed(feedConfig) {
-            const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedConfig.url)}`;
-            const response = await fetch(apiUrl);
-            if (!response.ok) {
-                let errorText = response.statusText;
-                try {
-                    const errorData = await response.json();
-                    if (errorData && errorData.message) errorText = formatErrorDetail(errorData.message);
-                } catch (e) { /* ignore */ }
-                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText} for ${feedConfig.name}`);
-            }
-            const data = await response.json();
-            if (data && data.status === 'ok' && Array.isArray(data.items)) {
-                return data.items.map(item => ({ ...item, sourceName: feedConfig.name, sourceUrl: feedConfig.url }));
-            } else if (data && data.status === 'error' && data.message) {
-                throw new Error(`API error: ${formatErrorDetail(data.message)} for ${feedConfig.name}`);
-            }
-            throw new Error(`Invalid feed format for ${feedConfig.name}`);
-        }
-
-        async function generateGlobalSummary() {
-            const summaryOutputContainer = document.getElementById('global-summary-output');
-            summaryOutputContainer.style.display = 'block';
-            ttsControlsDiv.style.display = 'block';
-            ttsStatusElement.textContent = 'ニュース全体の要約を生成中...';
-            summaryOutputContainer.innerHTML = `<p class="summary-loading">ニュース全体の要約を生成中...</p>`;
-
-            if (!model) {
-                summaryOutputContainer.innerHTML = `<p class="summary-error">Gemini APIキー未設定またはモデル初期化失敗。</p>`;
-                ttsStatusElement.textContent = '要約機能は利用できません。';
-                return;
-            }
-            if (currentNewsItemsForSummary.length === 0) {
-                summaryOutputContainer.innerHTML = `<p class="summary-error">要約対象のニュースがありません。</p>`;
-                ttsStatusElement.textContent = '要約対象のニュースがありません。';
-                return;
-            }
-
-            let combinedNewsText = currentNewsItemsForSummary.map((item, index) => {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = item.description;
-                const plainDescription = (tempDiv.textContent || tempDiv.innerText || "").trim();
-                return `ニュース ${index + 1}:\nタイトル: ${item.title}\n概要: ${plainDescription}\n出典: ${item.sourceName || '不明'}`;
-            }).join("\n\n---\n\n");
-
-            if (combinedNewsText.trim().length < 50) {
-                summaryOutputContainer.innerHTML = `<p class="summary-error">要約するには情報が少なすぎます。</p>`;
-                ttsStatusElement.textContent = '要約する情報が少なすぎます。';
-                return;
-            }
-
-            try {
-                const generationConfig = { temperature: 0.7, topK: 1, topP: 1, maxOutputTokens: 800 };
-                const safetySettings = [
-                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                ];
-                const now = new Date();
-                const timeString = now.toLocaleString('ja-JP', { hour: 'numeric', minute: 'numeric', timeZone: 'Asia/Tokyo', hour12: false });
-                const currentHour = parseInt(now.toLocaleString('ja-JP', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tokyo' }), 10);
-                let greeting = (currentHour >= 5 && currentHour < 11) ? "おはようございます。" : (currentHour >= 11 && currentHour < 18) ? "こんにちは。" : "こんばんは。";
-                const newsTimeString = `${timeString.replace(':', '時')}分`;
-                const prompt = `まず「${greeting.slice(0, -1)}」と挨拶し、続けて「${newsTimeString}のニュースです。」と言ってください。\n\nその後、プロのニュースキャスターとして、以下の複数のニュース記事を元に、今日の出来事をレポートしてください。\n構成は以下のようにお願いします。\n\n1.  まず、最も重要な「メインニュース」を1つ選び、詳しく伝えてください。\n2.  次に、注目すべき「ヘッドラインニュース」を3つ程度選び、簡潔に伝えてください。\n3.  続いて、経済ニュースやその他の主要なニュースがあれば、いくつか選んで伝えてください。\n4.  もし、提供されたニュース記事の中にスポーツに関する情報があれば、その後にスポーツニュースとして伝えてください。情報がなければ、この項目は省略してください。「スポーツニュースはありません。」などとは表現せずに省略してください。\n5.  最後に、もし天気に関する情報があれば、気象情報として伝えてください。情報がなければ、この項目は省略してください。「気象情報はありません。」などとは表現せずに省略してください。\n6.  終わりには「ニュースのまとめ」を伝えて、番組を締めてください。\n\n各ニュースの要点を自然な話し言葉で、上記の順番で構成して話してください。\n\n[ニュース記事群ここから]\n${combinedNewsText}\n[ニュース記事群ここまで]`;
-                const result = await model.generateContent({ contents: [{ role: "user", parts: [{text: prompt}] }], generationConfig, safetySettings });
-                const summaryText = result.response.text();
-                summaryOutputContainer.innerHTML = `<p>${summaryText.replace(/\n/g, '<br>')}</p>`;
-                if (summaryText.trim()) speakSummary(summaryText.trim());
-            } catch (error) {
-                summaryOutputContainer.innerHTML = `<p class="summary-error">要約生成失敗: ${formatErrorDetail(error.message || error)}</p>`;
-                ttsStatusElement.textContent = `要約生成失敗: ${formatErrorDetail(error.message || error)}`;
-                console.error("Gemini API Error for global summary:", error);
-            }
-        }
-
         const synth = window.speechSynthesis;
         let japaneseVoice = null;
-
-        function findJapaneseVoice() {
-            if (!synth) return;
-            const voices = synth.getVoices();
-            const jaVoices = voices.filter(voice => voice.lang === 'ja-JP');
-            const maleVoiceCandidates = [
-                v => v.name.includes('Google') && (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男')),
-                v => v.name.includes('Microsoft') && (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男') || v.name.includes('Hiroshi')),
-                v => (v.name.includes('Male') || v.name.includes('男性') || v.name.includes('男') || v.name.includes('Otoya') || v.name.includes('Daichi'))
-            ];
-            let selectedVoice = null;
-            for (const candidateFilter of maleVoiceCandidates) {
-                selectedVoice = jaVoices.find(candidateFilter);
-                if (selectedVoice) { japaneseVoice = selectedVoice; console.log("Selected Japanese voice:", japaneseVoice.name); return; }
-            }
-            selectedVoice = jaVoices.find(voice => voice.name.includes('Google')) || jaVoices.find(voice => voice.name.includes('Microsoft')) || jaVoices[0];
-            if (selectedVoice) {
-                japaneseVoice = selectedVoice;
-                console.log("Selected Japanese voice (fallback):", japaneseVoice.name);
-            } else {
-                console.warn("No Japanese voice found.");
-            }
-        }
-
-        if (synth) {
-            if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = findJapaneseVoice;
-            findJapaneseVoice();
-        }
-
-        async function speakSummary(textToSpeak) {
-            if (!synth) {
-                ttsStatusElement.textContent = '音声合成機能は利用できません。';
-                ttsControlsDiv.style.display = 'block';
-                return;
-            }
-            ttsControlsDiv.style.display = 'block';
-            ttsStatusElement.textContent = '音声を生成中...';
-            if (synth.speaking) synth.cancel();
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
-            utterance.lang = 'ja-JP';
-            if (japaneseVoice) utterance.voice = japaneseVoice;
-            utterance.rate = 1.05;
-            utterance.pitch = 1.0;
-            utterance.onstart = () => { ttsStatusElement.textContent = '再生中...'; };
-            utterance.onend = () => { ttsStatusElement.textContent = '音声の再生が終了しました。'; };
-            utterance.onerror = (event) => { ttsStatusElement.textContent = `音声再生失敗: ${event.error}`; };
-            synth.speak(utterance);
-        }
 
         async function fetchAndDisplayNews() {
             newsFeedContainer.innerHTML = `<p class="loading">ニュースを読み込んでいます...</p>`;
@@ -373,7 +246,7 @@
             }
             allItems.sort((a, b) => (new Date(b.pubDate || 0)) - (new Date(a.pubDate || 0)));
             const itemsToRender = allItems.slice(0, MAX_NEWS_ITEMS_TOTAL);
-            currentNewsItemsForSummary = itemsToRender.map(item => ({ title: item.title, description: item.description, link: item.link, sourceName: item.sourceName }));
+            currentNewsItemsForVideo = itemsToRender.map(item => ({ title: item.title, description: item.description, link: item.link, sourceName: item.sourceName }));
             renderNews(itemsToRender);
         }
 
@@ -430,19 +303,12 @@
         }
 
         fetchAndDisplayNews();
-        document.getElementById('summarize-all-button').addEventListener('click', generateGlobalSummary);
 
         if (generateVideoButton && newsCanvas && videoOutputArea && videoLoadingIndicator) {
             newsCanvas.width = newsCanvas.parentElement.clientWidth > 854 ? 854 : newsCanvas.parentElement.clientWidth;
             newsCanvas.height = newsCanvas.width * (9/16);
 
             generateVideoButton.addEventListener('click', async () => {
-                if (!newsCanvas.getContext) { alert("お使いのブラウザはCanvasをサポートしていません。"); return; }
-                if (typeof MediaRecorder === 'undefined') { alert("お使いのブラウザはMediaRecorder APIをサポートしていません。"); return; }
-                if (!window.speechSynthesis) { alert("お使いのブラウザは音声合成APIをサポートしていません。"); return; }
-                if (currentNewsItemsForSummary.length === 0) { alert("動画に変換するニュースがありません。"); return; }
-
-                const newsItemPromises = currentNewsItemsForSummary.slice(0, 5).map(async (item, index) => {
                     let displayTitle = item.title;
                     let audioTextToSpeak = item.title;
 
@@ -486,7 +352,6 @@
                 });
                 const newsItemsForVideo = await Promise.all(newsItemPromises);
 
-                // console.log("[Video Generation] Current japaneseVoice before creating videoOptions:", japaneseVoice ? japaneseVoice.name : "Not set");
                 const selectedSpeakerId = 1; // 例: ずんだもん（ノーマル）など、使いたい話者のID
                 const videoOptions = {
                     opening: {
@@ -511,6 +376,11 @@
                     newsCanvas.style.display = 'block';
                     videoOutputArea.innerHTML = '';
                     
+                    // config.js から APIキーを読み込む (存在すれば)
+                    if (window.APP_CONFIG && window.APP_CONFIG.VOICEVOX_SU_SHIKI_API_KEY && window.APP_CONFIG.VOICEVOX_SU_SHIKI_API_KEY !== "YOUR_VOICEVOX_SU_SHIKI_API_KEY_PLACEHOLDER") {
+                        videoOptions.voicevoxApiKey = window.APP_CONFIG.VOICEVOX_SU_SHIKI_API_KEY;
+                    }
+
                     await generateVideoFromNews(newsItemsForVideo, newsCanvas, videoOutputArea, videoOptions);
                 } catch (error) {
                     console.error("動画生成中にエラーが発生しました:", error);
@@ -521,8 +391,8 @@
                     videoLoadingIndicator.style.display = 'none'; // 読み込み中非表示
                     // newsCanvas.style.display = 'none'; // 生成後Canvasを非表示にする場合
                 }
-            });
-        }
+            };
+        
         
         
 
@@ -564,10 +434,9 @@
             if (eewData.isWarn) {
                 message = `【緊急地震速報 - 警報】震源地: ${eewData.Hypocenter || '不明'}、深さ: 約${eewData.Depth ? eewData.Depth + 'km' : '不明'}、M${eewData.Magunitude || '不明'}。最大震度${eewData.MaxIntensity || '不明'}。強い揺れに警戒。`;
                 alertClass = 'eew-alert-warning';
-                speakEEWAlert(message);
+                // speakEEWAlert(message);
             } else {
                 message = `【緊急地震速報 - 予報】震源地: ${eewData.Hypocenter || '不明'}、M${eewData.Magunitude || '不明'}。`;
-                alertClass = 'eew-alert-forecast';
             }
             eewTickerText.textContent = message;
             eewTickerContainer.className = '';
@@ -576,22 +445,8 @@
             eewTickerText.style.animation = 'none'; eewTickerText.offsetHeight; eewTickerText.style.animation = null;
         }
 
-        function speakEEWAlert(textToSpeak) {
-            if (!synth) return;
-            if (synth.speaking) synth.cancel();
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
-            utterance.lang = 'ja-JP';
-            if (japaneseVoice) utterance.voice = japaneseVoice;
-            utterance.rate = 1.1; utterance.pitch = 1.0;
-            utterance.onstart = () => eewTickerText.classList.add('paused');
-            utterance.onend = () => eewTickerText.classList.remove('paused');
-            utterance.onerror = () => eewTickerText.classList.remove('paused');
-            synth.speak(utterance);
-        }
-
         setInterval(fetchEEWData, 3000);
         fetchEEWData();
-        window.addEventListener('beforeunload', () => { if (speechSynthesis && speechSynthesis.speaking) speechSynthesis.cancel(); });
     </script>
 </body>
 </html>
