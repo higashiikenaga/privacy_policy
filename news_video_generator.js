@@ -89,7 +89,11 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
                     resolved = true;
                     clearTimeout(timeoutId);
                     URL.revokeObjectURL(audioUrl);
-                    console.error(`[speakWithVoicevox] Error playing Voicevox audio for "${text.substring(0,70)}...":`, e);
+                    let errorDetails = "Unknown audio playback error";
+                    if (e && e.target && e.target.error) {
+                        errorDetails = `MediaError code: ${e.target.error.code}, message: ${e.target.error.message}`;
+                    }
+                    console.error(`[speakWithVoicevox] Error playing Voicevox audio for "${text.substring(0,70)}...":`, errorDetails, e);
                     resolve(); // エラーでもPromiseは解決 (処理を続行するため)
                 }
             };
@@ -98,7 +102,11 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
                     resolved = true;
                     clearTimeout(timeoutId);
                     URL.revokeObjectURL(audioUrl);
-                    console.error(`[speakWithVoicevox] audio.play() failed for "${text.substring(0,70)}...":`, playError);
+                    let playErrorDetails = "audio.play() failed";
+                    if (playError instanceof Error) {
+                        playErrorDetails = `audio.play() failed: ${playError.name} - ${playError.message}`;
+                    }
+                    console.error(`[speakWithVoicevox] ${playErrorDetails} for "${text.substring(0,70)}..."`, playError);
                     resolve();
                 }
             });
