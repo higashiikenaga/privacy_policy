@@ -8,7 +8,7 @@
  * @returns {Promise<void>} 音声再生完了時に解決されるPromise
  */
 async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/voicevox-proxy', apiKey = null) {
-    console.log(`[speakWithVoicevox] Attempting to speak with speaker ${speakerId}: "${text.substring(0, 70)}..."`);
+    console.log(`[speakWithVoicevox] ENTERING FUNCTION. Text: "${text ? text.substring(0, 70) : 'N/A'}...", Speaker: ${speakerId}, ProxyBase: ${voicevoxProxyBaseUrl}, APIKeyPresent: ${!!apiKey}`);
     // APIキーが必要なエンドポイントでキーが提供されていない場合に警告
     if (voicevoxProxyBaseUrl && voicevoxProxyBaseUrl.includes('voicevox-proxy') && !apiKey) {
         console.warn(`[speakWithVoicevox] Warning: An API key was not provided for the Voicevox proxy. Requests may fail if an API key is necessary for su-shiki.com.`);
@@ -35,7 +35,9 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
             // プロキシ側でどちらのパスでも対応できるようにしている。
             // ここでは、新しいAPIがsynthesisに一本化されたことを意識し、便宜上/synthesisパスを使う。
             // ただし、プロキシは text と speaker をクエリから取得するので、POSTボディは不要。
-            const synthResponse = await fetch(`${voicevoxProxyBaseUrl}/synthesis?${queryParams}`, {
+            const fetchUrl = `${voicevoxProxyBaseUrl}/synthesis?${queryParams}`;
+            console.log(`[speakWithVoicevox] Attempting to fetch: ${fetchUrl}`);
+            const synthResponse = await fetch(fetchUrl, {
                 method: 'GET', // 新しいAPIはGET
                 headers: {
                     'Accept': 'application/json', // プロキシはJSONを返すように変更
@@ -255,6 +257,7 @@ function drawHeadlines(ctx, allNewsItems, currentIndex, canvasWidth, canvasHeigh
  * @param {Object} options 動画生成オプション
  */
 async function generateVideoFromNews(newsItems, canvasElement, outputContainer, options = {}) {
+  console.log('[VideoGen] ENTERING generateVideoFromNews function. Options:', options);
   const ctx = canvasElement.getContext('2d');
   console.log('[VideoGen] Received options:', JSON.parse(JSON.stringify(options, (key, value) => key === 'voice' && value instanceof SpeechSynthesisVoice ? {name: value.name, lang: value.lang} : value)));
   
@@ -409,8 +412,9 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     }
 
     if (opening.audioText) {
-        console.log(`[VideoGen] Opening: Attempting to speak audioText: "${opening.audioText.substring(0,50)}..."`);
+        console.log(`[VideoGen] Opening: Preparing to speak audioText: "${opening.audioText.substring(0,50)}..."`);
         await speakWithVoicevox(opening.audioText, speakerId, voicevoxProxyBaseUrl, voicevoxApiKey);
+        console.log(`[VideoGen] Opening: Finished speaking audioText.`);
     }
     // オープニングの表示時間（音声がない場合や、音声再生後の追加待機）
     // 動画の場合はopDurationで制御済みなので、ここでは音声がない場合の待機のみ考慮
@@ -513,9 +517,9 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
     const audioToSpeak = item.audioText || item.title;
     const slideDuration = item.slideDuration || defaultSlideDuration;
 
-    console.log(`[VideoGen] Item Scene: Attempting to speak audioText for "${item.title.substring(0,50)}...": "${audioToSpeak.substring(0,50)}..."`);
+    console.log(`[VideoGen] Item Scene: Preparing to speak audioText for "${item.title.substring(0,50)}...": "${audioToSpeak.substring(0,50)}..."`);
     await speakWithVoicevox(audioToSpeak, speakerId, voicevoxProxyBaseUrl, voicevoxApiKey);
-    console.log(`[VideoGen] Item Scene: Finished speakText for "${item.title.substring(0,50)}". Waiting for slide duration.`);
+    console.log(`[VideoGen] Item Scene: Finished speaking audioText for "${item.title.substring(0,50)}". Waiting for slide duration.`);
     await new Promise(resolve => setTimeout(resolve, Math.max(1000, slideDuration / 2) )); // 音声再生後、またはエラー後も少し待つ
   }
 
