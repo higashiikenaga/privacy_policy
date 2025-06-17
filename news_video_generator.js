@@ -78,12 +78,13 @@ function speakText(text, voice = null) {
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // img.crossOrigin = "anonymous"; // ローカルファイルの場合、影響する可能性があるので一時的にコメントアウト
     img.onload = () => resolve(img);
     img.onerror = (event) => { // 'event' の方が一般的
       console.error(`[loadImage] Failed to load image. Src: ${src}`, event.type, event);
       reject(new Error(`Failed to load image: ${src} (Error type: ${event.type})`));
     };
+    console.log(`[loadImage] Attempting to resolve path. Original src: "${src}", Resolved absolute URL: "${new URL(src, document.baseURI).href}"`);
     console.log(`[loadImage] Attempting to load image: ${src}`);
     img.src = src;
   });
@@ -193,8 +194,9 @@ async function generateVideoFromNews(newsItems, canvasElement, outputContainer, 
       console.log(`[VideoGen] Opening: Attempting to use background video: ${opening.backgroundVideo}`);
       try {
         const video = document.createElement('video');
-        video.crossOrigin = 'anonymous';
+        // video.crossOrigin = 'anonymous'; // ローカルファイルの場合、影響する可能性があるので一時的にコメントアウト
         video.muted = true; 
+        console.log(`[VideoGen] Opening: Attempting to resolve video path. Original src: "${opening.backgroundVideo}", Resolved absolute URL: "${new URL(opening.backgroundVideo, document.baseURI).href}"`);
         video.src = opening.backgroundVideo;
         console.log(`[VideoGen] Opening: Video element created, src set to: ${video.src}`);
         
