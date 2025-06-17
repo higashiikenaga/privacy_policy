@@ -16,25 +16,35 @@ export async function onRequest(context) {
     return new Response('Voicevox API path missing', { status: 400 });
   }
 
-  // 新しいベースURLに変更
-  let currentTargetUrl = `https://voicevox.su-shiki.com/su-shikiapis/ttsquest${voicevoxPath}${clientRequestUrl.search}`;
+  // 新しいAPIエンドポイント形式に対応
+  let targetApiEndpoint = '';
+  const queryParams = new URLSearchParams();
+
+  if (voicevoxPath === '/audio_query' || voicevoxPath === '/synthesis') {
+    // audio_query と synthesis の両方を新しい synthesis エンドポイントにマッピング
+    targetApiEndpoint = 'https://api.tts.quest/v3/voicevox/synthesis';
+    // クライアントからのクエリパラメータを取得
+    const text = clientRequestUrl.searchParams.get('text');
+    const speaker = clientRequestUrl.searchParams.get('speaker');
+
+    if (text) queryParams.set('text', text);
+    if (speaker) queryParams.set('speaker', speaker);
+  } else {
+    console.error(`[VoicevoxProxy] Unsupported path: ${voicevoxPath}`);
+    return new Response(`Unsupported API path: ${voicevoxPath}`, { status: 400 });
+  }
+
+  let currentTargetUrl = `${targetApiEndpoint}?${queryParams.toString()}`;
 
   // クライアントから送られてきたAPIキーを取得
   const apiKey = clientRequest.headers.get('X-Custom-Voicevox-Key');
   console.log(`[VoicevoxProxy] API Key from client: ${apiKey ? 'Present' : 'Not Present'}`);
+  // 新しいAPIはGETメソッドで、ボディは不要
+  const initialMethod = 'GET'; // メソッドをGETに固定
+  const initialBody = null;    // ボディは不要
 
-  const initialMethod = clientRequest.method;
-  // Read body only if it's a method that typically has one
-  const initialBody = (initialMethod === 'POST' || initialMethod === 'PUT' || initialMethod === 'PATCH')
-    ? await clientRequest.arrayBuffer() // Use arrayBuffer for easier cloning
-    : null;
-  if (initialBody) {
-    console.log(`[VoicevoxProxy] Initial request body size: ${initialBody.byteLength}`);
-  }
-
-
-  let currentMethod = initialMethod;
-  let currentBody = initialBody;
+  let currentMethod = initialMethod; // 常にGET
+  let currentBody = initialBody;   // 常にnull
 
   try {
     for (let i = 0; i < 5; i++) { // Max 5 redirects
@@ -42,13 +52,10 @@ export async function onRequest(context) {
       headersToVoicevox.set('Accept', clientRequest.headers.get('Accept') || 'application/json');
       headersToVoicevox.set('User-Agent', 'VoicevoxProxy/1.0 (+https://yukiecho.com/news)');
 
-      if (apiKey) {
+      if (apiKey && targetApiEndpoint.includes('su-shiki.com')) { // su-shiki.com の場合のみAPIキーを付与（tts.questは不要）
         headersToVoicevox.set('X-Su-Shiki-Key', apiKey);
       }
-      // Add Content-Type only if there's a body and client sent it, and not GET/HEAD
-      if (initialBody && clientRequest.headers.get('Content-Type') && currentMethod !== 'GET' && currentMethod !== 'HEAD') { // Check initialBody for Content-Type
-        headersToVoicevox.set('Content-Type', clientRequest.headers.get('Content-Type'));
-      }
+      // GETリクエストなのでContent-Typeは不要
 
       console.log(`[VoicevoxProxy] Attempt #${i + 1}: Fetching ${currentMethod} ${currentTargetUrl}`);
       headersToVoicevox.forEach((value, key) => {
@@ -56,7 +63,7 @@ export async function onRequest(context) {
       });
       if (currentBody) {
         console.log(`[VoicevoxProxy] Attempt #${i + 1}: Sending body of size ${currentBody.byteLength}`);
-      }
+      } // currentBodyは常にnullのはず
 
 
       const response = await fetch(currentTargetUrl, {
@@ -88,10 +95,9 @@ export async function onRequest(context) {
           currentMethod = 'GET';
           currentBody = null;
         } else { // Handles 301, 302, 307, 308
-          // For 301, 302, 307, 308, preserve the original method and re-use/clone the body
           console.log(`[VoicevoxProxy] Applying ${response.status} redirect logic: restoring initial method and body.`);
-          currentMethod = initialMethod;
-          currentBody = initialBody; // Re-use the ArrayBuffer from initial request
+          currentMethod = initialMethod; // 常にGET
+          currentBody = initialBody;   // 常にnull
         }
         console.log(`[VoicevoxProxy] Next request will be: Method=${currentMethod}, HasBody=${!!currentBody}`);
         continue; // Attempt next request in the redirect chain

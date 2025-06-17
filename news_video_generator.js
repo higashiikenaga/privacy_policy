@@ -21,42 +21,28 @@ async function speakWithVoicevox(text, speakerId = 1, voicevoxProxyBaseUrl = '/v
             return;
         }
         try {
-            // Step 1: audio_query (音声合成用のクエリ作成)
+            // 新しいAPIでは audio_query は不要、直接 synthesis (GETリクエスト)
             const commonHeaders = { 'Accept': 'application/json' };
             // APIキーをカスタムヘッダーでプロキシに渡す
-            if (apiKey) {
+            if (apiKey && voicevoxProxyBaseUrl.includes('voicevox-proxy')) { // プロキシ経由かつAPIキーがある場合
                 commonHeaders['X-Custom-Voicevox-Key'] = apiKey;
             }
+
             const queryParams = new URLSearchParams({ text: text, speaker: speakerId });
-            const queryResponse = await fetch(`${voicevoxProxyBaseUrl}/audio_query?${queryParams}`, {
-                method: 'POST',
-                headers: commonHeaders,
-            });
-
-            if (!queryResponse.ok) {
-                let errorDetail = `Status: ${queryResponse.status} ${queryResponse.statusText || ''}`.trim();
-                try {
-                    const bodyText = await queryResponse.text();
-                    if (bodyText) {
-                        errorDetail += `, Body: ${bodyText.substring(0, 200)}`; // Limit body length in log
-                    }
-                } catch (e) { /* ignore if body cannot be read */ }
-                console.error(`[speakWithVoicevox] Voicevox audio_query failed: ${errorDetail}`);
-                reject(new Error(`Voicevox audio_query failed: ${errorDetail}`));
-                return;
-            }
-            const audioQuery = await queryResponse.json();
-
-            // Step 2: synthesis (音声合成)
-            const synthesisParams = new URLSearchParams({ speaker: speakerId });
-            const synthesisHeaders = {
-                ...commonHeaders, // X-Custom-Voicevox-Key を含む
-                'Content-Type': 'application/json',
-                'Accept': 'audio/wav' };
-            const synthResponse = await fetch(`${voicevoxProxyBaseUrl}/synthesis?${synthesisParams}`, {
-                method: 'POST',
-                headers: synthesisHeaders,
-                body: JSON.stringify(audioQuery)
+            // プロキシは /audio_query や /synthesis のパスを解釈して新しいAPI形式に変換する
+            // クライアントからは従来通り /audio_query (または /synthesis) を呼び出す想定で良いが、
+            // APIが一本化されたので、ここでは /synthesis を呼び出す形に統一しても良い。
+            // プロキシ側でどちらのパスでも対応できるようにしている。
+            // ここでは、新しいAPIがsynthesisに一本化されたことを意識し、便宜上/synthesisパスを使う。
+            // ただし、プロキシは text と speaker をクエリから取得するので、POSTボディは不要。
+            const synthResponse = await fetch(`${voicevoxProxyBaseUrl}/synthesis?${queryParams}`, {
+                method: 'GET', // 新しいAPIはGET
+                headers: {
+                    // 'Accept': 'audio/wav' // tts.quest は audio/mpeg を返すことが多い
+                    'Accept': clientRequest.headers.get('Accept') || 'audio/mpeg, audio/wav, application/json', // プロキシ側でAcceptヘッダを転送するので、クライアント側では柔軟に
+                    ...(apiKey && voicevoxProxyBaseUrl.includes('voicevox-proxy') ? {'X-Custom-Voicevox-Key': apiKey} : {})
+                },
+                // body: JSON.stringify(audioQuery) // GETなのでボディは不要
             });
 
             if (!synthResponse.ok) {
