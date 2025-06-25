@@ -22,13 +22,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     <link rel="stylesheet" href="style.css">
     <style>
         .screenshot-placeholder {
-            border: 2px dashed #ccc;
-            padding: 40px;
+            /* 枠線やパディングをリセットして画像コンテナとして使う */
             text-align: center;
-            color: #777;
             margin-top: 20px;
+        }
+        .screenshot-placeholder img {
+            max-width: 100%; /* 親要素の幅を超えないようにする */
+            height: auto;    /* アスペクト比を維持 */
             border-radius: 8px;
-            background-color: #f9f9f9;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* 見栄えを良くするための影 */
         }
     </style>
 </head>
@@ -54,7 +56,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <section id="intro">
             <h2>あなたの創造力を解き放つ、次世代の執筆パートナー</h2>
             <p>YukiAI NovelEchoは、AIの力を借りて、アイデアの創出から推敲まで、物語作りのあらゆる段階をサポートする革新的な小説執筆ソフトです。クリエイターの皆様が、より深く、より自由に、物語の世界に没頭できるよう設計されています。</p>
-            <a href="https://drive.google.com/file/d/1q83TIqFWvwH5j9HeuoMmJ3iWsbLlDAOe/view?usp=drive_link">download</a>
+            <div class="screenshot-placeholder">
+                <img src="yukiecho_1.png" alt="YukiAI NovelEchoのスクリーンショット">
+            </div>
         </section>
 
         <section id="features">
@@ -79,7 +83,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
         <section id="status">
             <h2>現在の状況と今後の予定</h2>
-            <p>現在、YukiAI NovelEchoは開発版です。皆様に最高の執筆体験をお届けできるよう、機能の改善と追加を進めています。</p>
+            <p>現在、YukiAI NovelEchoは開発版を公開中です。皆様に最高の執筆体験をお届けできるよう、機能の改善と追加を進めています。</p>
+            <p style="text-align: center; margin: 20px 0;">
+                <a href="https://drive.google.com/file/d/1q83TIqFWvwH5j9HeuoMmJ3iWsbLlDAOe/view?usp=drive_link" class="button" target="_blank" rel="noopener noreferrer">開発版をダウンロード</a>
+            </p>
             <p><strong>ステータス:</strong> <span style="color: #e91e63; font-weight: bold;">現在開発版公開中</span></p>
             <p>リリースに関する最新情報は、当サイトのニュースページにて随時お知らせいたします。どうぞご期待ください。</p>
         </section>
