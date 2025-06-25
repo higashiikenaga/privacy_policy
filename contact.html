@@ -45,6 +45,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <input type="text" name="_honey" style="display:none">
             <!-- スパム対策: reCAPTCHAを無効化 -->
             <input type="hidden" name="_captcha" value="false">
+            <!-- 送信後のリダイレクト先を指定 -->
+            <!-- 注意: このURLはサイトを公開する際の正式なURLに書き換えてください -->
+            <input type="hidden" name="_next" value="https://yukiecho.com/thanks.html">
             
             <div class="form-group">
                 <label for="name">お名前</label>
@@ -53,6 +56,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <div class="form-group">
                 <label for="email">メールアドレス</label>
                 <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="category">お問い合わせ種別</label>
+                <select id="category" name="お問い合わせ種別" required>
+                    <option value="" disabled selected>選択してください</option>
+                    <option value="ご意見・ご感想">ご意見・ご感想</option>
+                    <option value="不具合報告">不具合報告</option>
+                    <option value="その他">その他</option>
+                </select>
             </div>
             <div class="form-group">
                 <label for="subject">件名</label>
