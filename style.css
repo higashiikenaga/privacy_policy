@@ -55,3 +55,45 @@ h1, h2 {
     color: #777;
     font-size: 0.9em;
 }
+
+.button {
+    display: inline-block;
+    padding: 12px 24px;
+    margin-top: 10px;
+    background-color: #007bff;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.button:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+/* お問い合わせフォーム */
+.contact-form {
+    margin-top: 20px;
+}
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box; /* paddingを含めてwidth 100%にする */
+}
+.form-group textarea {
+    resize: vertical; /* 縦方向のみリサイズ可能に */
+}
