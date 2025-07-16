@@ -256,7 +256,7 @@
                     <img id="account-icon-preview" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="アイコンプレビュー" class="w-16 h-16 rounded-full object-cover bg-gray-200">
                     <div>
                         <h3 id="account-user-name" class="text-lg font-semibold text-gray-800"></h3>
-                        <p id="account-user-handle" class="text-gray-500"></p>
+                      <p id="account-user-handle" class="text-gray-500"></p>
                     </div>
                 </div>
                 <div class="space-y-4">
@@ -277,11 +277,17 @@
                         <input type="email" id="account-email-input" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                         <p id="account-email-error" class="text-red-500 text-xs mt-1 hidden"></p>
                     </div>
-                    <div class="flex justify-end">
+                    <div class="flex space-x-2">
                         <button id="save-account-btn" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
                             保存
                         </button>
-                </div>
+                <button id="logout-btn-account" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
+                            ログアウト
+                        </button>
+                         <button id="switch-account-btn" class="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
+                            アカウント切り替え
+                        </button>
+                 </div>
                 </div>
                 </div>
                 </div>
@@ -476,7 +482,7 @@
         let postForm = null;
         let postText = null;
         let latitudeInput = null;
-        let mainContentWrapper = null;
+        longitudeInput = null
         let timelineContainer = null;
         let timelinePostsContainer = null;
         let timelineTabs = null;
@@ -569,9 +575,11 @@
             userInfoDisplay.textContent = 'ログインしていません';
             // ログインしていない場合のメニュー表示
             nonLoginMenu.style.display = 'block';
+                          if (showLoginModalBtn) {
             userInfoDisplay.innerHTML = 'ログインしていません';
             showLoginModalBtn.addEventListener('click', () => nameInputModal.classList.add('active'));
           }
+        }
         }
               
 };
@@ -859,6 +867,30 @@
                         localStorage.setItem(likedPostsKey, JSON.stringify(likedPosts || []));
                     }
                 });
+                if (accountMenu) {
+             accountMenu.addEventListener('click', async (event) => {
+                if (event.target.id === 'logout-btn-account') {
+                    try {
+                        await auth.signOut();
+                        showMessage('ログアウトしました。', 'info');
+                        switchView('map');
+                    } catch (error) {
+                        console.error("ログアウトに失敗しました:", error);
+                        showMessage('ログアウトに失敗しました。', 'error');
+                    }
+                } else if (event.target.id === 'switch-account-btn') {
+                   try {
+                        auth.signOut();
+                        showMessage('アカウントを切り替えます。', 'info');
+                        nameInputModal.classList.add('active');
+                       switchView('map');
+                    } catch (error) {
+                        console.error("アカウントの切り替えに失敗しました:", error);
+                        showMessage('アカウントの切り替えに失敗しました。', 'error');
+                    }
+                }
+            });
+           }
 
             } catch (error) {
                 console.error("Firebaseの初期化に失敗しました:", error);
