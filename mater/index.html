@@ -131,18 +131,7 @@
                 right: 0;
                 top: 0;
             flex-direction: column;
-        }
-        .timeline-tab-btn {
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: background-color 0.2s, color 0.2s;
-            border: none;
-            cursor: pointer;
-            background-color: transparent;
-            color: #4B5563; /* gray-600 */
-        }
+            }
         .timeline-tab-btn.active {
             background-color: white;
             color: #1F2937; /* gray-800 */
@@ -577,16 +566,16 @@
                         <button id="logout-btn" class="ml-2 text-red-500 hover:underline text-xs">ログアウト</button>`;
             if (window.innerWidth < 768) {
                 userInfoDisplay.innerHTML += `<button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウント</button>`;
-            } 
-          } else {
+            } else {
             userInfoDisplay.textContent = 'ログインしていません';
             // ログインしていない場合のメニュー表示
             nonLoginMenu.style.display = 'block';
             userInfoDisplay.innerHTML = 'ログインしていません';
             showLoginModalBtn.addEventListener('click', () => nameInputModal.classList.add('active'));
-            nameInputModal.classList.add('active');
           }
         }
+              
+};
 
         /**
          * メッセージを表示するヘルパー関数
