@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025年参議院選挙 grokによる議席予測</title>
+    <!-- Tailwind CSS CDNを読み込み、モダンなスタイルを提供します -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <!-- Interフォントを読み込み、読みやすいテキストを提供します -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* グローバルなフォント設定 */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* キャンバスの基本的なスタイル設定 */
+        canvas {
+            background-color: #ffffff; /* 白い背景 */
+            border-radius: 0.75rem; /* 角を丸くする */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* 影を追加 */
+        }
+    </style>
+</head>
+<nav style="margin-right: 15vw;">
+    <li><a href="index.html">ホーム</a></li>
+    <li><a href="contact.html">お問い合わせ</a></li>
+</nav>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow-lg p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">2025年参議院選挙 議席予測</h1>
+        <div class="relative h-96 md:h-[500px]">
+            <!-- チャートを描画するためのキャンバス要素 -->
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Chart.jsライブラリを読み込みます -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // DOMが完全に読み込まれた後にスクリプトを実行します
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ctx = document.getElementById('myChart').getContext('2d');
+
+            // 提供されたJSONデータを直接チャート設定として使用します
+            const chartConfig = {
+              "type": "bar",
+              "data": {
+                "labels": [
+                  "自民党\n45 (42-48)",
+                  "立憲民主党\n28 (26-30)",
+                  "国民民主党\n12 (10-14)",
+                  "参政党\n5 (4-6)",
+                  "公明党\n11 (10-12)",
+                  "日本維新の会\n9 (8-10)",
+                  "共産党\n6 (5-7)",
+                  "れいわ新選組\n3 (2-4)",
+                  "チームみらい\n2 (1-2)",
+                  "再生の道\n0 (0-1)",
+                  "NHK党\n0 (0-1)",
+                  "日本保守党\n0 (0-1)",
+                  "社民党\n0 (0-1)",
+                  "その他諸派\n0 (0)",
+                  "無所属\n7 (6-8)"
+                ],
+                "datasets": [
+                  {
+                    "label": "議席予測",
+                    "data": [48, 30, 14, 6, 12, 10, 7, 4, 2, 1, 1, 1, 1, 0, 8],
+                    // 元のbackgroundColor定義をカスタムプロパティに移動
+                    "_gradientDefinitions": [
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#F4A7B9" },
+                            { "offset": 0.25, "color": "#C8102E" },
+                            { "offset": 0.75, "color": "#C8102E" },
+                            { "offset": 1, "color": "#F4A7B9" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#80C1C3" },
+                            { "offset": 0.25, "color": "#005566" },
+                            { "offset": 0.75, "color": "#005566" },
+                            { "offset": 1, "color": "#80C1C3" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#80C8A3" },
+                            { "offset": 0.25, "color": "#008B45" },
+                            { "offset": 0.75, "color": "#008B45" },
+                            { "offset": 1, "color": "#80C8A3" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#F9C080" },
+                            { "offset": 0.25, "color": "#F08300" },
+                            { "offset": 0.75, "color": "#F08300" },
+                            { "offset": 1, "color": "#F9C080" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#FFE680" },
+                            { "offset": 0.25, "color": "#FFC107" },
+                            { "offset": 0.75, "color": "#FFC107" },
+                            { "offset": 1, "color": "#FFE680" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#B79ED4" },
+                            { "offset": 0.25, "color": "#6F2DA8" },
+                            { "offset": 0.75, "color": "#6F2DA8" },
+                            { "offset": 1, "color": "#B79ED4" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#F08080" },
+                            { "offset": 0.25, "color": "#D70000" },
+                            { "offset": 0.75, "color": "#D70000" },
+                            { "offset": 1, "color": "#F08080" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#FFC1DD" },
+                            { "offset": 0.25, "color": "#FF69B4" },
+                            { "offset": 0.75, "color": "#FF69B4" },
+                            { "offset": 1, "color": "#FFC1DD" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#CCFFCC" },
+                            { "offset": 0.25, "color": "#98FF98" },
+                            { "offset": 0.75, "color": "#98FF98" },
+                            { "offset": 1, "color": "#CCFFCC" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#66A266" },
+                            { "offset": 0.5, "color": "#006400" },
+                            { "offset": 1, "color": "#66A266" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#FFFF80" },
+                            { "offset": 0.5, "color": "#FFFF00" },
+                            { "offset": 1, "color": "#FFFF80" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#C8A789" },
+                            { "offset": 0.5, "color": "#8B4513" },
+                            { "offset": 1, "color": "#C8A789" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#FFC1DD" },
+                            { "offset": 0.5, "color": "#FF69B4" },
+                            { "offset": 1, "color": "#FFC1DD" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#E6E6E6" },
+                            { "offset": 0.5, "color": "#CCCCCC" },
+                            { "offset": 1, "color": "#E6E6E6" }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "gradient",
+                        "gradient": {
+                          "direction": "vertical",
+                          "stops": [
+                            { "offset": 0, "color": "#9999CC" },
+                            { "offset": 0.25, "color": "#333399" },
+                            { "offset": 0.75, "color": "#333399" },
+                            { "offset": 1, "color": "#9999CC" }
+                          ]
+                        }
+                      }
+                    ],
+                    // backgroundColorはプラグインによって動的に設定されるため、ここではプレースホルダーを設定
+                    "backgroundColor": 'rgba(0,0,0,0)', // 初期は透明
+                    "borderColor": ["#333333"],
+                    "borderWidth": 1
+                  }
+                ]
+              },
+              "options": {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1000, // 各バーのアニメーション時間（ミリ秒）
+                    onProgress: function(animation) {
+                        // アニメーション中に何かしたい場合はここに記述
+                    },
+                    onComplete: function(animation) {
+                        // アニメーション完了後に何かしたい場合はここに記述
+                    },
+                    // 各バーのアニメーション遅延をデータインデックスに基づいて設定
+                    delay: function(context) {
+                        const delayAmount = 100; // 各バー間の遅延（ミリ秒）
+                        return context.dataIndex * delayAmount;
+                    },
+                    // Y軸のアニメーションを有効にする
+                    y: {
+                        from: 0 // Y軸の0からアニメーションを開始
+                    }
+                },
+                "scales": {
+                  "y": {
+                    "beginAtZero": true,
+                    "title": {
+                      "display": true,
+                      "text": "予測議席数"
+                    },
+                    "ticks": {
+                      "stepSize": 5
+                    }
+                  },
+                  "x": {
+                    "title": {
+                      "display": true,
+                      "text": "政党・政治団体"
+                    },
+                    "ticks": {
+                      "font": {
+                        "size": 10
+                      },
+                      "maxRotation": 45,
+                      "minRotation": 45
+                    }
+                  }
+                },
+                "plugins": {
+                  "title": {
+                    "display": true,
+                    "text": "2025年参議院選挙 grok AIによる議席予測（主要政党＋諸派）"
+                  },
+                  "legend": {
+                    "display": false
+                  },
+                  // ツールチップのカスタマイズ
+                  tooltip: {
+                      // useHTML: true, // HTMLレンダリングは不要なので無効化
+                      backgroundColor: function(context) {
+                          // ホバーしているデータポイントの情報を取得
+                          if (context.tooltipItems.length > 0) {
+                              const item = context.tooltipItems[0];
+                              const dataset = chartConfig.data.datasets[item.datasetIndex];
+                              const gradientDef = dataset._gradientDefinitions[item.dataIndex];
+
+                              let representativeColor = '#000000'; // デフォルトは黒
+
+                              if (gradientDef && gradientDef.type === 'gradient' && gradientDef.gradient && gradientDef.gradient.stops.length > 0) {
+                                  // オフセット0.25または0.75の主色を試す。なければ最初の色。
+                                  const stops = gradientDef.gradient.stops;
+                                  const mainStop = stops.find(stop => stop.offset === 0.25 || stop.offset === 0.75);
+                                  representativeColor = mainStop ? mainStop.color : stops[0].color;
+                              }
+                              return representativeColor; // ツールチップの背景色として返す
+                          }
+                          return 'rgba(0,0,0,0.8)'; // デフォルトの背景色
+                      },
+                      callbacks: {
+                          title: function(context) {
+                              const fullLabel = context[0].label;
+                              const parts = fullLabel.split('\n');
+                              const partyName = parts[0]; // "自民党"
+                              return partyName; // 党名のみを返す
+                          },
+                          label: function(context) {
+                              const fullLabel = context.label; // "自民党\n45 (42-48)"
+                              const parts = fullLabel.split('\n');
+                              const predictionInfo = parts[1]; // "45 (42-48)"
+
+                              const centralValueMatch = predictionInfo.match(/(\d+)\s*\((.*)\)/);
+                              let centralValue = 'N/A';
+                              let range = 'N/A';
+
+                              if (centralValueMatch) {
+                                  centralValue = centralValueMatch[1]; // "45"
+                                  range = centralValueMatch[2]; // "42-48"
+                              }
+
+                              return `議席予測中央値:${centralValue},上振れ下振れの数値:${range}`;
+                          }
+                      }
+                  }
+                }
+              }
+            };
+
+            // Chart.jsのカスタムグラデーションプラグイン
+            const gradientBarPlugin = {
+                id: 'gradientBar',
+                beforeDraw: (chart, args, options) => {
+                    const { ctx } = chart;
+                    chart.data.datasets.forEach((dataset, datasetIndex) => {
+                        const meta = chart.getDatasetMeta(datasetIndex);
+                        // バーチャートのデータセットで、かつグラデーション定義がある場合のみ処理
+                        if (meta.type === 'bar' && dataset._gradientDefinitions) {
+                            meta.data.forEach((barElement, index) => {
+                                const gradientDef = dataset._gradientDefinitions[index];
+
+                                if (gradientDef && gradientDef.type === 'gradient' && gradientDef.gradient) {
+                                    const { direction, stops } = gradientDef.gradient;
+
+                                    let gradient;
+                                    // barElementの座標が定義されていることを確認
+                                    // アニメーションの初期段階ではundefinedになる可能性があるため、チェックが必要
+                                    if (barElement.base !== undefined && barElement.y !== undefined && barElement.x !== undefined && barElement.width !== undefined) {
+                                        if (direction === 'vertical') {
+                                            // 垂直グラデーション: バーの下部 (base) から上部 (y) へ
+                                            gradient = ctx.createLinearGradient(0, barElement.base, 0, barElement.y);
+                                        } else if (direction === 'horizontal') {
+                                            // 水平グラデーション: バーの左から右へ
+                                            // barElement.x はバーの中心なので、幅を考慮して開始点と終了点を計算
+                                            gradient = ctx.createLinearGradient(barElement.x - barElement.width / 2, 0, barElement.x + barElement.width / 2, 0);
+                                        } else {
+                                            // 方向が指定されていない、または不明な場合は垂直グラデーションをデフォルトとします
+                                            gradient = ctx.createLinearGradient(0, barElement.base, 0, barElement.y);
+                                        }
+
+                                        stops.forEach(stop => {
+                                            gradient.addColorStop(stop.offset, stop.color);
+                                        });
+
+                                        // 生成されたグラデーションをバー要素の背景色に設定
+                                        barElement.options.backgroundColor = gradient;
+                                    } else {
+                                        // barElementの座標がまだ定義されていない場合は透明な色をフォールバックとして設定
+                                        barElement.options.backgroundColor = 'rgba(0,0,0,0)';
+                                    }
+                                } else {
+                                    // グラデーション定義でない場合は、元の色（もしあれば）を使用
+                                    // datasets.backgroundColorが単一の色文字列の場合も考慮
+                                    barElement.options.backgroundColor = dataset.backgroundColor || 'rgba(0,0,0,0)';
+                                }
+                            });
+                        }
+                    });
+                }
+            };
+
+            // カスタムグラデーションプラグインをChart.jsに登録します
+            Chart.register(gradientBarPlugin);
+
+            // フル設定を使用してチャートを作成します
+            const myChart = new Chart(ctx, chartConfig);
+        });
+    </script>
+</body>
+</html>

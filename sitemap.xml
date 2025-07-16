@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.yukiecho.com/index.html</loc>
+    <lastmod>2025-06-13</lastmod> <!-- ページの最終更新日 (YYYY-MM-DD形式) -->
+    <changefreq>monthly</changefreq> <!-- 更新頻度: always, hourly, daily, weekly, monthly, yearly, never -->
+    <priority>1.0</priority> <!-- 優先度 (0.0 から 1.0) -->
+  </url>
+  <url>
+    <loc>https://www.yukiecho.com/policy.html</loc>
+    <lastmod>2025-06-13</lastmod> <!-- ページの最終更新日 (YYYY-MM-DD形式) -->
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.yukiecho.com/news.html</loc>
+    <lastmod>2025-06-13</lastmod> <!-- ページの最終更新日 (YYYY-MM-DD形式) -->
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>

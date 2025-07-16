@@ -1,0 +1,20 @@
+name = "my-follow-counts-worker"
+main = "functions/index.js"
+compatibility_date = "2023-01-01"
+
+# Durable Objectsの設定（必要な場合）
+# [[durable_objects.bindings]]
+# name = "COUNTER"
+# class_name = "Counter"
+
+[[kv_namespaces]]
+binding = "COUNTS_KV" # Workerコード内で使う名前
+id = "b6e81da68f394961a8b8cfa1ff22625d"
+
+# R2 Bucketの設定 (必要な場合)
+# [[r2_buckets]]
+# binding = "MY_BUCKET"
+# bucket_name = "your-bucket-name"
+
+[vars]
+APP_ID = "mater-4c79d" # index.js 内で使用する app ID
