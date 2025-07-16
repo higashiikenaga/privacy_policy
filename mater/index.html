@@ -131,7 +131,18 @@
                 right: 0;
                 top: 0;
             flex-direction: column;
-            }
+        }
+        .timeline-tab-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: background-color 0.2s, color 0.2s;
+            border: none;
+            cursor: pointer;
+            background-color: transparent;
+            color: #4B5563; /* gray-600 */
+        }
         .timeline-tab-btn.active {
             background-color: white;
             color: #1F2937; /* gray-800 */
@@ -465,18 +476,6 @@
         let postForm = null;
         let postText = null;
         let latitudeInput = null;
-        let longitudeInput = null;
-        let getLocationBtn = null;
-        let postImageInput = null;
-        let selectImageBtn = null;
-        let imagePreviewContainer = null;
-        let imagePreview = null;
-        let clearImageBtn = null;
-        let navMapBtn = null;
-        let showLoginModalBtn = null;
-        let navPostBtn = null;
-        let navTimelineBtn = null;
-        let mainContent = null;
         let mainContentWrapper = null;
         let timelineContainer = null;
         let timelinePostsContainer = null;
