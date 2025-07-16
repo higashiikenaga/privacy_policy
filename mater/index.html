@@ -177,7 +177,14 @@
             <!-- タイムラインコンテナ -->
             <div id="right-sidebar">
                     <div id="timeline-container">
-                        <div class="flex items-center justify-between mb-4">
+                        <div id="trending-hashtags-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
+                                <h3 class="font-bold text-gray-700 mb-2">トレンド</h3>
+                                <div id="trending-hashtags-list" class="space-y-1">
+                                    <!-- トレンドハッシュタグがここに動的に追加されます -->
+                                    <p class="text-sm text-gray-500">トレンドを読み込み中...</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between mb-4">
                             <h2 class="text-2xl font-bold text-gray-800">タイムライン</h2>
                             <div id="timeline-tabs" class="flex space-x-1 bg-gray-200 p-1 rounded-lg">
                                 <button class="timeline-tab-btn active" data-tab="all">すべて</button>
@@ -1728,6 +1735,10 @@
                     return;
                 }
 
+                const hashtagRegex = /#([^\s#]+)/g;
+                const hashtags = [...postTextValue.matchAll(hashtagRegex)].map(match => match[1]);
+
+
                 if (userName === "匿名ユーザー" || !userHandle) {
                     nameInputModal.classList.add('active');
                     showMessage('投稿するにはユーザー名を設定してください。', 'info');
@@ -1758,7 +1769,8 @@
                     userName: userName,
                     userHandle: userHandle,
                     likedBy: [],
-                    imageUrl: imageUrl
+                    imageUrl: imageUrl,
+                    hashtags: hashtags
                 };
 
                 try {
@@ -1918,6 +1930,7 @@
 
             nonLoginMenu.style.display = 'none';
             initDesktopTabs();
+            fetchTrendingHashtags();
         }); // セミコロンを追加
         function createPostElement(post, context = 'timeline') {
 
@@ -1927,6 +1940,8 @@
             const postDate = new Date(post.timestamp).toLocaleString();
             const escapedPostText = escapeHTML(post.text || '');
             const escapedPostUserName = escapeHTML(post.userName || '名無し');
+            const hashtagRegex = /#([^\s#]+)/g;
+            const linkedPostText = escapedPostText.replace(hashtagRegex, '<a href="#" onclick="filterByHashtag(event, \'$1\')" class="text-blue-500 hover:underline">#$1</a>');
             const escapedUserHandle = escapeHTML(post.userHandle || '');
 
             const isFollowing = userId && post.userId !== userId && currentUserFollowing.includes(post.userId);
@@ -1949,7 +1964,7 @@
                     <span class="text-gray-500 text-xs">${postDate}</span>
                 </div>
                 ${post.imageUrl ? `<img src="${escapeHTML(post.imageUrl)}" alt="投稿画像" class="my-2 rounded-md max-w-full h-auto" style="max-height: 200px; object-fit: contain;">` : ''}
-                    <p class="text-gray-700 text-sm whitespace-pre-wrap">${escapedPostText}</p>
+                    <p class="text-gray-700 text-sm whitespace-pre-wrap">${linkedPostText}</p>
                 <div class="flex items-center mt-3">
                     <button class="like-btn flex items-center space-x-1 text-xs transition duration-150 ease-in-out" data-post-id="${post.id}">
                         <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>
@@ -2033,6 +2048,67 @@
             // すべてのコンテンツを非表示にする関数
             const hideAll = () => {
                 postFormOverlay.style.display = 'none';
+                // ハッシュタグによるフィルタリング機能 (UIの骨子)
+                function filterByHashtag(event, hashtag) {
+                    event.preventDefault(); // リンクのデフォルト動作を防ぐ
+                    event.stopPropagation(); // 他のクリックイベントへの伝播を防ぐ
+
+                    // 実際のフィルタリングロジックをここに実装します。
+                    // 例: タイムラインビューに切り替えて、ハッシュタグで投稿を取得する
+                    // switchView('timeline');
+                    // fetchTimelinePosts('hashtag', hashtag);
+                    
+                    showMessage(`ハッシュタグ「#${hashtag}」でフィルタリングします。(実装保留)`, 'info');
+                    console.log(`Filtering by hashtag: #${hashtag}`);
+                }
+
+                // トレンドのハッシュタグを取得して表示する関数
+                async function fetchTrendingHashtags() {
+                    if (!db) return;
+                    const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+                    if (!trendingHashtagsList) return;
+
+                    trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドを読み込み中...</p>';
+
+                    try {
+                        // 本格的な実装ではCloud Functionで集計した結果を取得します。
+                        // ここではデモとして、直近50件の投稿から簡易的にトレンドを集計します。
+                        const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`)
+                                                    .orderBy('timestamp', 'desc')
+                                                    .limit(50)
+                                                    .get();
+                        
+                        const hashtagCounts = {};
+                        postsSnapshot.forEach(doc => {
+                            const post = doc.data();
+                            if (post.hashtags && Array.isArray(post.hashtags)) {
+                                post.hashtags.forEach(tag => {
+                                    hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
+                                });
+                            }
+                        });
+
+                        const sortedHashtags = Object.entries(hashtagCounts)
+                                                    .sort(([,a],[,b]) => b - a)
+                                                    .slice(0, 5); // 上位5件を表示
+                        
+                        renderTrendingHashtags(sortedHashtags);
+
+                    } catch (error) {
+                        console.error("トレンドのハッシュタグ取得エラー:", error);
+                        trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドの取得に失敗しました。</p>';
+                    }
+                }
+
+                function renderTrendingHashtags(hashtags) {
+                    const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+                    trendingHashtagsList.innerHTML = '';
+
+                    if (hashtags.length === 0) {
+                        trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
+                        return;
+                    }
+                }
                 timelineContainer.style.display = 'none';
                 userProfileView.classList.add('hidden');
                 rightSidebar.style.display = 'none';
