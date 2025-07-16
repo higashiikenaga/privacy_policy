@@ -294,15 +294,6 @@
                 <!-- Profile content will be dynamically inserted here -->
             </div>
         </div>
-</div> 
-        <!-- User Profile Display Area (Initially Hidden) -->
-        <div id="user-profile-view" class="hidden w-full h-full bg-white rounded-xl shadow-md p-6 flex-col">
-                <!-- Profile content will be dynamically inserted here -->
-            <!-- User Profile Display Area (Initially Hidden) -->
-            <div id="user-profile-view" class="hidden w-full h-full bg-white rounded-xl shadow-md p-6 flex-col">
-                <!-- Profile content will be dynamically inserted here -->
-            </div>
-        </div>
 
         <!-- Bottom Navigation Bar for Mobile -->
         <div id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-lg p-3 flex justify-around items-center z-20 md:hidden">
@@ -480,9 +471,6 @@
         let googleSignInBtn = null;
         // Email/Password Auth elements
         let emailInput = null;
-        let passwordInput = null;
-        let emailLoginBtn = null;
-        let emailSignupBtn = null;
         let emailError = null;
         let logoutBtn = null;
         let postForm = null;
@@ -588,40 +576,16 @@
                         <button id="change-name-btn" class="ml-2 text-blue-500 hover:underline text-xs">変更</button>
                         <button id="logout-btn" class="ml-2 text-red-500 hover:underline text-xs">ログアウト</button>`;
             if (window.innerWidth < 768) {
-                        userInfoDisplay.innerHTML += `<button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウント</button>`;
-                    }
-            // Re-bind events for newly created buttons
-            const changeNameBtn = document.getElementById('change-name-btn');
-            if (changeNameBtn) {
-              changeNameBtn.addEventListener('click', () => {
-                userNameInput.value = userName;
-                userIdInput.value = userHandle;
-                userBioInput.value = userBio;
-                userIconPreview.src = userPhotoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                nameInputModal.classList.add('active');
-              });
-            }
-            document.getElementById('logout-btn').addEventListener('click', async () => {
-              try {
-                await auth.signOut();
-                showMessage('ログアウトしました。', 'info');
-                // ログアウト後に匿名認証を試みるのは、意図した動作か確認が必要です
-                // もし匿名認証が不要であれば、この行を削除してください
-                await auth.signInAnonymously(); 
-              } catch (error) {
-                  console.error("Failed to log out:", error);
-                  showMessage('ログアウトに失敗しました。', 'error');
-                }
-              });
-            }
-           else {
+                userInfoDisplay.innerHTML += `<button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウント</button>`;
+            } else {
             userInfoDisplay.textContent = 'ログインしていません';
             // ログインしていない場合のメニュー表示
             nonLoginMenu.style.display = 'block';
             userInfoDisplay.innerHTML = 'ログインしていません';
             showLoginModalBtn.addEventListener('click', () => nameInputModal.classList.add('active'));
           }
-        }
+        };
+}
 
         /**
          * メッセージを表示するヘルパー関数
@@ -1350,11 +1314,11 @@
             googleSignInBtn = document.getElementById('google-sign-in-btn');
             emailInput = document.getElementById('email-input');
             passwordInput = document.getElementById('password-input');
-            emailLoginBtn = document.getElementById('email-login-btn');
+                   emailLoginBtn = document.getElementById('email-login-btn');
             emailSignupBtn = document.getElementById('email-signup-btn');
-            emailError = document.getElementById('email-error');
-            changeNameBtn = document.getElementById('change-name-btn');
-            logoutBtn = document.getElementById('logout-btn');
+                   emailError = document.getElementById('email-error');
+                   changeNameBtn = document.getElementById('change-name-btn');
+                   logoutBtn = document.getElementById('logout-btn');
             postForm = document.getElementById('post-form');
             postText = document.getElementById('post-text');
             latitudeInput = document.getElementById('latitude');
@@ -1705,11 +1669,10 @@
                         updateUserInfoDisplay();
                         if (map) map.data.forEach(feature => map.data.remove(feature));
                         timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
-                        await auth.signInAnonymously(); // Re-login as anonymous
                     } catch (error) {
                         console.error("ログアウトに失敗しました:", error);
                         showMessage('ログアウトに失敗しました。', 'error');
-                    }
+                   }
                 });
             }
 
@@ -1787,7 +1750,7 @@
                     const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
                 // Add the post ID to the liked posts in localStorage
                 if (!likedPosts.includes(newPost.id)) {
-                    likedPosts.push(newPost.id);
+                   likedPosts.push(newPost.id);
                     saveLikedPostsForUser(likedPosts);
                     console.log(`Post ${newPost.id} liked and added to localStorage`);
 
@@ -1801,7 +1764,7 @@
             if (openFormBtn) {
                 openFormBtn.addEventListener('click', () => switchView('post'));
             }
-            if (closeFormBtn) {
+           if (closeFormBtn) {
                 closeFormBtn.addEventListener('click', () => {
                     postFormOverlay.classList.remove('active');
                     switchView('map');
@@ -1810,7 +1773,7 @@
 
             if (navMapBtn) {
                 navMapBtn.addEventListener('click', () => switchView('map'));
-            }
+           }
             if (navPostBtn) {
                 navPostBtn.addEventListener('click', () => switchView('post'));
             }
@@ -1835,7 +1798,7 @@
                 const likeBtn = target.closest('.like-btn');
                 if (likeBtn) {
                     const postId = likeBtn.dataset.postId;
-                    const docRef = db.collection(`artifacts/${appId}/public/data/posts`).doc(postId);                
+                   const docRef = db.collection(`artifacts/${appId}/public/data/posts`).doc(postId);                
                     const docSnap = await docRef.get();
                     if (docSnap.exists) {
                         await toggleLike(postId, docSnap.data().likedBy || []);
@@ -1924,9 +1887,9 @@
             // Profile modal listeners
             if(closeProfileBtn) {
                 closeProfileBtn.addEventListener('click', () => userProfileModal.classList.add('hidden'));
-            }
+           }
             if(userProfileModal) {
-                userProfileModal.addEventListener('click', (e) => {
+               userProfileModal.addEventListener('click', (e) => {
                     if(e.target === userProfileModal) userProfileModal.classList.add('hidden');
                 });
             }
@@ -2088,8 +2051,8 @@
         
         
         // Update the toggleLike function to use local storage
-        async function toggleLike(postId, currentLikedBy) {
-            if (!db || !userId) {
+       async function toggleLike(postId, currentLikedBy) {
+           if (!db || !userId) {
                 showMessage('認証またはデータベースが準備できていません。', 'error');
                 return;
             }
@@ -2099,12 +2062,12 @@
             const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
             if (likedPosts.includes(postId)) {
                 batch.update(postRef, { likedBy: firebase.firestore.FieldValue.arrayRemove(userId) });
-                localStorage.setItem('likedPosts', JSON.stringify(likedPosts.filter(id => id !== postId)));
+               localStorage.setItem('likedPosts', JSON.stringify(likedPosts.filter(id => id !== postId)));
             } else {
                 batch.update(postRef, { likedBy: firebase.firestore.FieldValue.arrayUnion(userId) });
-                localStorage.setItem('likedPosts', JSON.stringify([...likedPosts, postId]));
-            }
-            await batch.commit();
+               localStorage.setItem('likedPosts', JSON.stringify([...likedPosts, postId]));
+           }
+           await batch.commit();
         }
     </script>
     <!-- Google Maps JavaScript APIの読み込み -->
