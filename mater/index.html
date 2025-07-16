@@ -891,6 +891,7 @@
                     if (user) {
                         loadLikedPostsFromLocalStorage();
                     }
+                    updateUserInfoDisplay();
                     function loadLikedPostsFromLocalStorage() {
                         const likedPostsKey = getLikedPostsKey();
                         let likedPosts = localStorage.getItem(likedPostsKey);
@@ -904,15 +905,12 @@
                         localStorage.setItem(likedPostsKey, JSON.stringify(likedPosts || []));
                     }
                 });
-                // ページ読み込み時に認証状態を確認
-                auth.onAuthStateChanged(async (user) => {
-                    // 認証状態が変化したときの処理（上記と同じ）
-                });
+
             } catch (error) {
                 console.error("Firebaseの初期化に失敗しました:", error);
                 showMessage("アプリケーションの初期化に失敗しました。", "error");
             }
-        }; // セミコロンを追加
+        } // セミコロンを追加
 
 
         /**
@@ -948,7 +946,7 @@
             }, error => {
                 console.error("DEBUG: Firestore onSnapshot for map failed with error:", error);
                 showMessage("マップ投稿の取得中にエラーが発生しました。", "error");
-            });
+            }); // セミコロンを追加
         }; // セミコロンを追加
 
 
