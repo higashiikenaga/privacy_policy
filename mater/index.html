@@ -827,6 +827,7 @@
                         }
                     } else {
                         // ユーザーがログアウトした場合の処理
+                        nameInputModal.classList.add('active');
                         userId = null;
                         userName = "匿名ユーザー";
                         userHandle = "";
@@ -1887,6 +1888,7 @@
             initDesktopTabs();
         }); // セミコロンを追加
         function createPostElement(post, context = 'timeline') {
+
             const postElement = document.createElement('div');
             postElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
 
