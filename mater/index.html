@@ -1930,8 +1930,54 @@
 
             nonLoginMenu.style.display = 'none';
             initDesktopTabs();
-            fetchTrendingHashtags();
         }); // セミコロンを追加
+        // トレンドのハッシュタグを取得して表示する関数
+        async function fetchTrendingHashtags() {
+            if (!db) return;
+            const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+            if (!trendingHashtagsList) return;
+
+            trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドを読み込み中...</p>';
+
+            try {
+                // 本格的な実装ではCloud Functionで集計した結果を取得します。
+                // ここではデモとして、直近50件の投稿から簡易的にトレンドを集計します。
+                const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`)
+                                              .orderBy('timestamp', 'desc')
+                                            .limit(50)
+                                            .get();
+            
+                const hashtagCounts = {};
+                postsSnapshot.forEach(doc => {
+                    const post = doc.data();
+                    if (post.hashtags && Array.isArray(post.hashtags)) {
+                        post.hashtags.forEach(tag => {
+                            hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
+                        });
+                    }
+                });
+
+                const sortedHashtags = Object.entries(hashtagCounts)
+                                            .sort(([,a],[,b]) => b - a)
+                                            .slice(0, 5); // 上位5件を表示
+            
+                renderTrendingHashtags(sortedHashtags);
+
+            } catch (error) {
+                console.error("トレンドのハッシュタグ取得エラー:", error);
+                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドの取得に失敗しました。</p>';
+            }
+        }
+
+        function renderTrendingHashtags(hashtags) {
+        const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+            trendingHashtagsList.innerHTML = '';
+
+            if (hashtags.length === 0) {
+                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
+                return;
+            }
+        }
         function createPostElement(post, context = 'timeline') {
 
             const postElement = document.createElement('div');
@@ -2081,54 +2127,6 @@
                 if (filter === 'hashtag' && hashtag) {
                     postsQuery = postsQuery.where('hashtags', 'array-contains', hashtag);
                 }
-
-                // トレンドのハッシュタグを取得して表示する関数
-                async function fetchTrendingHashtags() {
-                    if (!db) return;
-                    const trendingHashtagsList = document.getElementById('trending-hashtags-list');
-                    if (!trendingHashtagsList) return;
-
-                    trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドを読み込み中...</p>';
-
-                    try {
-                        // 本格的な実装ではCloud Functionで集計した結果を取得します。
-                        // ここではデモとして、直近50件の投稿から簡易的にトレンドを集計します。
-                        const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`)
-                                                      .orderBy('timestamp', 'desc')
-                                                    .limit(50)
-                                                    .get();
-                        
-                        const hashtagCounts = {};
-                        postsSnapshot.forEach(doc => {
-                            const post = doc.data();
-                            if (post.hashtags && Array.isArray(post.hashtags)) {
-                                post.hashtags.forEach(tag => {
-                                    hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
-                                });
-                            }
-                        });
-
-                        const sortedHashtags = Object.entries(hashtagCounts)
-                                                    .sort(([,a],[,b]) => b - a)
-                                                    .slice(0, 5); // 上位5件を表示
-                        
-                        renderTrendingHashtags(sortedHashtags);
-
-                    } catch (error) {
-                        console.error("トレンドのハッシュタグ取得エラー:", error);
-                        trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドの取得に失敗しました。</p>';
-                    }
-                }
-
-                function renderTrendingHashtags(hashtags) {
-                const trendingHashtagsList = document.getElementById('trending-hashtags-list');
-                    trendingHashtagsList.innerHTML = '';
-
-                    if (hashtags.length === 0) {
-                        trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
-                        return;
-                    }
-                }
                 timelineContainer.style.display = 'none';
                 userProfileView.classList.add('hidden');
                 rightSidebar.style.display = 'none';
@@ -2138,7 +2136,53 @@
             };
         }
     }
-        
+        // トレンドのハッシュタグを取得して表示する関数
+        async function fetchTrendingHashtags() {
+            if (!db) return;
+            const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+            if (!trendingHashtagsList) return;
+
+            trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドを読み込み中...</p>';
+
+            try {
+                // 本格的な実装ではCloud Functionで集計した結果を取得します。
+                // ここではデモとして、直近50件の投稿から簡易的にトレンドを集計します。
+                const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`)
+                                              .orderBy('timestamp', 'desc')
+                                            .limit(50)
+                                            .get();
+            
+                const hashtagCounts = {};
+                postsSnapshot.forEach(doc => {
+                    const post = doc.data();
+                    if (post.hashtags && Array.isArray(post.hashtags)) {
+                        post.hashtags.forEach(tag => {
+                            hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
+                        });
+                    }
+                });
+
+                const sortedHashtags = Object.entries(hashtagCounts)
+                                            .sort(([,a],[,b]) => b - a)
+                                            .slice(0, 5); // 上位5件を表示
+            
+                renderTrendingHashtags(sortedHashtags);
+
+            } catch (error) {
+                console.error("トレンドのハッシュタグ取得エラー:", error);
+                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドの取得に失敗しました。</p>';
+            }
+        }
+
+        function renderTrendingHashtags(hashtags) {
+        const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+            trendingHashtagsList.innerHTML = '';
+
+            if (hashtags.length === 0) {
+                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
+                return;
+            }
+        }
         function getLikedPostsKey() {
             return `likedPosts_${userId || 'anonymous'}`;
         }
