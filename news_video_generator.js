@@ -1,6 +1,16 @@
 // c/homepages/news_video_generator.js
 
 /**
+ * メッセージを表示する関数
+ * @param {string} message 表示するメッセージ
+ * @param {string} type メッセージのタイプ ('success' または 'error')
+ */
+function showMessage(message, type) {
+  alert(message); // とりあえずalertで表示
+  console.log(`${type}: ${message}`);
+}
+
+/**
  * 画像を読み込む非同期関数
  * @param {string} src 画像のURL
  * @returns {Promise<HTMLImageElement>} 読み込み完了時に解決されるPromise (画像要素)

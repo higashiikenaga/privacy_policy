@@ -55,3 +55,74 @@ exports.updateFollowCounts = functions.region("asia-northeast1")
             console.error(`Failed to update follow counts for follower: ${followerId}`, error);
         }
     });
+
+/**
+ * 1時間ごとに実行され、過去24時間の投稿から人気のハッシュタグを集計し、
+ * トレンドとしてFirestoreに保存する。
+ * この関数をデプロイすると、Cloud Schedulerにジョブが自動的に作成されます。
+ * 初回デプロイ時には、プロジェクトでApp Engineアプリケーションを有効にする必要がある場合があります。
+ */
+exports.updateTrendingHashtags = functions.region("asia-northeast1")
+    .pubsub.schedule("every 1 hours")
+    .onRun(async (context) => {
+        console.log("Trending hashtags aggregation started.");
+
+        try {
+            // 1. 集計対象の期間（過去24時間）を設定
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+            // 2. すべてのappIdを横断して、過去24時間以内の投稿を取得
+            // collectionGroupを使うことで、サブコレクション内の全postsを検索対象にできる
+            const postsSnapshot = await db.collectionGroup("posts")
+                .where("timestamp", ">=", yesterday.toISOString())
+                .get();
+
+            if (postsSnapshot.empty) {
+                console.log("No recent posts found. No trends to update.");
+                return null;
+            }
+
+            // 3. ハッシュタグをカウント
+            const hashtagCounts = {};
+            postsSnapshot.forEach(doc => {
+                const post = doc.data();
+                // postにhashtagsフィールドがあり、それが配列の場合のみ処理
+                if (post.hashtags && Array.isArray(post.hashtags)) {
+                    post.hashtags.forEach(tag => {
+                        // タグが空文字列でないことを確認
+                        if (tag) {
+                            hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
+                        }
+                    });
+                }
+            });
+
+            // 4. カウント数で降順にソートし、上位10件を抽出
+            const sortedHashtags = Object.entries(hashtagCounts)
+                .sort(([, countA], [, countB]) => countB - countA)
+                .slice(0, 10) // トレンドとして表示する上位10件
+                .map(([hashtag, count]) => ({
+                    hashtag: hashtag,
+                    count: count,
+                }));
+
+            if (sortedHashtags.length === 0) {
+                console.log("No hashtags found in recent posts.");
+                return null;
+            }
+
+            // 5. 集計結果をFirestoreの 'trends/hashtags' ドキュメントに保存
+            const trendsRef = db.collection("trends").doc("hashtags");
+            await trendsRef.set({
+                list: sortedHashtags,
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            console.log("Successfully updated trending hashtags:", sortedHashtags);
+            return null;
+        } catch (error) {
+            console.error("Error updating trending hashtags:", error);
+            return null; // エラーが発生しても関数を正常終了させる
+        }
+    });
