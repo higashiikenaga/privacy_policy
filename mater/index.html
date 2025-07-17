@@ -2325,11 +2325,13 @@
                 timelinePostsContainer.innerHTML = '';
 
                 if (snapshot.empty) {
+                    console.log("Timeline snapshot is empty.");
                     timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
                     return;
                 }
             snapshot.forEach(doc => {
                     const post = { ...doc.data(), id: doc.id };
+                    console.log("Timeline post:", post);
                     const postElement = createPostElement(post, 'timeline');
                     timelinePostsContainer.appendChild(postElement);
                 });
