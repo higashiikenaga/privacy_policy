@@ -578,9 +578,7 @@
             showLoginModalBtn.addEventListener('click', () => nameInputModal.classList.add('active'));
           }
         }
-        }
-              
-};
+        };
 
         /**
          * メッセージを表示するヘルパー関数
@@ -2380,7 +2378,7 @@
             }
             
             const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initGoogleMap`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initGoogleMap&loading=async`;
             script.async = true;
             script.defer = true;
             script.onerror = () => {
