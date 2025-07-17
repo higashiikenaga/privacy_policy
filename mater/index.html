@@ -579,10 +579,12 @@
             userInfoDisplay.textContent = 'ログインしていません';
             // ログインしていない場合のメニュー表示
             nonLoginMenu.style.display = 'block';
-                          if (showLoginModalBtn) {
-            userInfoDisplay.innerHTML = 'ログインしていません';
-            showLoginModalBtn.addEventListener('click', () => nameInputModal.classList.add('active'));
-          }
+        // Ensure modal is shown if user is not logged in
+        if (nameInputModal) { // Check if nameInputModal exists
+            nameInputModal.classList.add('active'); // Directly add active class
+        } else {
+            console.error("nameInputModal element not found!");
+        }
         }
         };
 
