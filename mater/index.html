@@ -707,38 +707,51 @@
         * マップのコンテンツを初期化 (マーカーの配置など)
         */
         function initializeMapContent() {
-            if (typeof google.maps.marker.AdvancedMarkerElement === 'undefined') {
-                console.error("AdvancedMarkerElement is not yet available. Retrying...");
-                setTimeout(initializeMapContent, 500); // 500ms後に再試行
+            // マーカーライブラリが完全に読み込まれているか確認
+            if (typeof google.maps === 'undefined' || 
+                typeof google.maps.marker === 'undefined' ||
+                typeof google.maps.marker.AdvancedMarkerElement === 'undefined') {
+                console.warn("Google Maps Markerライブラリがまだ利用できません。3秒後に再試行します...");
+                setTimeout(initializeMapContent, 3000); // 3秒後に再試行
                 return;
             }
 
-            console.log("AdvancedMarkerElement is available. Proceeding with marker initialization.");
+            try {
+                console.log("AdvancedMarkerElementが利用可能です。マーカーを初期化します。");
 
-            const lat = 35.6895; // 東京の緯度
-            const lng = 139.6917; // 東京の経度
-            document.getElementById('latitude').value = lat.toFixed(6);
-            document.getElementById('longitude').value = lng.toFixed(6);
+                const lat = 35.6895; // 東京の緯度
+                const lng = 139.6917; // 東京の経度
+                document.getElementById('latitude').value = lat.toFixed(6);
+                document.getElementById('longitude').value = lng.toFixed(6);
 
-            if (selectedGoogleMapMarker) {
-                selectedGoogleMapMarker.setMap(null);
-            }
-
-            selectedGoogleMapMarker = new google.maps.marker.AdvancedMarkerElement({
-                position: { lat: lat, lng: lng },
-                map: map,
-                glyph: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: '#8B5CF6',
-                    fillOpacity: 1,
-                    strokeColor: '#FFFFFF',
-                    strokeWeight: 2,
-                    scale: 8
+                if (selectedGoogleMapMarker) {
+                    selectedGoogleMapMarker.setMap(null);
                 }
-            });
 
-            infoWindow.setContent('選択された投稿位置');
-            infoWindow.open(map, selectedGoogleMapMarker);
+                // マーカー作成前に再度チェック
+                if (typeof google.maps.marker.AdvancedMarkerElement === 'undefined') {
+                    throw new Error("AdvancedMarkerElementが突然利用できなくなりました");
+                }
+
+                selectedGoogleMapMarker = new google.maps.marker.AdvancedMarkerElement({
+                    position: { lat: lat, lng: lng },
+                    map: map,
+                    glyph: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: '#8B5CF6',
+                        fillOpacity: 1,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: 2,
+                        scale: 8
+                    }
+                });
+
+                infoWindow.setContent('選択された投稿位置');
+                infoWindow.open(map, selectedGoogleMapMarker);
+            } catch (error) {
+                console.error("マーカー初期化エラー:", error);
+                showMessage('地図マーカーの初期化に失敗しました。ページをリロードしてください。', 'error');
+            }
         }
 
 
@@ -2358,12 +2371,26 @@
             fetchTimelinePosts('hashtag', hashtag);
         }
     </script>
-    <!-- Google Maps JavaScript APIの読み込み -->
-    <!-- Google Maps JavaScript APIの読み込み -->
-    <!-- callback=initGoogleMap で指定された関数は、グローバルスコープに存在する必要があります。 -->
-    <!-- %%GOOGLE_MAPS_API_KEY%% はCloudflare Pagesのビルド時に環境変数で置き換えられます。 -->
-    <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=%%GOOGLE_MAPS_API_KEY%%&callback=initGoogleMap&libraries=marker">
+    <!-- Google Maps JavaScript APIの読み込み (バージョン3.55を明示的に指定) -->
+    <script>
+        let googleMapsLoaded = false;
+        function loadGoogleMaps() {
+            if(googleMapsLoaded) return;
+            
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyClDJqtuqB-y4ywJ0G6v5DO3uS7G_Z_56M&v=3.55&libraries=marker&callback=initGoogleMap`;
+            script.async = true;
+            script.defer = true;
+            script.onerror = () => {
+                console.error('Google Maps APIの読み込みに失敗しました');
+                showMessage('地図の読み込みに失敗しました。ページをリロードしてください。', 'error');
+            };
+            document.head.appendChild(script);
+            googleMapsLoaded = true;
+        }
+        
+        // DOM読み込み後にGoogle Maps APIをロード
+        document.addEventListener('DOMContentLoaded', loadGoogleMaps);
     </script>
 </body>
 
