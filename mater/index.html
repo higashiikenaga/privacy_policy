@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>地図に書き込めるSNS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link href="/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         html, body {
             height: 100%;
@@ -151,11 +151,18 @@
                 display: flex; /* 表示時にはflexコンテナとして */
             }
 
-        #bottom-nav{
+        #bottom-nav {
             display: flex;
-            position: absolute;
+            position: fixed;
             bottom: 0;
-            z-index: 300;
+            left: 0;
+            width: 100%;
+            background-color: white;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            padding: 10px 0;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
         }
         
     </style>
@@ -673,14 +680,10 @@
             });
 
             console.log("Googleマップが初期化されました。");
-         infoWindow = new google.maps.InfoWindow();
+            infoWindow = new google.maps.InfoWindow();
 
-            // マーカーの初期化と配置を、AdvancedMarkerElementが利用可能なことを確認した後に行う
+            // マーカーの初期化
             initializeMapContent();
-
-            console.log("Googleマップが初期化されました。");
-
-                showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
 
             map.addListener('dblclick', (mapsMouseEvent) => {
                 const lat = mapsMouseEvent.latLng.lat();
@@ -2376,8 +2379,11 @@
         function loadGoogleMaps() {
             if(googleMapsLoaded) return;
             
+            // Cloudflare環境変数からAPIキーを取得
+            const apiKey = typeof __GOOGLE_MAPS_API_KEY !== 'undefined' ? __GOOGLE_MAPS_API_KEY : 'AIzaSyClDJqtuqB-y4ywJ0G6v5DO3uS7G_Z_56M';
+            
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${window.GOOGLE_MAPS_API_KEY}&v=3.55&callback=initGoogleMap`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.55&callback=initGoogleMap`;
             script.async = true;
             script.defer = true;
             script.onerror = () => {
