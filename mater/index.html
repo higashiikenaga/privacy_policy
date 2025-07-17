@@ -302,7 +302,6 @@
                 </div>
                 </div>
                 </div>
-                </div>
         <!-- User Profile Display Area (Initially Hidden) -->
         <div id="user-profile-view" class="hidden w-full h-full bg-white rounded-xl shadow-md p-6 flex-col">
                 <!-- Profile content will be dynamically inserted here -->
@@ -366,7 +365,7 @@
                     <textarea id="user-bio-input" rows="3" maxlength="100" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="自己紹介など (100文字以内)"></textarea>
                 
                 </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-1150 ease-in-out font-semibold">
                     保存
                 </button>
             </form>
@@ -439,25 +438,6 @@
         </div>
     </div>
 
-    <!-- Firebase SDKをCDNから読み込む（グローバルなfirebaseオブジェクトを公開） -->
-    <!-- v8.10.1はグローバルオブジェクトとしてアクセスする形式 -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-
-    <!-- Firebase SDKをCDNから読み込む（グローバルなfirebaseオブジェクトを公開） -->
-    <!-- v8.10.1はグローバルオブジェクトとしてアクセスする形式 -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
-    <script src="https://www.
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
     <!-- メインのアプリケーションスクリプト (すべてのロジックをここに統合) -->
     <script>
@@ -580,7 +560,7 @@
             if (!userInfoDisplay) {
                 userInfoDisplay = document.getElementById('user-info-display');
             if (!userInfoDisplay) {
-              console.error("userInfoDisplay element not found.");
+              return;
             }
           }
           if (userId) {
@@ -588,13 +568,8 @@
             userInfoDisplay.innerHTML = `ユーザー: ${displayText}
             ${ userHandle ? `<button id="show-profile-btn" class="ml-2 text-blue-500 hover:underline text-xs">プロフィール</button>`:''}
             ${ window.innerWidth < 768 ?
-              `<button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウント</button>`: ''
-            }
-                        <button id="change-name-btn" class="ml-2 text-blue-500 hover:underline text-xs">変更</button>
-                        <button id="logout-btn" class="ml-2 text-red-500 hover:underline text-xs">ログアウト</button>`;
-            if (window.innerWidth < 768) {
-                userInfoDisplay.innerHTML += `<button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウント</button>`;
-            } else {
+              `<button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウント</button>`: ''}`;
+          } else {
             userInfoDisplay.textContent = 'ログインしていません';
             // ログインしていない場合のメニュー表示
             nonLoginMenu.style.display = 'block';
@@ -1450,6 +1425,7 @@
             // Profile modal elements initialization
             userProfileModal = document.getElementById('user-profile-modal');
             closeProfileBtn = document.getElementById('close-profile-btn');
+            profileUserName = document.getElementById('profile-user-name');
             profileUserName = document.getElementById('profile-user-name');
             profileUserHandle = document.getElementById('profile-user-handle');
             profileBio = document.getElementById('profile-bio');
