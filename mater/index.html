@@ -544,13 +544,13 @@
 
         // Canvas環境から提供されるグローバル変数を使用
         const defaultFirebaseConfig = {
-            apiKey: "AIzaSyBSqI_ertL6zvom68xRDJEiUSqaLT-cLvk",
-            authDomain: "mater-4c79d.firebaseapp.com",
-            projectId: "mater-4c79d",
-            storageBucket: "mater-4c79d.firebasestorage.app",
-            messagingSenderId: "155663048531",
-            appId: "1:155663048531:web:7d571cf2d1240efde64ba6",
-            measurementId: "G-6KST2VXSK5"
+            apiKey: process.env.FIREBASE_API_KEY,
+            authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+            messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+            appId: process.env.FIREBASE_APP_ID,
+            measurementId: process.env.FIREBASE_MEASUREMENT_ID
         };
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : defaultFirebaseConfig.projectId;
@@ -740,13 +740,12 @@
                     position: { lat: lat, lng: lng },
                     map: map,
                     icon: {
-                        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
-                            '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">' +
-                            '<circle cx="12" cy="12" r="10" fill="#8B5CF6" stroke="#FFFFFF" stroke-width="2"/>' +
-                            '</svg>'
-                        ),
-                        scaledSize: new google.maps.Size(24, 24),
-                        anchor: new google.maps.Point(12, 12)
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: '#8B5CF6',
+                        fillOpacity: 1.0,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: 2,
+                        scale: 8
                     }
                 });
 
@@ -2389,17 +2388,23 @@
             fetchTimelinePosts('hashtag', hashtag);
         }
     </script>
-    <!-- Google Maps JavaScript APIの読み込み (バージョン3.55を明示的に指定) -->
+    <!-- Google Maps JavaScript APIの読み込み (最新の安定版を明示的に指定) -->
     <script>
         let googleMapsLoaded = false;
         function loadGoogleMaps() {
             if(googleMapsLoaded) return;
             
-            // Cloudflare環境変数からAPIキーを取得
-            const apiKey = typeof __GOOGLE_MAPS_API_KEY !== 'undefined' ? __GOOGLE_MAPS_API_KEY : 'AIzaSyClDJqtuqB-y4ywJ0G6v5DO3uS7G_Z_56M';
+            // Cloudflare Pagesの環境変数からAPIキーを取得
+            const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+            
+            if (!apiKey) {
+                console.error('Google Maps APIキーが設定されていません');
+                showMessage('地図機能の初期化に失敗しました。', 'error');
+                return;
+            }
             
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=3.55&callback=initGoogleMap`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=marker&callback=initGoogleMap`;
             script.async = true;
             script.defer = true;
             script.onerror = () => {
