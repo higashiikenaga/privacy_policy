@@ -2094,9 +2094,20 @@
             // すべてのコンテンツを非表示にする関数
             const hideAll = () => {
                 postFormOverlay.style.display = 'none';
-                // ハッシュタグによるフィルタリング機能 (UIの骨子)
+                // ハッシュタグによるフィルタリング機能
                 function filterByHashtag(event, hashtag) {
                     event.preventDefault(); // リンクのデフォルト動作を防ぐ
+
+                    // 実際のフィルタリングロジックをここに実装します。
+                    // 1. タイムライン表示に切り替え
+                    switchView('timeline');
+
+                    // 2. タイムラインの投稿をフィルタリングして表示
+                    fetchTimelinePosts('hashtag', hashtag);
+
+                    showMessage(`ハッシュタグ「#${hashtag}」でフィルタリングします。`, 'info');
+                    console.log(`Filtering by hashtag: #${hashtag}`);
+                }
                     
 
                     // 実際のフィルタリングロジックをここに実装します。
@@ -2133,9 +2144,9 @@
                 accountMenu.style.display = 'none';
                 userInfoDisplay.classList.add('hidden'); // ユーザー情報表示を隠す
                 document.querySelectorAll('#desktop-tabs button').forEach(btn => btn.classList.remove('active'));
-            };
+            }
         }
-    }
+    
         // トレンドのハッシュタグを取得して表示する関数
         async function fetchTrendingHashtags() {
             if (!db) return;
