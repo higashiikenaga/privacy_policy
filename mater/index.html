@@ -2218,7 +2218,52 @@
            }
            await batch.commit();
         }
+
+        async function fetchTimelinePosts(filter = 'all', hashtag = null) {
+            if (!authReady) {
+              console.warn("認証が完了していません。タイムライン投稿の取得を遅延します。");
+              return;
+            }
+            if (!db) {
+              console.error("Firestore database (db) is not initialized.");
+              showMessage("データベースが初期化されていません。", "error");
+              return;
+            }
+
+            let postsQuery = db.collection(`artifacts/${appId}/public/data/posts`);
+            if (filter === 'hashtag' && hashtag) {
+                postsQuery = postsQuery.where('hashtags', 'array-contains', hashtag);
+            }
+            postsQuery = postsQuery.orderBy('timestamp', 'desc');
+
+            console.log("DEBUG: Subscribing to Firestore posts collection for timeline.");
+
+            postsQuery.onSnapshot((snapshot) => {
+                console.log(`タイムライン用: Firestoreから ${snapshot.size} 件の投稿をリアルタイムで同期しました。`);
+                timelinePostsContainer.innerHTML = '';
+
+                if (snapshot.empty) {
+                    timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const post = { ...doc.data(), id: doc.id };
+                    const postElement = createPostElement(post, 'timeline');
+                    timelinePostsContainer.appendChild(postElement);
+                });
+            }, (error) => {
+                console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
+                showMessage("タイムライン投稿の取得中にエラーが発生しました。", "error");
+            });
+        }
+
+        function filterByHashtag(event, hashtag) {
+            event.preventDefault();
+            fetchTimelinePosts('hashtag', hashtag);
+        }
     </script>
+    <!-- Google Maps JavaScript APIの読み込み -->
     <!-- Google Maps JavaScript APIの読み込み -->
     <!-- callback=initGoogleMap で指定された関数は、グローバルスコープに存在する必要があります。 -->
     <!-- %%GOOGLE_MAPS_API_KEY%% はCloudflare Pagesのビルド時に環境変数で置き換えられます。 -->
