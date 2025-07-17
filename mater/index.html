@@ -2395,8 +2395,7 @@
             if(googleMapsLoaded) return;
             
             // 環境変数からAPIキーを取得 (Cloudflare Pagesでは__env__を使用)
-            const apiKey = typeof __env__ !== 'undefined' ? __env__.GOOGLE_MAPS_API_KEY : 
-                         'AIzaSyClDJqtuqB-y4ywJ0G6v5DO3uS7G_Z_56M'; // フォールバック用キー
+        const apiKey = "AIzaSyCxRXRQftG4Yu9hq31Cmkfu06QdB8G9AnE"; // Replace with your actual API key
             
             if (!apiKey) {
                 console.error('Google Maps APIキーが設定されていません');
