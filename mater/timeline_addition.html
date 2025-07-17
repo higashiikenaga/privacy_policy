@@ -1,0 +1,14 @@
+<!-- 投稿検索機能 -->
+<div id="post-search-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
+    <h3 class="font-bold text-gray-700 mb-2">投稿検索</h3>
+    <div class="flex">
+        <input type="text" id="post-search-input" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="ハッシュタグで検索">
+        <button id="post-search-btn" class="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md">検索</button>
+    </div>
+</div>
+<script>
+    document.getElementById('post-search-btn').addEventListener('click', function() {
+        const hashtag = document.getElementById('post-search-input').value;
+        filterByHashtag(null, hashtag);
+    });
+</script>
