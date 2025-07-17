@@ -530,14 +530,14 @@
 
             // 環境変数から設定を取得 (Cloudflare Pagesでは__env__を使用)
             const defaultFirebaseConfig = {
-                apiKey: "AIzaSyCxRXRQftG4Yu9hq31Cmkfu06QdB8G9AnE",
-                authDomain: typeof __env__ !== 'undefined' ? __env__.FIREBASE_AUTH_DOMAIN : '',
+                apiKey: "AIzaSyBSqI_ertL6zvom68xRDJEiUSqaLT-cLvk",
+                authDomain: "mater-4c79d.firebaseapp.com",
                 projectId: "mater-4c79d",
-                storageBucket: typeof __env__ !== 'undefined' ? __env__.FIREBASE_STORAGE_BUCKET : '',
-                messagingSenderId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_MESSAGING_SENDER_ID : '',
-                appId: "mater-4c79d",
-                measurementId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_MEASUREMENT_ID : ''
-        };
+                storageBucket: "mater-4c79d.firebasestorage.app",
+                messagingSenderId: "155663048531",
+                appId: "1:155663048531:web:7d571cf2d1240efde64ba6",
+                measurementId: "G-6KST2VXSK5"
+            };
 
             const appId = typeof __app_id !== 'undefined' ? __app_id : defaultFirebaseConfig.projectId;
             const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
