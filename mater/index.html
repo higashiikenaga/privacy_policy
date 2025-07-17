@@ -227,6 +227,21 @@
                     </div>
                     <div id="messages" class="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md text-sm hidden"></div>
 
+                    <!-- 投稿検索機能 -->
+<div id="post-search-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
+    <h3 class="font-bold text-gray-700 mb-2">投稿検索</h3>
+    <div class="flex">
+        <input type="text" id="post-search-input" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="ハッシュタグで検索">
+        <button id="post-search-btn" class="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md">検索</button>
+    </div>
+</div>
+<script>
+    document.getElementById('post-search-btn').addEventListener('click', function() {
+        const hashtag = document.getElementById('post-search-input').value;
+        filterByHashtag(null, hashtag);
+    });
+</script>
+
                     <!-- タイムラインコンテナ -->
                     <div id="timeline-container">
                         <div id="trending-hashtags-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
@@ -523,8 +538,8 @@
         let logoutBtn = null;
         let postForm = null;
         let postText = null;
-        let latitudeInput = null;
-        longitudeInput = null
+            let latitudeInput = null;
+            let longitudeInput = null;
         let timelineContainer = null;
         let timelinePostsContainer = null;
         let timelineTabs = null;
@@ -716,16 +731,34 @@
             // マーカーの初期化
             initializeMapContent();
 
-            map.addListener('dblclick', (mapsMouseEvent) => {
+            map.addListener('click', (mapsMouseEvent) => {
                 const lat = mapsMouseEvent.latLng.lat();
                 const lng = mapsMouseEvent.latLng.lng();
 
                 document.getElementById('latitude').value = lat.toFixed(6);
                 document.getElementById('longitude').value = lng.toFixed(6);
 
+                // Remove previous marker if it exists
                 if (selectedGoogleMapMarker) {
                     selectedGoogleMapMarker.setMap(null);
                 }
+
+                // Create a new marker at the clicked location
+                selectedGoogleMapMarker = new google.maps.Marker({
+                    position: { lat: lat, lng: lng },
+                    map: map,
+                    icon: { // You can customize the marker icon here
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: '#8B5CF6', // Indigo color
+                        fillOpacity: 1.0,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: 2,
+                        scale: 8
+                    }
+                });
+
+                // Open info window for the new marker
+                infoWindow.setContent('選択された位置');
                 infoWindow.open(map, selectedGoogleMapMarker);
 
                 showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
@@ -1192,19 +1225,19 @@
                 snapshot.forEach(doc => {
                     const post = { ...doc.data(), id: doc.id };
                     const postElement = createPostElement(post, 'timeline');
-            try {
-                if (timelinePostsContainer && postElement) {
-                    timelinePostsContainer.appendChild(postElement);
-                }
-            } catch (e) {
-                console.error("createPostElementでエラーが発生しました:", e);
-            }
-        });
-    }, (error) => {
-        console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
-        showMessage("タイムライン投稿の取得中にエラーが発生しました。", "error");
-    });
-}
+                    try {
+                        if (timelinePostsContainer && postElement) {
+                            timelinePostsContainer.appendChild(postElement);
+                        }
+                    } catch (e) {
+                        console.error("Error during appendChild:", e); // Corrected error message
+                    }
+                });
+            }, (error) => {
+                console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
+                showMessage("タイムライン投稿の取得中にエラーが発生しました。", "error");
+            });
+        }
 
 
         /**
@@ -1423,6 +1456,12 @@
                 document.getElementById('right-sidebar').style.display = 'flex'; // 投稿ビューではサイドバーを表示
             }
             else if (view === 'account') {
+                // アカウントビューに切り替える際に、現在のユーザー情報でフォームを埋める
+                if (authReady && userId) {
+                    accountUserNameInput.value = userName;
+                    accountBioInput.value = userBio;
+                    accountIconPreview.src = userPhotoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                }
                 document.getElementById('map-area').style.display = 'block'; // マップも表示
                 accountMenu.style.display = 'flex';
                 navAccountBtn.classList.add('text-blue-600');
@@ -1948,6 +1987,12 @@
             document.body.addEventListener('click', async (event) => {
                 const target = event.target;
 
+                // "プロフィール"リンクのクリックでアカウント設定画面に遷移
+                if (target.id === 'show-profile-btn') {
+                    switchView('account');
+                    return;
+                }
+
                 // Like button
                 const likeBtn = target.closest('.like-btn');
                 if (likeBtn) {
@@ -2180,7 +2225,6 @@
                     ` : ''}
                 </div>
             `;
-            console.log("createPostElement returning:", postElement);
             return postElement;
           }
 
@@ -2258,7 +2302,7 @@
                                               .orderBy('timestamp', 'desc')
                                             .limit(50)
                                             .get();
-            
+
                 const hashtagCounts = {};
                 postsSnapshot.forEach(doc => {
                     const post = doc.data();
@@ -2274,6 +2318,7 @@
                                             .slice(0, 5); // 上位5件を表示
             
                 renderTrendingHashtags(sortedHashtags);
+                console.log("トレンドのハッシュタグを取得しました:", sortedHashtags);
 
             } catch (error) {
                 console.error("トレンドのハッシュタグ取得エラー:", error);
@@ -2282,7 +2327,7 @@
         }
 
         function renderTrendingHashtags(hashtags) {
-            const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+        const trendingHashtagsList = document.getElementById('trending-hashtags-list');
             trendingHashtagsList.innerHTML = '';
 
             if (hashtags.length === 0) {
@@ -2297,68 +2342,65 @@
                 trendingHashtagsList.appendChild(hashtagElement);
             });
         }
-        function getLikedPostsKey() {
-        }
-        function getLikedPostsKey() {
-        }
-
-        function renderTrendingHashtags(hashtags) {
-            const trendingHashtagsList = document.getElementById('trending-hashtags-list');
-            trendingHashtagsList.innerHTML = '';
-
-            if (hashtags.length === 0) {
-                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
-                return;
-            }
-
-            hashtags.forEach(([hashtag, count]) => {
-                const hashtagElement = document.createElement('p');
-                hashtagElement.className = 'text-sm text-gray-700';
-                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${hashtag}</a> (${count})`;
-                trendingHashtagsList.appendChild(hashtagElement);
-            });
-        }
         function createPostElement(post, context = 'timeline') {
         function getLikedPostsKey() {
             return `likedPosts_${userId || 'anonymous'}`;
         }
-    
 
-        function getLikedPostsForUser() {
-            return JSON.parse(localStorage.getItem(getLikedPostsKey()) || '[]');
-        }
+            const postElement = document.createElement('div');
+            postElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
 
-        function saveLikedPostsForUser(likedPosts) {
-            localStorage.setItem(getLikedPostsKey(), JSON.stringify(likedPosts));
-        }
-        
+            const postDate = new Date(post.timestamp).toLocaleString();
+            const escapedPostText = escapeHTML(post.text || '');
+            const escapedPostUserName = escapeHTML(post.userName || '名無し');
+            const hashtagRegex = /#([^\s#]+)/g;
+            const linkedPostText = escapedPostText.replace(hashtagRegex, '<a href="#" onclick="filterByHashtag(event, \'$1\')" class="text-blue-500 hover:underline">#$1</a>');
+            const escapedUserHandle = escapeHTML(post.userHandle || '');
 
-        /**
-         * ローカルストレージにいいねした投稿のリストを保存する
-         */
-        function saveLikedPostsToLocalStorage(likedPosts) {
-            localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
-            console.log("Saved liked posts to localStorage:", likedPosts);
-        }
+            const isFollowing = userId && post.userId !== userId && currentUserFollowing.includes(post.userId);
+            const followButtonClass = isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600';
+            const followButtonText = isFollowing ? 'フォロー中' : 'フォロー';
+            const followButtonHtml = userId && post.userId !== userId ? `
+                <button class="follow-btn text-white py-1 px-2 rounded-md text-xs transition duration-150 ease-in-out ${followButtonClass}" data-target-user-id="${post.userId}">
+                    ${followButtonText}
+                </button>
+            ` : '';
 
-        /**
-         * ローカルストレージからいいねした投稿のリストをクリアする
-         */
-        function clearLikedPostsFromLocalStorage() {
-            localStorage.removeItem('likedPosts');
-            console.log("Cleared liked posts from localStorage.");
-        }
+            const isLiked = post.likedBy && userId && post.likedBy.includes(userId);
 
-        // Call loadLikedPostsFromLocalStorage on page load (within DOMContentLoaded)
-        
-        
+              postElement.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-2">
+                        <button class="user-profile-link font-bold text-gray-800 text-sm hover:underline" data-user-id="${post.userId}">${escapedPostUserName}</button>
+                        ${context === 'timeline' ? followButtonHtml : ''}
+                    </div>
+                    <span class="text-gray-500 text-xs">${postDate}</span>
+                </div>
+                ${post.imageUrl ? `<img src="${escapeHTML(post.imageUrl)}" alt="投稿画像" class="my-2 rounded-md max-w-full h-auto" style="max-height: 200px; object-fit: contain;">` : ''}
+                    <p class="text-gray-700 text-sm whitespace-pre-wrap">${linkedPostText}</p>
+                <div class="flex items-center mt-3">
+                    <button class="like-btn flex items-center space-x-1 text-xs transition duration-150 ease-in-out" data-post-id="${post.id}">
+                        <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>
+                        <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
+                    </button>
+                        ${userId && post.userId === userId ? `
+                        <button class="delete-btn bg-red-500 text-white py-1 px-2 rounded-md text-xs hover:bg-red-600 transition duration-150 ease-in-out ml-auto" data-post-id="${post.id}">
+                            削除
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            return postElement;
+          }
 
-        // Update the toggleLike function to use local storage
-       async function toggleLike(postId, currentLikedBy) {
-           if (!db || !userId) {
-                showMessage('認証またはデータベースが準備できていません。', 'error');
-                return;
-            }
+        async function showUserProfile(targetUserId) {
+            if (!targetUserId || !db) return;
+            
+            // プロフィールモーダルを表示する
+            userProfileModal.classList.remove('hidden'); // hidden クラスを削除
+
+            const userDoc = await db.collection(`artifacts/${appId}/public/data/users`).doc(targetUserId).get();
+            if (!userDoc.exists) {
 
             const postRef = db.collection(`artifacts/${appId}/public/data/posts`).doc(postId);
             const batch = db.batch();
@@ -2403,9 +2445,10 @@
                 }
             snapshot.forEach(doc => {
                     const post = { ...doc.data(), id: doc.id };
-                    console.log("Timeline post:", post);
                     const postElement = createPostElement(post, 'timeline');
-                    timelinePostsContainer.appendChild(postElement);
+                    if (timelinePostsContainer && postElement) {
+                        timelinePostsContainer.appendChild(postElement);
+                    }
                 });
             }, (error) => {
                 console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
