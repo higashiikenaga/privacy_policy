@@ -210,41 +210,7 @@
                             <div class="flex items-center justify-between mb-4">
                             <h2 class="text-2xl font-bold text-gray-800">タイムライン</h2>
                             <div id="timeline-tabs" class="flex space-x-1 bg-gray-200 p-1 rounded-lg">
-                                <button class="timeline-tab-btn active" data-tab="all">すべて</button>
-                                <button class="timeline-tab-btn" data-tab="following">フォロー中</button>
-                            </div>
-                        </div>
-                        <div id="timeline-posts" class="space-y-4">
-                            <!-- タイムラインの投稿がここに動的に追加されます -->
-                            <p class="text-gray-500 text-center">投稿がありません。</p>
-                        </div>
-                    </div>
-                    <script>
-                        document.getElementById('post-search-btn').addEventListener('click', function() {
-                            const hashtag = document.getElementById('post-search-input').value;
-                            filterByHashtag(null, hashtag);
-                        });
-                    </script>
-                    <script>
-                        document.getElementById('post-search-btn').addEventListener('click', function(event) {
-                            const hashtag = document.getElementById('post-search-input').value;
-                            filterByHashtag(event, hashtag);
-                        });
-                    </script>
-                    <script>
-                        document.getElementById('post-search-btn').addEventListener('click', function(event) {
-                            const hashtag = document.getElementById('post-search-input').value;
-                            filterByHashtag(event, hashtag);
-                        });
-                    </script>
-                                <button class="timeline-tab-btn active" data-tab="all">すべて</button>
-                                <button class="timeline-tab-btn" data-tab="following">フォロー中</button>
-                            </div>
-                        </div>
-                        <div id="timeline-posts" class="space-y-4">                            <!-- タイムラインの投稿がここに動的に追加されます -->
-                            <p class="text-gray-500 text-center">投稿がありません。</p>
-                        </div>
-                    </div>
+
             <!-- 投稿フォームオーバーレイ (モバイルではオーバーレイ、デスクトップではサイドバー) -->
             <div id="post-form-overlay">
                 <div class="flex items-center justify-between mb-4">
@@ -589,16 +555,6 @@
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : defaultFirebaseConfig.projectId;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        document.getElementById('post-search-btn').addEventListener('click', function() {
-            const hashtag = document.getElementById('post-search-input').value;
-            filterByHashtag(null, hashtag);
-        });
-
-        document.getElementById('post-search-btn').addEventListener('click', function() {
-            const hashtag = document.getElementById('post-search-input').value;
-            filterByHashtag(null, hashtag);
-        });
         
         // Firebase設定の初期化をIIFEで隔離
         const firebaseConfig = (function() {
@@ -1872,7 +1828,7 @@
                 navPostBtn.addEventListener('click', () => switchView('post'));
             }
             if (navTimelineBtn) { // Reusing timeline button for account
-                navTimelineBtn.addEventListener('click', () => switchView('timeline', 'all'));
+                navTimelineBtn.addEventListener('click', () => switchView('timeline'));
             }
             if (navAccountBtn) {
                 navAccountBtn.addEventListener('click', () => switchView('account'));
@@ -2347,7 +2303,9 @@
         }
 
         function filterByHashtag(event, hashtag) {
-            event.preventDefault();
+            if (event) {
+                event.preventDefault();
+            }
             fetchTimelinePosts('hashtag', hashtag);
         }
     </script>
