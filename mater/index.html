@@ -1091,7 +1091,7 @@
                     const post = { ...doc.data(), id: doc.id };
                     const postElement = createPostElement(post, 'timeline');
             try {
-                if (timelinePostsContainer) {
+                if (timelinePostsContainer && postElement) {
                     timelinePostsContainer.appendChild(postElement);
                 }
             } catch (e) {
@@ -2045,6 +2045,7 @@
                     ` : ''}
                 </div>
             `;
+            console.log("createPostElement returning:", postElement);
             return postElement;
           }
 
