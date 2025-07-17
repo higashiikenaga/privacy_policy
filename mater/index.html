@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>地図に書き込めるSNS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="style.css" rel="stylesheet">
     <style>
         html, body {
             height: 100%;
@@ -179,14 +179,6 @@
                                      <p class="text-sm text-gray-500">トレンドを読み込み中...</p>
                                 </div>
                             </div>
-                            <!-- 投稿検索機能 -->
-                            <div id="post-search-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
-                                <h3 class="font-bold text-gray-700 mb-2">投稿検索</h3>
-                                <div class="flex">
-                                    <input type="text" id="post-search-input" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="ハッシュタグで検索">
-                                    <button id="post-search-btn" class="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md">検索</button>
-                                </div>
-                            </div>
                             <div class="flex items-center justify-between mb-4">
                             <h2 class="text-2xl font-bold text-gray-800">タイムライン</h2>
                             <div id="timeline-tabs" class="flex space-x-1 bg-gray-200 p-1 rounded-lg">
@@ -199,9 +191,6 @@
                             <p class="text-gray-500 text-center">投稿がありません。</p>
                         </div>
                     </div>
-                            <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-2xl font-bold text-gray-800">タイムライン</h2>
-                            <div id="timeline-tabs" class="flex space-x-1 bg-gray-200 p-1 rounded-lg">
 
             <!-- 投稿フォームオーバーレイ (モバイルではオーバーレイ、デスクトップではサイドバー) -->
             <div id="post-form-overlay">
@@ -451,6 +440,18 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
+    <!-- Firebase SDKをCDNから読み込む（グローバルなfirebaseオブジェクトを公開） -->
+    <!-- v8.10.1はグローバルオブジェクトとしてアクセスする形式 -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+    <script src="https://www.
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
     <!-- メインのアプリケーションスクリプト (すべてのロジックをここに統合) -->
     <script>
         // Google Maps関連のグローバル変数
@@ -681,7 +682,7 @@
                 if (selectedGoogleMapMarker) {
                     selectedGoogleMapMarker.setMap(null);
                 }
-                selectedGoogleMapMarker = new google.maps.Marker({
+                selectedGoogleMapMarker = new google.maps.marker.AdvancedMarkerElement({
                     position: { lat: lat, lng: lng },
                     map: map,
                     icon: {
@@ -708,7 +709,7 @@
                 if (selectedGoogleMapMarker) {
                     selectedGoogleMapMarker.setMap(null);
                 }
-                selectedGoogleMapMarker = new google.maps.Marker({
+                selectedGoogleMapMarker = new google.maps.marker.AdvancedMarkerElement({
                     position: { lat: lat, lng: lng },
                     map: map,
                     icon: {
@@ -907,17 +908,17 @@
                 });
                 if (accountMenu) {
              accountMenu.addEventListener('click', async (event) => {
-                if (event.target.id === 'logout-btn-account') {
-                    try {
-                        await auth.signOut();
-                        showMessage('ログアウトしました。', 'info');
-                        switchView('map');
-                    } catch (error) {
-                        console.error("ログアウトに失敗しました:", error);
-                        showMessage('ログアウトに失敗しました。', 'error');
-                    }
-                } else if (event.target.id === 'switch-account-btn') {
-                   try {
+            if (event.target.id === 'logout-btn-account') {
+                try {
+                    await auth.signOut();
+                    showMessage('ログアウトしました。', 'info');
+                    switchView('map');
+                } catch (error) {
+                    console.error("ログアウトに失敗しました:", error);
+                    showMessage('ログアウトに失敗しました。', 'error');
+                }
+            } else if (event.target.id === 'switch-account-btn') {
+                try {
                         auth.signOut();
                         showMessage('アカウントを切り替えます。', 'info');
                         nameInputModal.classList.add('active');
