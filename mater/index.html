@@ -735,16 +735,18 @@
                     throw new Error("Google Maps Markerが利用できません");
                 }
 
+                // 標準のMarkerを使用
                 selectedGoogleMapMarker = new google.maps.Marker({
                     position: { lat: lat, lng: lng },
                     map: map,
                     icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#8B5CF6',
-                        fillOpacity: 1,
-                        strokeColor: '#FFFFFF',
-                        strokeWeight: 2,
-                        scale: 8
+                        url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">' +
+                            '<circle cx="12" cy="12" r="10" fill="#8B5CF6" stroke="#FFFFFF" stroke-width="2"/>' +
+                            '</svg>'
+                        ),
+                        scaledSize: new google.maps.Size(24, 24),
+                        anchor: new google.maps.Point(12, 12)
                     }
                 });
 
@@ -916,18 +918,32 @@
                         loadLikedPostsFromLocalStorage();
                     }
                     updateUserInfoDisplay();
-                    function loadLikedPostsFromLocalStorage() {
-                        const likedPostsKey = getLikedPostsKey();
-                        let likedPosts = localStorage.getItem(likedPostsKey);
-                        if (likedPosts) {
-                            try {
-                                likedPosts = JSON.parse(likedPosts);
-                            } catch (e) {
-                                likedPosts = [];
-                            }
-                        }
-                        localStorage.setItem(likedPostsKey, JSON.stringify(likedPosts || []));
-                    }
+        function getLikedPostsKey() {
+            return `likedPosts_${userId || 'anonymous'}`;
+        }
+
+        function loadLikedPostsFromLocalStorage() {
+            const likedPostsKey = getLikedPostsKey();
+            let likedPosts = localStorage.getItem(likedPostsKey);
+            if (likedPosts) {
+                try {
+                    likedPosts = JSON.parse(likedPosts);
+                } catch (e) {
+                    likedPosts = [];
+                }
+            }
+            localStorage.setItem(likedPostsKey, JSON.stringify(likedPosts || []));
+        }
+
+        function clearLikedPostsFromLocalStorage() {
+            const likedPostsKey = getLikedPostsKey();
+            localStorage.removeItem(likedPostsKey);
+        }
+
+        function saveLikedPostsToLocalStorage(likedPosts) {
+            const likedPostsKey = getLikedPostsKey();
+            localStorage.setItem(likedPostsKey, JSON.stringify(likedPosts));
+        }
                 });
                 if (accountMenu) {
              accountMenu.addEventListener('click', async (event) => {
