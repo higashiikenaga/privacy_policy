@@ -2118,12 +2118,12 @@
                     fetchTimelinePosts('hashtag', hashtag);
 
                     showMessage(`ハッシュタグ「#${hashtag}」でフィルタリングします。`, 'info');
-                    console.log(`Filtering by hashtag: #${hashtag}`);                    
+                    console.log(`Filtering by hashtag: #${hashtag}`);
                 }
 
-                  window.filterByHashtag = filterByHashtag;
+                window.filterByHashtag = filterByHashtag;
 
-              async function fetchTimelinePosts(filter = 'all', hashtag = null) {
+                async function fetchTimelinePosts(filter = 'all', hashtag = null) {
                 if (!authReady) {
                   console.warn("認証が完了していません。タイムライン投稿の取得を遅延します。");
                   return;
