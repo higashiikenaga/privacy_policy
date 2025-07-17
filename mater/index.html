@@ -99,7 +99,6 @@
             z-index: 200; /* 最前面に */
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
         }
         
         #name-input-modal .modal-content, #confirm-modal .modal-content {
@@ -579,12 +578,7 @@
             userInfoDisplay.textContent = 'ログインしていません';
             // ログインしていない場合のメニュー表示
             nonLoginMenu.style.display = 'block';
-        // Ensure modal is shown if user is not logged in
-        if (nameInputModal) { // Check if nameInputModal exists
-            nameInputModal.classList.add('active'); // Directly add active class
-        } else {
-            console.error("nameInputModal element not found!");
-        }
+        // The modal is now shown in onAuthStateChanged
         }
         };
 
@@ -659,6 +653,28 @@
                 mapTypeControl: false,
                 streetViewControl: false
             });
+
+            // Observe map container for error
+            const mapArea = document.getElementById('map-area');
+            const observer = new MutationObserver((mutationsList, observer) => {
+                for(const mutation of mutationsList) {
+                    if (mutation.type === 'childList') {
+                        const errorContent = mapArea.querySelector('.gm-err-content');
+                        if (errorContent) {
+                            console.log("Google Maps error detected. Hiding map and showing login modal.");
+                            mapArea.style.display = 'none';
+                            const nameInputModal = document.getElementById('name-input-modal');
+                            if (nameInputModal) {
+                                nameInputModal.classList.add('active');
+                            }
+                            observer.disconnect(); // Stop observing once the error is handled
+                            break;
+                        }
+                    }
+                }
+            });
+
+            observer.observe(mapArea, { childList: true, subtree: true });
 
             console.log("Googleマップが初期化されました。");
             infoWindow = new google.maps.InfoWindow();
@@ -879,7 +895,11 @@
                         }
                     } else {
                         // ユーザーがログアウトした場合の処理
-                        nameInputModal.classList.add('active');
+                        if (nameInputModal) {
+                            nameInputModal.style.display = 'flex';
+                            nameInputModal.style.opacity = '1';
+                            nameInputModal.style.visibility = 'visible';
+                        }
                         userId = null;
                         userName = "匿名ユーザー";
                         userHandle = "";
@@ -1876,11 +1896,6 @@
                 navAccountBtn.addEventListener('click', () => switchView('account'));
             }
 
-            if (window.innerWidth >= 768) {
-                switchView('map');
-            } else {
-                switchView('map');
-            }
 
             // Event delegation for dynamically created elements
             document.body.addEventListener('click', async (event) => {
@@ -2392,6 +2407,15 @@
             script.onerror = () => {
                 console.error('Google Maps APIの読み込みに失敗しました');
                 showMessage('地図の読み込みに失敗しました。ページをリロードしてください。', 'error');
+                // Hide map and show login modal
+                const mapArea = document.getElementById('map-area');
+                if (mapArea) {
+                    mapArea.style.display = 'none';
+                }
+                const nameInputModal = document.getElementById('name-input-modal');
+                if (nameInputModal) {
+                    nameInputModal.classList.add('active');
+                }
             };
             
             // スクリプトが読み込まれたか確認
