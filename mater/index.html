@@ -660,6 +660,7 @@
         };
 
         // Google Maps APIが読み込まれた後に呼び出されるグローバル関数
+        // Google Maps APIが読み込まれた後に呼び出されるグローバル関数
         window.initGoogleMap = function() {
             mapElement = document.getElementById('map');
 
@@ -671,46 +672,13 @@
                 streetViewControl: false
             });
 
-            infoWindow = new google.maps.InfoWindow();
+            console.log("Googleマップが初期化されました。");
+         infoWindow = new google.maps.InfoWindow();
+
+            // マーカーの初期化と配置を、AdvancedMarkerElementが利用可能なことを確認した後に行う
+            initializeMapContent();
 
             console.log("Googleマップが初期化されました。");
-            const lat = 35.6895; // 東京の緯度
-            const lng = 139.6917; // 東京の経度
-                document.getElementById('latitude').value = lat.toFixed(6);
-                document.getElementById('longitude').value = lng.toFixed(6);
-
-                if (selectedGoogleMapMarker) {
-                    selectedGoogleMapMarker.setMap(null);
-                }
-                selectedGoogleMapMarker = new google.maps.marker.AdvancedMarkerElement({
-                    position: { lat: lat, lng: lng },
-                    map: map,
-                    glyph: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#8B5CF6',
-                        fillOpacity: 1,
-                        strokeColor: '#FFFFFF',
-                        strokeWeight: 2,
-                        scale: 8
-                    }
-                });
-                infoWindow.setContent('選択された投稿位置');
-                infoWindow.open(map, selectedGoogleMapMarker);
-
-                selectedGoogleMapMarker = new google.maps.marker.AdvancedMarkerElement({
-                    position: { lat: lat, lng: lng },
-                    map: map,
-                    glyph: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#8B5CF6',
-                        fillOpacity: 1,
-                        strokeColor: '#FFFFFF',
-                        strokeWeight: 2,
-                        scale: 8
-                    }
-                });
-                infoWindow.setContent('選択された投稿位置');
-                infoWindow.open(map, selectedGoogleMapMarker);
 
                 showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
 
@@ -734,6 +702,44 @@
             // Firebase関連の初期化とデータ取得は、Google Mapが準備できた後に行う
             initializeFirebaseAndFetchPosts();
         }; // セミコロンを追加
+        
+        /**
+        * マップのコンテンツを初期化 (マーカーの配置など)
+        */
+        function initializeMapContent() {
+            if (typeof google.maps.marker.AdvancedMarkerElement === 'undefined') {
+                console.error("AdvancedMarkerElement is not yet available. Retrying...");
+                setTimeout(initializeMapContent, 500); // 500ms後に再試行
+                return;
+            }
+
+            console.log("AdvancedMarkerElement is available. Proceeding with marker initialization.");
+
+            const lat = 35.6895; // 東京の緯度
+            const lng = 139.6917; // 東京の経度
+            document.getElementById('latitude').value = lat.toFixed(6);
+            document.getElementById('longitude').value = lng.toFixed(6);
+
+            if (selectedGoogleMapMarker) {
+                selectedGoogleMapMarker.setMap(null);
+            }
+
+            selectedGoogleMapMarker = new google.maps.marker.AdvancedMarkerElement({
+                position: { lat: lat, lng: lng },
+                map: map,
+                glyph: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#8B5CF6',
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 2,
+                    scale: 8
+                }
+            });
+
+            infoWindow.setContent('選択された投稿位置');
+            infoWindow.open(map, selectedGoogleMapMarker);
+        }
 
 
         /**
