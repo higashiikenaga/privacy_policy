@@ -530,12 +530,12 @@
 
             // 環境変数から設定を取得 (Cloudflare Pagesでは__env__を使用)
             const defaultFirebaseConfig = {
-apiKey: "AIzaSyCxRXRQftG4Yu9hq31Cmkfu06QdB8G9AnE",
+                apiKey: "AIzaSyCxRXRQftG4Yu9hq31Cmkfu06QdB8G9AnE",
                 authDomain: typeof __env__ !== 'undefined' ? __env__.FIREBASE_AUTH_DOMAIN : '',
                 projectId: "mater-4c79d",
                 storageBucket: typeof __env__ !== 'undefined' ? __env__.FIREBASE_STORAGE_BUCKET : '',
                 messagingSenderId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_MESSAGING_SENDER_ID : '',
-                appId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_APP_ID : '',
+                appId: "mater-4c79d",
                 measurementId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_MEASUREMENT_ID : ''
         };
 
