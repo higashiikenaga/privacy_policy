@@ -532,12 +532,12 @@
             const defaultFirebaseConfig = {
                 apiKey: typeof __env__ !== 'undefined' ? __env__.FIREBASE_API_KEY : '',
                 authDomain: typeof __env__ !== 'undefined' ? __env__.FIREBASE_AUTH_DOMAIN : '',
-                projectId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_PROJECT_ID : '',
+                projectId: "mater-4c79d",
                 storageBucket: typeof __env__ !== 'undefined' ? __env__.FIREBASE_STORAGE_BUCKET : '',
                 messagingSenderId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_MESSAGING_SENDER_ID : '',
                 appId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_APP_ID : '',
                 measurementId: typeof __env__ !== 'undefined' ? __env__.FIREBASE_MEASUREMENT_ID : ''
-            };
+        };
 
             const appId = typeof __app_id !== 'undefined' ? __app_id : defaultFirebaseConfig.projectId;
             const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
