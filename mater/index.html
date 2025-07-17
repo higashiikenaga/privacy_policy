@@ -95,12 +95,7 @@
             visibility: hidden;
             transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
         }
-
-        #post-form-overlay, #name-input-modal.active, #confirm-modal.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
+        
         #name-input-modal .modal-content, #confirm-modal .modal-content {
             background-color: white;
             padding: 2rem;
@@ -678,12 +673,7 @@
             infoWindow = new google.maps.InfoWindow();
 
             console.log("Googleマップが初期化されました。");
-
-            // マップクリックイベントリスナー
-            map.addListener('click', (e) => {
-                const lat = e.latLng.lat();
-                const lng = e.latLng.lng();
-
+        
                 document.getElementById('latitude').value = lat.toFixed(6);
                 document.getElementById('longitude').value = lng.toFixed(6);
 
@@ -706,7 +696,7 @@
                 infoWindow.open(map, selectedGoogleMapMarker);
 
                 showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
-            });
+            ;
 
             // 初期ロード時に現在地を取得
             getCurrentLocation();
@@ -1960,7 +1950,7 @@
                                               .orderBy('timestamp', 'desc')
                                             .limit(50)
                                             .get();
-            
+
                 const hashtagCounts = {};
                 postsSnapshot.forEach(doc => {
                     const post = doc.data();
@@ -1992,8 +1982,18 @@
                 trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
                 return;
             }
+
+            hashtags.forEach(([hashtag, count]) => {
+                const hashtagElement = document.createElement('p');
+                hashtagElement.className = 'text-sm text-gray-700';
+                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${escapeHTML(hashtag)}</a> (${count})`;
+                trendingHashtagsList.appendChild(hashtagElement);
+            });
         }
         function createPostElement(post, context = 'timeline') {
+        function getLikedPostsKey() {
+            return `likedPosts_${userId || 'anonymous'}`;
+        }
 
             const postElement = document.createElement('div');
             postElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
@@ -2040,6 +2040,7 @@
             `;
             return postElement;
           }
+
         async function showUserProfile(targetUserId) {
             if (!targetUserId || !db) return;
             
@@ -2185,9 +2186,11 @@
             hashtags.forEach(([hashtag, count]) => {
                 const hashtagElement = document.createElement('p');
                 hashtagElement.className = 'text-sm text-gray-700';
-                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${hashtag}</a> (${count})`;
+                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${escapeHTML(hashtag)}</a> (${count})`;
                 trendingHashtagsList.appendChild(hashtagElement);
             });
+        }
+        function getLikedPostsKey() {
         }
         function getLikedPostsKey() {
         }
@@ -2204,13 +2207,15 @@
             hashtags.forEach(([hashtag, count]) => {
                 const hashtagElement = document.createElement('p');
                 hashtagElement.className = 'text-sm text-gray-700';
-                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${escapeHTML(hashtag)}</a> (${count})`;
+                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${hashtag}</a> (${count})`;
                 trendingHashtagsList.appendChild(hashtagElement);
             });
         }
+        function createPostElement(post, context = 'timeline') {
         function getLikedPostsKey() {
             return `likedPosts_${userId || 'anonymous'}`;
         }
+    
 
         function getLikedPostsForUser() {
             return JSON.parse(localStorage.getItem(getLikedPostsKey()) || '[]');
@@ -2219,6 +2224,7 @@
         function saveLikedPostsForUser(likedPosts) {
             localStorage.setItem(getLikedPostsKey(), JSON.stringify(likedPosts));
         }
+        
 
         /**
          * ローカルストレージにいいねした投稿のリストを保存する
@@ -2287,8 +2293,7 @@
                     timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
                     return;
                 }
-
-                snapshot.forEach(doc => {
+            snapshot.forEach(doc => {
                     const post = { ...doc.data(), id: doc.id };
                     const postElement = createPostElement(post, 'timeline');
                     timelinePostsContainer.appendChild(postElement);
@@ -2297,6 +2302,7 @@
                 console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
                 showMessage("タイムライン投稿の取得中にエラーが発生しました。", "error");
             });
+        }
         }
 
         function filterByHashtag(event, hashtag) {
