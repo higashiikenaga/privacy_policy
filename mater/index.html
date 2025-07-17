@@ -1090,15 +1090,19 @@
                 snapshot.forEach(doc => {
                     const post = { ...doc.data(), id: doc.id };
                     const postElement = createPostElement(post, 'timeline');
-                    if (timelinePostsContainer) {
-                        timelinePostsContainer.appendChild(postElement);
-                    }
-                });
-            }, (error) => {
-                console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
-                showMessage("タイムライン投稿の取得中にエラーが発生しました。", "error");
-            });
-        }
+            try {
+                if (timelinePostsContainer) {
+                    timelinePostsContainer.appendChild(postElement);
+                }
+            } catch (e) {
+                console.error("createPostElementでエラーが発生しました:", e);
+            }
+        });
+    }, (error) => {
+        console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
+        showMessage("タイムライン投稿の取得中にエラーが発生しました。", "error");
+    });
+}
 
 
         /**
