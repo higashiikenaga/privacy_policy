@@ -52,33 +52,6 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
-        /* デスクトップ用タブメニュー */
-        #desktop-tabs {
-            display: none; /* 初期状態では非表示 */
-            justify-content: center;
-            margin-bottom: 1rem; /* mb-4 */
-            background-color: white;
-            z-index: 300;
-            border-radius: 0.75rem; /* rounded-xl */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            padding: 0.5rem;
-        }
-
-        #desktop-tabs button {
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: background-color 0.2s, color 0.2s;
-            border: none;
-            cursor: pointer;
-            background-color: transparent;
-            color: #4B5563; /* gray-600 */
-        }
-
-        #desktop-tabs button.active {
-            background-color: #E5E7EB; /* gray-200 */
-        }
 
         #post-form-overlay.active {
             transform: translateY(0%); /* 表示時にスライドアップ */
@@ -111,10 +84,19 @@
             text-align: center;
         }
 
-        /* タイムラインコンテナのスタイル */
-        #post-form-overlay, #timeline-container,#account-menu {
-            width: 25%; /* デフォルトは全幅 */
-            flex-grow: 1;
+        /* サイドバーコンテナのスタイル */
+        #right-sidebar {
+            width: 100%; /* モバイルでは全幅 */
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        /* 各サイドバーコンテンツのスタイル */
+        #post-form-overlay, #account-menu {
             background-color: white;
             border-radius: 0.75rem; /* rounded-xl */
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -124,14 +106,25 @@
             overflow-y: scroll;
             justify-content: flex-start;
             gap: 0.5rem;
-            height: 95vh;
-            display: none;
-            z-index: 100; /* 前面に */
-            position: fixed;
-                right: 0;
-                top: 0;
-            flex-direction: column;
+            height: auto; /* コンテンツに合わせて高さを調整 */
+            display: none; /* デフォルトは非表示 */
+            flex-grow: 1; /* 利用可能なスペースを占める */
         }
+        #timeline-container {
+            background-color: white;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            flex-direction: column;
+            align-items: flex-start; /* 左寄せ */
+            overflow-y: scroll;
+            justify-content: flex-start;
+            gap: 0.5rem;
+            height: auto; /* コンテンツに合わせて高さを調整 */
+            display: flex; /* デフォルトは表示 */
+            flex-grow: 1; /* 利用可能なスペースを占める */
+        }
+
         .timeline-tab-btn {
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
@@ -148,13 +141,53 @@
             color: #1F2937; /* gray-800 */
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-            #timeline-container.active,#account-menu.active {
-                position: fixed;
-                right: 0;
-                top: 0;
-                width: 45%;
-                display: flex; /* 表示時にはflexコンテナとして */
+
+        /* デスクトップビューのスタイル */
+        @media (min-width: 768px) {
+            #app-container {
+                flex-direction: row; /* デスクトップでは横並び */
             }
+            #main-content {
+                flex-direction: row; /* デスクトップでは横並び */
+                flex-grow: 1;
+                padding: 1rem;
+                gap: 1rem;
+            }
+            #map-area {
+                flex-grow: 3; /* マップがより広いスペースを占める */
+                height: auto; /* 親の高さに合わせる */
+            }
+            #right-sidebar {
+                width: 350px; /* サイドバーの固定幅 */
+                flex-shrink: 0;
+                display: flex; /* デスクトップでは常に表示 */
+                flex-direction: column;
+                gap: 1rem;
+                padding: 0; /* main-contentのpaddingで十分 */
+            }
+            #post-form-overlay, #timeline-container, #account-menu {
+                display: flex; /* デスクトップではデフォルトで表示 */
+                height: auto; /* コンテンツに合わせて高さを調整 */
+                position: static; /* 固定解除 */
+                width: auto; /* 親の幅に合わせる */
+                flex-grow: 1;
+            }
+            #bottom-nav {
+                display: flex; /* デスクトップでも表示 */
+                position: static; /* 固定解除 */
+                width: auto; /* 親の幅に合わせる */
+                box-shadow: none; /* シャドウを削除 */
+                padding: 0; /* パディングを削除 */
+                justify-content: flex-start; /* 左寄せ */
+                gap: 1rem; /* ボタン間のスペース */
+            }
+            #close-form-btn {
+                display: none !important; /* デスクトップでは常に非表示 */
+            }
+            #user-info-display {
+                display: block !important; /* デスクトップでは常に表示 */
+            }
+        }
 
         #bottom-nav {
             display: flex;
@@ -169,29 +202,41 @@
             align-items: center;
             z-index: 1000;
         }
-        
     </style>
 </head>
 <body class="flex flex-col h-screen">
-    <div id="app-container" class="flex-grow flex-col">
-        <!-- メインコンテンツエリア (マップと投稿フォーム/タイムライン) -->
-        <div id="main-content">
-            <!-- マップエリア -->
-            <div id="map-area">
-                <div id="map" class="w-full h-full"></div>
-            </div>
+        <div id="app-container" class="flex-grow flex-col">
 
-            <!-- タイムラインコンテナ -->
-            <div id="right-sidebar">
+            <!-- メインコンテンツエリア (マップとサイドバー) -->
+            <div id="main-content">
+                <!-- マップエリア -->
+                <div id="map-area">
+                    <div id="map" class="w-full h-full"></div>
+                </div>
+
+                <!-- 右サイドバー -->
+                <div id="right-sidebar">
+                    <!-- ユーザー情報表示 (デスクトップで常に表示) -->
+                    <div id="user-info-display" class="mt-4 p-2 bg-gray-100 text-gray-700 rounded-md text-xs text-center break-all hidden md:block">
+                        ユーザー名: 未設定
+                        <button id="change-name-btn" class="ml-2 text-blue-500 hover:underline text-xs">変更</button>
+                        <button id="logout-btn" class="ml-2 text-red-500 hover:underline text-xs">ログアウト</button>
+                        <button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウントプロフィール</button>
+                    </div>
+                    <div id="non-login-menu" class="mt-4 p-2 bg-gray-100 text-gray-700 rounded-md text-xs text-center hidden md:block">
+                    </div>
+                    <div id="messages" class="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md text-sm hidden"></div>
+
+                    <!-- タイムラインコンテナ -->
                     <div id="timeline-container">
                         <div id="trending-hashtags-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
-                                <h3 class="font-bold text-gray-700 mb-2">トレンド</h3>
-                                <div id="trending-hashtags-list" class="space-y-1">
-                                    <!-- トレンドハッシュタグがここに動的に追加されます -->
-                                     <p class="text-sm text-gray-500">トレンドを読み込み中...</p>
-                                </div>
+                            <h3 class="font-bold text-gray-700 mb-2">トレンド</h3>
+                            <div id="trending-hashtags-list" class="space-y-1">
+                                <!-- トレンドハッシュタグがここに動的に追加されます -->
+                                <p class="text-sm text-gray-500">トレンドを読み込み中...</p>
                             </div>
-                            <div class="flex items-center justify-between mb-4">
+                        </div>
+                        <div class="flex items-center justify-between mb-4">
                             <h2 class="text-2xl font-bold text-gray-800">タイムライン</h2>
                             <div id="timeline-tabs" class="flex space-x-1 bg-gray-200 p-1 rounded-lg">
                                 <button class="timeline-tab-btn active" data-tab="all">すべて</button>
@@ -204,117 +249,106 @@
                         </div>
                     </div>
 
-            <!-- 投稿フォームオーバーレイ (モバイルではオーバーレイ、デスクトップではサイドバー) -->
-            <div id="post-form-overlay">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-2xl font-bold text-gray-800 text-center flex-grow">新しい投稿</h2>
-                    <button id="close-form-btn" class="text-gray-500 hover:text-gray-700 focus:outline-none hidden">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                <form id="post-form" class="space-y-4 flex-grow flex flex-col">
-                    <div class="space-y-4 space-x-4">
-                    <div class="space-y-4 space-x-4">
-                        <label for="post-text" class="block text-sm font-medium text-gray-700 mb-1">メッセージ</label>
-                        <textarea id="post-text" name="postText" rows="4" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm resize-y" placeholder="ここにメッセージを入力してください..."></textarea>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label for="latitude" class="block text-sm font-medium text-gray-700 mb-1">緯度</label>
-                            <input type="text" id="latitude" name="latitude" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="longitude" class="block text-sm font-medium text-gray-700 mb-1">経度</label>
-                            <input type="text" id="longitude" name="longitude" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                        </div>
-                    </div>
-
-                    <!-- Image Upload Section -->
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-gray-700">画像 (オプション)</label>
-                        <input type="file" accept="image/*" id="post-image-input" name="postImage" class="hidden">
-                        <button type="button" id="select-image-btn" class="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
-                            画像を選択
-                        </button>
-                        <div id="image-preview-container" class="mt-2 hidden">
-                            <img id="image-preview" src="#" alt="投稿画像" class="max-w-full h-auto rounded-md border border-gray-300">
-                            <button type="button" id="clear-image-btn" class="mt-2 w-full bg-red-400 text-white py-1 px-3 rounded-md text-sm hover:bg-red-500 transition duration-150 ease-in-out">
-                                画像をクリア
+                    <!-- 投稿フォームオーバーレイ -->
+                    <div id="post-form-overlay">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-2xl font-bold text-gray-800 text-center flex-grow">新しい投稿</h2>
+                            <button id="close-form-btn" class="text-gray-500 hover:text-gray-700 focus:outline-none hidden">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
-                    </div>
-                    <!-- End Image Upload Section -->
+                        <form id="post-form" class="space-y-4 flex-grow flex flex-col">
+                            <div class="space-y-4 space-x-4">
+                                <label for="post-text" class="block text-sm font-medium text-gray-700 mb-1">メッセージ</label>
+                                <textarea id="post-text" name="postText" rows="4" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm resize-y" placeholder="ここにメッセージを入力してください..."></textarea>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="latitude" class="block text-sm font-medium text-gray-700 mb-1">緯度</label>
+                                        <input type="text" id="latitude" name="latitude" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="longitude" class="block text-sm font-medium text-gray-700 mb-1">経度</label>
+                                        <input type="text" id="longitude" name="longitude" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    </div>
+                                </div>
 
-                    <button type="button" id="get-location-btn" class="w-full bg-indigo-500 text-white py-3 px-4 rounded-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md">
-                        現在地を取得
-                    </button>
-                    <button type="submit" id="submit-post-btn" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md mt-auto">
-                        投稿する
-                    </button>
-                </form>
-                <div id="user-info-display" class="mt-4 p-2 bg-gray-100 text-gray-700 rounded-md text-xs text-center break-all hidden">
-                    ユーザー名: 未設定
-                    <button id="change-name-btn" class="ml-2 text-blue-500 hover:underline text-xs">変更</button>
-                    <button id="logout-btn" class="ml-2 text-red-500 hover:underline text-xs">ログアウト</button>
-                    <button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウントプロフィール</button>
+                                <!-- Image Upload Section -->
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">画像 (オプション)</label>
+                                    <input type="file" accept="image/*" id="post-image-input" name="postImage" class="hidden">
+                                    <button type="button" id="select-image-btn" class="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
+                                        画像を選択
+                                    </button>
+                                    <div id="image-preview-container" class="mt-2 hidden">
+                                        <img id="image-preview" src="#" alt="投稿画像" class="max-w-full h-auto rounded-md border border-gray-300">
+                                        <button type="button" id="clear-image-btn" class="mt-2 w-full bg-red-400 text-white py-1 px-3 rounded-md text-sm hover:bg-red-500 transition duration-150 ease-in-out">
+                                            画像をクリア
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- End Image Upload Section -->
+
+                                <button type="button" id="get-location-btn" class="w-full bg-indigo-500 text-white py-3 px-4 rounded-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md">
+                                    現在地を取得
+                                </button>
+                                <button type="submit" id="submit-post-btn" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md mt-auto">
+                                    投稿する
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Account Settings Content -->
+                    <div id="account-menu">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="flex items-center justify-between mb-4">アカウント設定</h2>
+                            <div class="space-y-4 space-x-4">
+                                <div class="flex items-center space-x-4 mb-4">
+                                    <img id="account-icon-preview" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="アイコンプレビュー" class="w-16 h-16 rounded-full object-cover bg-gray-200">
+                                    <div>
+                                        <h3 id="account-user-name" class="text-lg font-semibold text-gray-800"></h3>
+                                        <p id="account-user-handle" class="text-gray-500"></p>
+                                    </div>
+                                </div>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="account-name-input" class="block text-sm font-medium text-gray-700">ユーザー名</label>
+                                        <input type="text" id="account-name-input" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="account-bio-input" class="block text-sm font-medium text-gray-700">自己紹介</label>
+                                        <textarea id="account-bio-input" rows="3" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                                    </div>
+                                    <div>
+                                        <label for="account-icon-input" class="block text-sm font-medium text-gray-700">アイコン画像</label>
+                                        <input type="file" id="account-icon-input" accept="image/*" class="mt-1">
+                                    </div>
+                                    <div id="account-email-section">
+                                        <label for="account-email-input" class="block text-sm font-medium text-gray-700">メールアドレス</label>
+                                        <input type="email" id="account-email-input" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        <p id="account-email-error" class="text-red-500 text-xs mt-1 hidden"></p>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button id="save-account-btn" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
+                                            保存
+                                        </button>
+                                        <button id="logout-btn-account" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
+                                            ログアウト
+                                        </button>
+                                        <button id="switch-account-btn" class="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
+                                            アカウント切り替え
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- User Profile Display Area (Initially Hidden) -->
+                    <div id="user-profile-view" class="hidden w-full h-full bg-white rounded-xl shadow-md p-6 flex-col">
+                        <!-- Profile content will be dynamically inserted here -->
+                    </div>
                 </div>
-                <div id="non-login-menu" class="mt-4 p-2 bg-gray-100 text-gray-700 rounded-md text-xs text-center">
-                </div>
-                <div id="messages" class="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md text-sm hidden"></div>
             </div>
-            </div>
-        </div>
-            <!-- Account Settings Content (Initially Hidden) -->
-            <div id="account-menu">
-                <div class="flex items-center justify-between mb-4">
-                <h2 class="flex items-center justify-between mb-4">アカウント設定</h2>
-                <div class="space-y-4 space-x-4">
-                <div class="flex items-center space-x-4 mb-4">
-                    <img id="account-icon-preview" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="アイコンプレビュー" class="w-16 h-16 rounded-full object-cover bg-gray-200">
-                    <div>
-                        <h3 id="account-user-name" class="text-lg font-semibold text-gray-800"></h3>
-                      <p id="account-user-handle" class="text-gray-500"></p>
-                    </div>
-                </div>
-                <div class="space-y-4">
-                    <div>
-                        <label for="account-name-input" class="block text-sm font-medium text-gray-700">ユーザー名</label>
-                        <input type="text" id="account-name-input" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                    </div>
-                    <div>
-                        <label for="account-bio-input" class="block text-sm font-medium text-gray-700">自己紹介</label>
-                        <textarea id="account-bio-input" rows="3" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
-                    </div>
-                    <div>
-                        <label for="account-icon-input" class="block text-sm font-medium text-gray-700">アイコン画像</label>
-                        <input type="file" id="account-icon-input" accept="image/*" class="mt-1">
-                    </div>
-                    <div id="account-email-section">
-                        <label for="account-email-input" class="block text-sm font-medium text-gray-700">メールアドレス</label>
-                        <input type="email" id="account-email-input" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                        <p id="account-email-error" class="text-red-500 text-xs mt-1 hidden"></p>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button id="save-account-btn" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
-                            保存
-                        </button>
-                <button id="logout-btn-account" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
-                            ログアウト
-                        </button>
-                         <button id="switch-account-btn" class="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold">
-                            アカウント切り替え
-                        </button>
-                 </div>
-                </div>
-                </div>
-                </div>
-        <!-- User Profile Display Area (Initially Hidden) -->
-        <div id="user-profile-view" class="hidden w-full h-full bg-white rounded-xl shadow-md p-6 flex-col">
-                <!-- Profile content will be dynamically inserted here -->
-            <!-- User Profile Display Area (Initially Hidden) -->
-            <div id="user-profile-view" class="hidden w-full h-full bg-white rounded-xl shadow-md p-6 flex-col">
-                <!-- Profile content will be dynamically inserted here -->
-            </div>
-        </div>
 
         <!-- Bottom Navigation Bar for Mobile -->
         <div id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-white shadow-lg p-3 flex justify-around items-center z-20 md:hidden">
@@ -602,7 +636,7 @@
                 messagesDiv.classList.add('hidden');
                 messagesDiv.classList.remove('bg-green-50', 'text-green-800', 'bg-red-50', 'text-red-800', 'bg-blue-50', 'text-blue-800');
             }, 3000);
-        }; // セミコロンを追加
+        }
 
 
         /**
@@ -614,7 +648,7 @@
             const div = document.createElement('div');
             div.appendChild(document.createTextNode(str));
             return div.innerHTML;
-        }; // セミコロンを追加
+        }
 
         /**
          * Firebase Authのエラーコードを日本語メッセージに変換する関数
@@ -860,38 +894,39 @@
                         if (userDocSnap.exists && userDocSnap.data().name) {
                             const userData = userDocSnap.data();
                             userName = userData.name;
-                            // Firestoreから読み込んだ値をグローバル変数にセット
-                            // (followingCount, followerCount は表示時に直接使うのでここでは不要)
                             userPhotoURL = userData.photoURL || null;
                             userHandle = userData.username || '';
-                            userPhotoURL = userData.photoURL || null;
                             userBio = userData.bio || '';
                             updateUserInfoDisplay();
-                            nameInputModal.classList.remove('active');
+                            nameInputModal.style.display = 'none'; // モーダルを非表示にする
                             console.log("DEBUG: Attempting to fetch posts after auth ready.");
                             fetchPosts();
                             fetchTimelinePosts();
                             fetchFollowingList();
                             nonLoginMenu.style.display = 'none';
-                        } else if (user.displayName) {
-                            userName = user.displayName;
-                            userInfoDisplay.textContent = `ユーザー名: ${userName} (Google)`;
+                        } else {
+                            // 新規ユーザーまたは名前が未設定の既存ユーザーの場合
+                            if (user.displayName) {
+                                userName = user.displayName;
+                                userInfoDisplay.textContent = `ユーザー名: ${userName} (Google)`;
+                            } else {
+                                userName = "未設定"; // displayNameがない場合は「未設定」とする
+                            }
                             // 新規ユーザー作成時にカウントフィールドを追加
                             await userDocRef.set({
                                 name: userName,
                                 createdAt: new Date().toISOString(),
-                                authProvider: user.providerData[0].providerId || 'google',
+                                authProvider: user.providerData[0].providerId || 'email', // email認証の場合も考慮
                                 followingCount: 0,
                                 followerCount: 0,
                                 bio: '' // bioフィールドも初期化
                             }, { merge: true });
 
-                            console.log("DEBUG: Attempting to fetch posts after Google auth and name set.");
-                            nameInputModal.classList.remove('active');
-                            fetchPosts();
-                            fetchTimelinePosts();
-                            fetchFollowingList();
-                            nonLoginMenu.style.display = 'none';
+                            nameInputModal.style.display = 'flex'; // モーダルを表示する
+                            nameInputModal.style.opacity = '1';
+                            nameInputModal.style.visibility = 'visible';
+                            console.log("DEBUG: Showing name input modal for new or unnamed user.");
+                            nonLoginMenu.style.display = 'none'; // ログイン済みなので非表示
                         }
                     } else {
                         // ユーザーがログアウトした場合の処理
@@ -1356,12 +1391,15 @@
          * @param {string} view - 'map', 'post', 'timeline'
         */
         function switchView(view) {
+            // すべてのコンテンツとサイドバーを一旦非表示にする
             document.getElementById('map-area').style.display = 'none';
-            document.getElementById('user-profile-view').style.display = 'none';
+            document.getElementById('user-profile-view').style.display = 'none'; // これは常にhiddenで良いはず
             accountMenu.style.display = 'none';
             postFormOverlay.style.display = 'none';
             timelineContainer.style.display = 'none';
-            
+            document.getElementById('right-sidebar').style.display = 'none'; // サイドバーをデフォルトで非表示に
+
+            // ナビゲーションボタンのアクティブ状態をリセット
             navMapBtn.classList.remove('text-blue-600');
             navMapBtn.classList.add('text-gray-600');
             navPostBtn.classList.remove('text-blue-600');
@@ -1371,27 +1409,31 @@
             navAccountBtn.classList.remove('text-blue-600');
             navAccountBtn.classList.add('text-gray-600');
 
+            // 選択されたビューに応じて表示を切り替える
             if (view === 'map') {
                 document.getElementById('map-area').style.display = 'block';
                 navMapBtn.classList.add('text-blue-600');
-                accountMenu.style.display = 'none';
+                // マップビューではright-sidebarを非表示にする
+                document.getElementById('right-sidebar').style.display = 'none';
             }
             else if (view === 'post') {
-                document.getElementById('map-area').style.display = 'block';
+                document.getElementById('map-area').style.display = 'block'; // マップも表示
                 postFormOverlay.style.display = 'flex';
                 navPostBtn.classList.add('text-blue-600');
-                accountMenu.style.display = 'none';
+                document.getElementById('right-sidebar').style.display = 'flex'; // 投稿ビューではサイドバーを表示
             }
             else if (view === 'account') {
-                document.getElementById('map-area').style.display = 'block';
+                document.getElementById('map-area').style.display = 'block'; // マップも表示
                 accountMenu.style.display = 'flex';
-                navAccountBtn.classList.add('text-blue-600'); // Reusing timeline button for account
+                navAccountBtn.classList.add('text-blue-600');
+                document.getElementById('right-sidebar').style.display = 'flex'; // アカウントビューではサイドバーを表示
             }
             else if (view === 'timeline') {
-                document.getElementById('map-area').style.display = 'block';
+                document.getElementById('map-area').style.display = 'block'; // マップも表示
                 timelineContainer.style.display = 'flex';
                 navTimelineBtn.classList.add('text-blue-600');
                 fetchTimelinePosts();
+                document.getElementById('right-sidebar').style.display = 'flex'; // タイムラインビューではサイドバーを表示
             } else {
                 console.warn(`switchView: Unknown view "${view}"`);
                 // 意図しないviewが指定された場合の処理（例: マップビューをデフォルトにする）
@@ -1621,7 +1663,9 @@
                     }
 
                     updateUserInfoDisplay();
-                    nameInputModal.classList.remove('active');
+                    nameInputModal.style.display = 'none';
+                    nameInputModal.style.opacity = '0';
+                    nameInputModal.style.visibility = 'hidden';
                     showMessage('ユーザー情報が保存されました！', 'success');
                     
                     console.log("DEBUG: Attempting to fetch posts after name set.");
@@ -1712,7 +1756,9 @@
                     try {
                         await auth.signInWithEmailAndPassword(email, password);
                         // ログイン成功後、モーダルを閉じる
-                        nameInputModal.classList.remove('active');
+                        nameInputModal.style.display = 'none';
+                        nameInputModal.style.opacity = '0';
+                        nameInputModal.style.visibility = 'hidden';
                         showMessage('ログインしました！', 'success');
                     } catch (error) {
                         emailError.textContent = getFirebaseAuthErrorMessage(error);
@@ -1743,6 +1789,7 @@
                         await auth.createUserWithEmailAndPassword(email, password);
                         showMessage('新規登録が完了しました。続けて、表示される名前とIDを設定してください。', 'info');
                         passwordInput.value = '';
+                        // nameInputModalの表示はonAuthStateChangedに任せる
                     } catch (error) {
                         emailError.textContent = getFirebaseAuthErrorMessage(error);
                         emailError.classList.remove('hidden');
@@ -1993,16 +2040,41 @@
 
             // Profile modal listeners
             if(closeProfileBtn) {
-                closeProfileBtn.addEventListener('click', () => userProfileModal.classList.add('hidden'));
+                closeProfileBtn.addEventListener('click', () => {
+                    userProfileModal.classList.add('hidden'); // hidden クラスを追加
+                });
            }
             if(userProfileModal) {
                userProfileModal.addEventListener('click', (e) => {
-                    if(e.target === userProfileModal) userProfileModal.classList.add('hidden');
+                    if(e.target === userProfileModal) {
+                        userProfileModal.classList.add('hidden'); // hidden クラスを追加
+                    }
                 });
             }
 
-            nonLoginMenu.style.display = 'none';
+            // デスクトップタブの初期化とイベントリスナー
             initDesktopTabs();
+            
+            // ユーザー情報表示の初期状態を調整
+            // モバイルでは非表示、デスクトップでは表示
+            // ユーザー情報表示の初期状態を調整
+            // モバイルでは非表示、デスクトップでは表示
+            if (window.innerWidth < 768) {
+                userInfoDisplay.classList.add('hidden');
+                nonLoginMenu.classList.add('hidden');
+            } else {
+                userInfoDisplay.classList.remove('hidden');
+                // ログイン状態に応じてnonLoginMenuの表示を切り替える
+                if (userId) { // userIdが設定されていればログイン済み
+                    nonLoginMenu.classList.add('hidden');
+                } else {
+                    nonLoginMenu.classList.remove('hidden');
+                }
+            }
+
+            // 初期表示をマップにする
+            switchView('map');
+
             fetchTrendingHashtags();
         }); // セミコロンを追加
         // トレンドのハッシュタグを取得して表示する関数
@@ -2115,7 +2187,8 @@
         async function showUserProfile(targetUserId) {
             if (!targetUserId || !db) return;
             
-            userProfileModal.classList.remove('hidden');
+            // プロフィールモーダルを表示する
+            userProfileModal.classList.remove('hidden'); // hidden クラスを削除
 
             const userDoc = await db.collection(`artifacts/${appId}/public/data/users`).doc(targetUserId).get();
             if (!userDoc.exists) {
@@ -2167,45 +2240,8 @@
             }
         }
         function initDesktopTabs() {
-            const tabTimeline = document.getElementById('tab-timeline');
-            const tabPost = document.getElementById('tab-post');
-            const tabAccount = document.getElementById('tab-account');
-            const postFormOverlay = document.getElementById('post-form-overlay');
-            const timelineContainer = document.getElementById('timeline-container');
-            const userProfileView = document.getElementById('user-profile-view');
-            const userInfoDisplay = document.getElementById('user-info-display');
-            const rightSidebar = document.getElementById('right-sidebar');
-            const accountMenu = document.getElementById('account-menu');
-            const mainContentWrapper = document.getElementById('main-content-wrapper'); // main-contentを囲むラッパー
-
-            // すべてのコンテンツを非表示にする関数
-            const hideAll = () => {
-                postFormOverlay.style.display = 'none';
-
-                async function fetchTimelinePosts(filter = 'all', hashtag = null) {
-                if (!authReady) {
-                  console.warn("認証が完了していません。タイムライン投稿の取得を遅延します。");
-                  return;
-                }
-                if (!db) {
-                  console.error("Firestore database (db) is not initialized.");
-                  showMessage("データベースが初期化されていません。", "error");
-                  return;
-                }
-
-                let postsQuery = db.collection(`artifacts/${appId}/public/data/posts`);
-                if (filter === 'hashtag' && hashtag) {
-                    postsQuery = postsQuery.where('hashtags', 'array-contains', hashtag);
-                }
-                timelineContainer.style.display = 'none';
-                userProfileView.classList.add('hidden');
-                rightSidebar.style.display = 'none';
-                accountMenu.style.display = 'none';
-                userInfoDisplay.classList.add('hidden'); // ユーザー情報表示を隠す
-                document.querySelectorAll('#desktop-tabs button').forEach(btn => btn.classList.remove('active'));
-            }
+            // desktop-tabsは不要になったため、この関数は空にします。
         }
-    }
     
         // トレンドのハッシュタグを取得して表示する関数
         async function fetchTrendingHashtags() {
@@ -2387,7 +2423,7 @@
     </script>
     <!-- Google Maps JavaScript APIの読み込み (最新の安定版を明示的に指定) -->
     <script>
-        let googleMapsLoaded = false;
+        let googleMapsLoaded = false; // const から let に変更
         function loadGoogleMaps() {
             if(googleMapsLoaded) return;
             

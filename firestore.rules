@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // This path matches all documents in the 'data' subcollection
+    match /artifacts/{appId}/public/data/{document=**} {
+
+      // --- users collection ---
+      match /users/{userId} {
+        // Any authenticated user can read any user's profile data.
+        // This is needed for username uniqueness check and viewing other profiles.
+        allow read: if request.auth != null;
+        
+        // Only the user themselves can write/update their profile.
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // --- posts collection ---
+      match /posts/{postId} {
+        // Any authenticated user can read posts
+        allow read: if request.auth != null;
+        
+        // Users can only create posts for themselves
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+
+        // An update is allowed if:
+        // 1. The user is the author of the post.
+        // OR
+        // 2. The only field being changed is 'likedBy' (to allow anyone to like/unlike).
+        allow update: if request.auth != null && 
+                       (request.auth.uid == resource.data.userId || 
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy']));
+        
+        // Only the author can delete their post
+        allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      }
+
+      // --- follows collection ---
+      // Allow users to read and write their own follow list
+      match /follows/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
