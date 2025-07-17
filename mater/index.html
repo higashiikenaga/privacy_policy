@@ -697,18 +697,6 @@
                 infoWindow.setContent('選択された投稿位置');
                 infoWindow.open(map, selectedGoogleMapMarker);
 
-                showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
-
-            map.addListener('dblclick', (mapsMouseEvent) => {
-                const lat = mapsMouseEvent.latLng.lat();
-                const lng = mapsMouseEvent.latLng.lng();
-
-                document.getElementById('latitude').value = lat.toFixed(6);
-                document.getElementById('longitude').value = lng.toFixed(6);
-
-                if (selectedGoogleMapMarker) {
-                    selectedGoogleMapMarker.setMap(null);
-                }
                 selectedGoogleMapMarker = new google.maps.marker.AdvancedMarkerElement({
                     position: { lat: lat, lng: lng },
                     map: map,
@@ -722,6 +710,20 @@
                     }
                 });
                 infoWindow.setContent('選択された投稿位置');
+                infoWindow.open(map, selectedGoogleMapMarker);
+
+                showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
+
+            map.addListener('dblclick', (mapsMouseEvent) => {
+                const lat = mapsMouseEvent.latLng.lat();
+                const lng = mapsMouseEvent.latLng.lng();
+
+                document.getElementById('latitude').value = lat.toFixed(6);
+                document.getElementById('longitude').value = lng.toFixed(6);
+
+                if (selectedGoogleMapMarker) {
+                    selectedGoogleMapMarker.setMap(null);
+                }
                 infoWindow.open(map, selectedGoogleMapMarker);
 
                 showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
