@@ -2404,7 +2404,7 @@
             }
             
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=marker&callback=initGoogleMap`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker&callback=initGoogleMap`;
             script.async = true;
             script.defer = true;
             script.onerror = () => {
