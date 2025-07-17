@@ -697,7 +697,34 @@
                 infoWindow.open(map, selectedGoogleMapMarker);
 
                 showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
-            ;
+
+            map.addListener('dblclick', (mapsMouseEvent) => {
+                const lat = mapsMouseEvent.latLng.lat();
+                const lng = mapsMouseEvent.latLng.lng();
+
+                document.getElementById('latitude').value = lat.toFixed(6);
+                document.getElementById('longitude').value = lng.toFixed(6);
+
+                if (selectedGoogleMapMarker) {
+                    selectedGoogleMapMarker.setMap(null);
+                }
+                selectedGoogleMapMarker = new google.maps.Marker({
+                    position: { lat: lat, lng: lng },
+                    map: map,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: '#8B5CF6',
+                        fillOpacity: 1,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: 2,
+                        scale: 8
+                    }
+                });
+                infoWindow.setContent('選択された投稿位置');
+                infoWindow.open(map, selectedGoogleMapMarker);
+
+                showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
+            });
 
             // 初期ロード時に現在地を取得
             getCurrentLocation();
