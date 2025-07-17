@@ -2160,13 +2160,39 @@
         }
 
         function renderTrendingHashtags(hashtags) {
-        const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+            const trendingHashtagsList = document.getElementById('trending-hashtags-list');
             trendingHashtagsList.innerHTML = '';
 
             if (hashtags.length === 0) {
                 trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
                 return;
             }
+
+            hashtags.forEach(([hashtag, count]) => {
+                const hashtagElement = document.createElement('p');
+                hashtagElement.className = 'text-sm text-gray-700';
+                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${hashtag}</a> (${count})`;
+                trendingHashtagsList.appendChild(hashtagElement);
+            });
+        }
+        function getLikedPostsKey() {
+        }
+
+        function renderTrendingHashtags(hashtags) {
+            const trendingHashtagsList = document.getElementById('trending-hashtags-list');
+            trendingHashtagsList.innerHTML = '';
+
+            if (hashtags.length === 0) {
+                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
+                return;
+            }
+
+            hashtags.forEach(([hashtag, count]) => {
+                const hashtagElement = document.createElement('p');
+                hashtagElement.className = 'text-sm text-gray-700';
+                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${escapeHTML(hashtag)}</a> (${count})`;
+                trendingHashtagsList.appendChild(hashtagElement);
+            });
         }
         function getLikedPostsKey() {
             return `likedPosts_${userId || 'anonymous'}`;
