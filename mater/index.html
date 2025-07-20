@@ -164,12 +164,27 @@
         padding: 1rem;
         border-radius: 1rem;
         box-sizing: border-box;
+        max-height: 90vh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
     }
     #timeline-posts {
         max-width: 100vw;
         min-width: 0;
         padding: 0.5rem;
         box-sizing: border-box;
+        max-height: 80vh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+    }
+    #sidebar-timeline-section {
+        max-height: 90vh;
+        overflow-y: auto;
+        box-sizing: border-box;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
     }
 }
 
@@ -1081,6 +1096,16 @@
         document.getElementById('get-location-btn').addEventListener('click', getCurrentLocation);
 
         if (nameForm) {
+            // --- localStorage復元 ---
+            try {
+                const savedAccount = localStorage.getItem('accountInfo');
+                if (savedAccount) {
+                    const info = JSON.parse(savedAccount);
+                    if (info.name) userNameInput.value = info.name;
+                    if (info.username) userIdInput.value = info.username;
+                    if (info.bio) userBioInput.value = info.bio;
+                }
+            } catch(e) {}
             nameForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const inputName = userNameInput.value.trim();
@@ -1295,12 +1320,15 @@
                 await toggleFollow(targetUserId);
                 profileFollowBtn.textContent = currentUserFollowing.includes(targetUserId) ? 'フォロー解除' : 'フォロー';
                 profileFollowBtn.className = `ml-auto bg-blue-500 text-white py-2 px-4 rounded-full text-sm font-semibold ${currentUserFollowing.includes(targetUserId) ? 'bg-gray-300 text-gray-700' : 'bg-blue-500 text-white'}`;
+                // フォロワー数再取得
+                await updateProfileFollowCounts(targetUserId);
             };
         } else {
             profileFollowBtn.classList.add('hidden');
             profileFollowBtn.style.display = 'none';
         }
-        
+        // フォロー・フォロワー数取得
+        await updateProfileFollowCounts(targetUserId);
         // Fetch user posts
         profilePostsContainer.innerHTML = '<p class="text-gray-500">投稿を読み込み中...</p>';
         const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`).where('userId', '==', targetUserId).orderBy('timestamp', 'desc').limit(20).get();
@@ -1313,40 +1341,17 @@
             });
         }
     }
-
-    async function fetchTrendingHashtags() {
-        if (!db) return;
-        const listEl = document.getElementById('trending-hashtags-list');
-        if (!listEl) return;
-        listEl.innerHTML = '<p class="text-sm text-gray-500">トレンドを読み込み中...</p>';
-        try {
-            const snapshot = await db.collection(`artifacts/${appId}/public/data/posts`).orderBy('timestamp', 'desc').limit(50).get();
-            const counts = {};
-            snapshot.forEach(doc => {
-                const post = doc.data();
-                if (post.hashtags) post.hashtags.forEach(tag => counts[tag] = (counts[tag] || 0) + 1);
-            });
-            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-            renderTrendingHashtags(sorted);
-        } catch (error) {
-            listEl.innerHTML = '<p class="text-sm text-gray-500">トレンドの取得に失敗しました。</p>';
-        }
-    }
-
-    function renderTrendingHashtags(hashtags) {
-        const listEl = document.getElementById('trending-hashtags-list');
-        listEl.innerHTML = '';
-        if (hashtags.length === 0) {
-            listEl.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
-            return;
-        }
-        hashtags.forEach(([tag, count]) => {
-            const p = document.createElement('p');
-            p.className = 'text-sm text-gray-700';
-            p.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${tag}')" class="text-blue-500 hover:underline">#${escapeHTML(tag)}</a> (${count})`;
-            listEl.appendChild(p);
-        });
-    }
+    // フォロー・フォロワー数取得関数
+    async function updateProfileFollowCounts(targetUserId) {
+    if (!db) return;
+    // フォロー数
+    const followDoc = await db.collection(`artifacts/${appId}/public/data/follows`).doc(targetUserId).get();
+    const followingArr = followDoc.exists ? (followDoc.data().following || []) : [];
+    profileFollowingCount.textContent = followingArr.length;
+    // フォロワー数
+    const followerSnapshot = await db.collection(`artifacts/${appId}/public/data/follows`).where('following', 'array-contains', targetUserId).get();
+    profileFollowerCount.textContent = followerSnapshot.size;
+}
 
     function filterByHashtag(event, hashtag) {
         event.preventDefault();
