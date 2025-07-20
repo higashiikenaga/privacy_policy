@@ -1213,6 +1213,45 @@
             });
         }
 
+        if (saveAccountBtn) {
+    saveAccountBtn.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const inputName = accountUserNameInput.value.trim();
+        const inputBio = accountBioInput.value.trim();
+        const iconFile = accountIconInput.files[0];
+        if (!inputName) return showMessage('アカウント名は必須です。', 'error');
+        saveAccountBtn.disabled = true;
+        try {
+            let newPhotoURL = userPhotoURL;
+            if (iconFile) newPhotoURL = await uploadImage(iconFile, 'profile');
+            const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
+            await userDocRef.set({
+                name: inputName,
+                bio: inputBio,
+                photoURL: newPhotoURL || null,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            userName = inputName;
+            userBio = inputBio;
+            userPhotoURL = newPhotoURL;
+            updateUserInfoDisplay();
+            setTimeout(() => {
+                localStorage.setItem('accountInfo', JSON.stringify({
+                    name: userName,
+                    username: userHandle,
+                    bio: userBio,
+                    photoURL: userPhotoURL
+                }));
+            }, 100);
+            showMessage('アカウント情報が保存されました！', 'success');
+        } catch (error) {
+            showMessage('アカウント情報の保存に失敗しました。', 'error');
+        } finally {
+            saveAccountBtn.disabled = false;
+        }
+    });
+}
+
         document.body.addEventListener('click', async (event) => {
             const target = event.target;
             const likeBtn = target.closest('.like-btn');
