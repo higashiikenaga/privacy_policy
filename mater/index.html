@@ -814,6 +814,14 @@
                         nameInputModal.style.opacity = '1';
                         nameInputModal.style.visibility = 'visible';
                     }
+                    // 新規登録直後はプロフィール設定モーダルも表示
+                    const profileSetupModal = document.getElementById('profile-setup-modal');
+                    if (profileSetupModal) {
+                        profileSetupModal.classList.remove('hidden');
+                        profileSetupModal.style.display = 'flex';
+                        profileSetupModal.style.opacity = '1';
+                        profileSetupModal.style.visibility = 'visible';
+                    }
                 }
                 updateUserInfoDisplay();
                 fetchPosts();
