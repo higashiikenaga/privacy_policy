@@ -780,9 +780,22 @@
         auth = firebase.auth();
         storage = firebase.storage();
 
+        // Debug: Log auth.currentUser and userId on load
+        setTimeout(() => {
+            if (auth && auth.currentUser) {
+                console.log('[DEBUG][onLoad] auth.currentUser.uid:', auth.currentUser.uid);
+            } else {
+                console.log('[DEBUG][onLoad] auth.currentUser not available:', auth);
+            }
+            console.log('[DEBUG][onLoad] userId:', userId);
+        }, 0);
+
         auth.onAuthStateChanged(async (user) => {
+            // Debug: Log user and userId after auth state changes
+            console.log('[DEBUG][onAuthStateChanged] user:', user);
             if (user) {
                 userId = user.uid;
+                console.log('[DEBUG][onAuthStateChanged] userId set to:', userId);
                 authReady = true;
                 const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
                 const userDocSnap = await userDocRef.get();
@@ -822,6 +835,8 @@
                 if (timelinePostsContainer) timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">ログインしてください。</p>';
                 updateUserInfoDisplay();
             }
+            // Debug: Log userId after auth state change
+            console.log('[DEBUG][onAuthStateChanged] userId after state change:', userId);
             switchView('map');
         });
         setupEmailAuthListeners();
