@@ -6,6 +6,9 @@
     <title>地図に書き込めるSNS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Leaflet (for OpenStreetMap) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- Firebase SDK (v8 compatible) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -142,6 +145,17 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
+        /* タイムラインとname-input-modalの縦スクロール対応 */
+        #timeline-posts {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #name-input-modal .modal-content {
+            max-height: none; /* max-heightを削除 */
+            height: auto; /* 高さを自動調整 */
+            overflow-y: auto;
+        }
+
         /* デスクトップビューのスタイル */
         @media (min-width: 768px) {
             #app-container {
@@ -227,23 +241,16 @@
                     </div>
                     <div id="messages" class="mt-4 p-3 bg-blue-50 text-blue-800 rounded-md text-sm hidden"></div>
 
-                    <!-- 投稿検索機能 -->
-<div id="post-search-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
-    <h3 class="font-bold text-gray-700 mb-2">投稿検索</h3>
-    <div class="flex">
-        <input type="text" id="post-search-input" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="ハッシュタグで検索">
-        <button id="post-search-btn" class="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md">検索</button>
-    </div>
-</div>
-<script>
-    document.getElementById('post-search-btn').addEventListener('click', function() {
-        const hashtag = document.getElementById('post-search-input').value;
-        filterByHashtag(null, hashtag);
-    });
-</script>
-
                     <!-- タイムラインコンテナ -->
-                    <div id="timeline-container">
+                    <div id="sidebar-timeline-section">
+                        <!-- 投稿検索機能 -->
+                        <div id="post-search-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
+                            <h3 class="font-bold text-gray-700 mb-2">投稿検索</h3>
+                            <div class="flex">
+                                <input type="text" id="post-search-input" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="ハッシュタグで検索">
+                                <button id="post-search-btn" class="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out font-semibold shadow-md">検索</button>
+                            </div>
+                        </div>
                         <div id="trending-hashtags-container" class="mb-4 p-3 bg-gray-100 rounded-lg">
                             <h3 class="font-bold text-gray-700 mb-2">トレンド</h3>
                             <div id="trending-hashtags-list" class="space-y-1">
@@ -265,7 +272,7 @@
                     </div>
 
                     <!-- 投稿フォームオーバーレイ -->
-                    <div id="post-form-overlay">
+                    <div id="sidebar-submit-section">
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="text-2xl font-bold text-gray-800 text-center flex-grow">新しい投稿</h2>
                             <button id="close-form-btn" class="text-gray-500 hover:text-gray-700 focus:outline-none hidden">
@@ -314,7 +321,7 @@
                     </div>
 
                     <!-- Account Settings Content -->
-                    <div id="account-menu">
+                    <div id="sidebar-account-section">
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="flex items-center justify-between mb-4">アカウント設定</h2>
                             <div class="space-y-4 space-x-4">
@@ -461,8 +468,8 @@
     </div>
 
     <!-- User Profile Modal -->
-    <div id="user-profile-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-md max-h-[90vh] flex flex-col">
+    <div id="user-profile-modal" class="fixed inset-0 bg-transparent hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-md max-h-[90vh] flex flex-col" style="background:rgba(255,255,255,0.98);">
             <div class="p-4 border-b flex justify-between items-center">
                 <h3 id="profile-modal-title" class="text-xl font-bold text-gray-800">プロフィール</h3>
                 <button id="close-profile-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
@@ -495,12 +502,11 @@
 
     <!-- メインのアプリケーションスクリプト (すべてのロジックをここに統合) -->
     <script>
-        // Google Maps関連のグローバル変数
+        // OpenStreetMap(Leaflet)関連のグローバル変数
         let map = null;
-        let currentGoogleMapMarker = null;
-        let selectedGoogleMapMarker = null;
-        let infoWindow = null;
-        let mapElement = null;
+        let currentMarker = null;
+        let selectedMarker = null;
+        const postMarkers = {}; // { postId: marker }
 
         // Firebase関連のグローバル変数
         let app = null;
@@ -517,1998 +523,860 @@
         let currentUserFollowing = [];
 
         // DOM要素の参照をスクリプトのトップレベルで宣言 (DOMContentLoadedで初期化)
-        let messagesDiv = null;
-        let userInfoDisplay = null;
-        let postFormOverlay = null;
-        let openFormBtn = null;
-        let closeFormBtn = null;
-        let nameInputModal = null;
-        let nameForm = null;
-        let userNameInput = null;
-        let userIdInput = null;
-        let userBioInput = null;
-        let userIconInput = null;
-        let selectIconBtn = null;
-        let userIconPreview = null;
-        let usernameError = null;
-        let googleSignInBtn = null;
-        // Email/Password Auth elements
-        let emailInput = null;
-        let emailError = null;
-        let logoutBtn = null;
-        let postForm = null;
-        let postText = null;
-            let latitudeInput = null;
-            let longitudeInput = null;
-        let timelineContainer = null;
-        let timelinePostsContainer = null;
-        let timelineTabs = null;
-        let currentTimelineTab = 'all';
-        let submitPostBtn = null;
+        let messagesDiv, userInfoDisplay, postFormOverlay, openFormBtn, closeFormBtn, nameInputModal, nameForm;
+        let userNameInput, userIdInput, userBioInput, userIconInput, selectIconBtn, userIconPreview, usernameError, googleSignInBtn;
+        let emailInput, emailError, logoutBtn, postForm, postText, latitudeInput, longitudeInput;
+        let timelineContainer, timelinePostsContainer, timelineTabs, currentTimelineTab = 'all', submitPostBtn;
+        let userProfileModal, closeProfileBtn, profileUserName, profileUserHandle, profileBio, profileFollowBtn, profileFollowingCount, profileFollowerCount, profileAvatar, profilePostsContainer;
+        let confirmModal, confirmMessage, confirmYesBtn, desktopTabs, nonLoginMenu, accountBtn, confirmNoBtn;
+        let accountUserNameInput, accountBioInput, accountIconInput, accountIconPreview, saveAccountBtn, currentActionPostId;
 
-        // Profile Modal elements
-        let userProfileModal = null;
-        let closeProfileBtn = null;
-        let profileUserName = null;
-        let profileUserHandle = null;
-        let profileBio = null;
-        let profileFollowBtn = null;
-        let profileFollowingCount = null;
-        let profileFollowerCount = null;
-        let profileAvatar = null;
-        let profilePostsContainer = null;
+        // 環境変数から設定を取得 (Cloudflare Pagesでは__env__を使用)
+        const defaultFirebaseConfig = {
+            apiKey: "AIzaSyBSqI_ertL6zvom68xRDJEiUSqaLT-cLvk",
+            authDomain: "mater-4c79d.firebaseapp.com",
+            projectId: "mater-4c79d",
+            storageBucket: "mater-4c79d.firebasestorage.app",
+            messagingSenderId: "155663048531",
+            appId: "1:155663048531:web:7d571cf2d1240efde64ba6",
+            measurementId: "G-6KST2VXSK5"
+        };
 
-        // Confirmation Modal elements
-        let confirmModal = null;
-        let confirmMessage = null;
-        let confirmYesBtn = null;
-        let desktopTabs = null;
-        let nonLoginMenu = null;
-        let accountBtn = null;
-        let confirmNoBtn = null;
-
-        // Account settings elements (Desktop)
-        let accountMenu = null;
-        let accountUserNameInput = null;
-        let accountBioInput = null;
-        let accountIconInput = null;
-        let accountIconPreview = null;
-        let saveAccountBtn = null;
-        let currentActionPostId = null;
-
-            // 環境変数から設定を取得 (Cloudflare Pagesでは__env__を使用)
-            const defaultFirebaseConfig = {
-                apiKey: "AIzaSyBSqI_ertL6zvom68xRDJEiUSqaLT-cLvk",
-                authDomain: "mater-4c79d.firebaseapp.com",
-                projectId: "mater-4c79d",
-                storageBucket: "mater-4c79d.firebasestorage.app",
-                messagingSenderId: "155663048531",
-                appId: "1:155663048531:web:7d571cf2d1240efde64ba6",
-                measurementId: "G-6KST2VXSK5"
-            };
-
-            const appId = typeof __app_id !== 'undefined' ? __app_id : defaultFirebaseConfig.projectId;
-            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            
-            // Firebase設定の初期化をIIFEで隔離
-            const firebaseConfig = (function() {
-                let config = defaultFirebaseConfig;
-                if (typeof __firebase_config !== 'undefined' && __firebase_config !== null) {
-                try {
-                    const parsedConfig = JSON.parse(__firebase_config);
-                    if (typeof parsedConfig === 'object' && parsedConfig !== null && parsedConfig.apiKey) {
-                        config = parsedConfig;
-                        console.log("Using provided firebaseConfig:", config);
-                    } else {
-                    }
-                } catch (e) {
-                    console.error("Error parsing __firebase_config, using defaultFirebaseConfig:", e);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : defaultFirebaseConfig.projectId;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        const firebaseConfig = (function() {
+            let config = defaultFirebaseConfig;
+            if (typeof __firebase_config !== 'undefined' && __firebase_config !== null) {
+            try {
+                const parsedConfig = JSON.parse(__firebase_config);
+                if (typeof parsedConfig === 'object' && parsedConfig !== null && parsedConfig.apiKey) {
+                    config = parsedConfig;
                 }
-            } else {
-                console.warn("__firebase_config is undefined or null. Using defaultFirebaseConfig.");
+            } catch (e) {
+                console.error("Error parsing __firebase_config, using defaultFirebaseConfig:", e);
             }
-            return config;
-        })();
-         
-        function updateUserInfoDisplay() {
-            if (!userInfoDisplay) {
-                userInfoDisplay = document.getElementById('user-info-display');
-            if (!userInfoDisplay) {
-              return;
-            }
-          }
-          if (userId) {
-            const displayText = userHandle ? `${userName} (${userHandle})` : (userName || '未設定');
-            userInfoDisplay.innerHTML = `ユーザー: ${displayText}
-            ${ userHandle ? `<button id="show-profile-btn" class="ml-2 text-blue-500 hover:underline text-xs">プロフィール</button>`:''}
-            ${ window.innerWidth < 768 ?
-              `<button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウント</button>`: ''}`;
-          } else {
-            userInfoDisplay.textContent = 'ログインしていません';
-            // ログインしていない場合のメニュー表示
-            nonLoginMenu.style.display = 'block';
-        // The modal is now shown in onAuthStateChanged
         }
-        };
-
-        /**
-         * メッセージを表示するヘルパー関数
-         * @param {string} message - 表示するメッセージ
-         * @param {string} type - 'success', 'error', 'info' などのタイプ
-         */
-        function showMessage(message, type = 'info') {
-            // DOMContentLoaded前に呼び出される可能性があるので、ここで改めて取得を試みる
-            if (!messagesDiv) {
-                messagesDiv = document.getElementById('messages');
-                if (!messagesDiv) return;
-            }
-
-            messagesDiv.textContent = message;
-            messagesDiv.classList.remove('hidden', 'bg-blue-50', 'text-blue-800', 'bg-green-50', 'text-green-800', 'bg-red-50', 'text-red-800');
-            messagesDiv.classList.add('block');
-
-            setTimeout(() => {
-                messagesDiv.classList.add('hidden');
-                messagesDiv.classList.remove('bg-green-50', 'text-green-800', 'bg-red-50', 'text-red-800', 'bg-blue-50', 'text-blue-800');
-            }, 3000);
-        }
-
-
-        /**
-         * HTML特殊文字をエスケープする関数
-         * @param {string} str - エスケープする文字列
-         * @returns {string} エスケープされた文字列
-         */
-        function escapeHTML(str) {
-            const div = document.createElement('div');
-            div.appendChild(document.createTextNode(str));
-            return div.innerHTML;
-        }
-
-        /**
-         * Firebase Authのエラーコードを日本語メッセージに変換する関数
-         * @param {object} error - Firebase Authのエラーオブジェクト
-         * @returns {string} 日本語のエラーメッセージ
-         */
-        function getFirebaseAuthErrorMessage(error) {
-            switch (error.code) {
-                case 'auth/invalid-email':
-                    return '無効なメールアドレス形式です。';
-                case 'auth/user-disabled':
-                    return 'このアカウントは無効です。';
-                case 'auth/user-not-found':
-                    return 'このメールアドレスは登録されていません。';
-                case 'auth/wrong-password':
-                    return 'パスワードが間違っています。';
-                case 'auth/email-already-in-use':
-                    return 'このメールアドレスは既に使用されています。';
-                case 'auth/weak-password':
-                    return 'パスワードは6文字以上で入力してください。';
-                default:
-                    console.error("Unhandled auth error:", error);
-                    return '認証に失敗しました。時間をおいて再試行してください。';
-            }
-        };
-
-        // Google Maps APIが読み込まれた後に呼び出されるグローバル関数
-        // Google Maps APIが読み込まれた後に呼び出されるグローバル関数
-        window.initGoogleMap = function() {
-            mapElement = document.getElementById('map');
-
-            // マップの中心を東京に設定し、ズームレベル13で初期化
-            map = new google.maps.Map(mapElement, {
-                center: { lat: 35.6895, lng: 139.6917 },
-                zoom: 13,
-                mapTypeControl: false,
-                streetViewControl: false
-            });
-
-            // Observe map container for error
-            const mapArea = document.getElementById('map-area');
-            const observer = new MutationObserver((mutationsList, observer) => {
-                for(const mutation of mutationsList) {
-                    if (mutation.type === 'childList') {
-                        const errorContent = mapArea.querySelector('.gm-err-content');
-                        if (errorContent) {
-                            console.log("Google Maps error detected. Hiding map and showing login modal.");
-                            mapArea.style.display = 'none';
-                            const nameInputModal = document.getElementById('name-input-modal');
-                            if (nameInputModal) {
-                                nameInputModal.classList.add('active');
-                            }
-                            observer.disconnect(); // Stop observing once the error is handled
-                            break;
-                        }
+        return config;
+    })();
+    
+    function fetchPosts() {
+        if (!db) return;
+        const postsColRef = db.collection(`artifacts/${appId}/public/data/posts`);
+        postsColRef.onSnapshot(snapshot => {
+            snapshot.docChanges().forEach((change) => {
+                const post = { ...change.doc.data(), id: change.doc.id };
+                if (change.type === "added" || change.type === "modified") {
+                    addPostToMap(post);
+                } else if (change.type === "removed") {
+                    if (postMarkers[post.id]) {
+                        map.removeLayer(postMarkers[post.id]);
+                        delete postMarkers[post.id];
                     }
                 }
             });
+        }, error => {
+            console.error("マップ投稿の取得エラー:", error);
+            showMessage("マップ投稿の取得中にエラーが発生しました。", "error");
+        });
+    }
 
-            observer.observe(mapArea, { childList: true, subtree: true });
+    // 投稿データを地図にマーカーとして追加する関数
+    function addPostToMap(post) {
+        if (!map || !post.latitude || !post.longitude) return;
+        // 既存マーカーがあれば削除
+        if (postMarkers[post.id]) {
+            map.removeLayer(postMarkers[post.id]);
+        }
+        // マーカー作成
+        const marker = L.marker([post.latitude, post.longitude], {
+            icon: L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color:#2563eb; width:16px; height:16px; border-radius:50%; border: 2px solid white;"></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            })
+        }).addTo(map);
+        marker.bindPopup(`<strong>${escapeHTML(post.text || '')}</strong>`);
+        postMarkers[post.id] = marker;
+    }
 
-            console.log("Googleマップが初期化されました。");
-            infoWindow = new google.maps.InfoWindow();
+    function updateUserInfoDisplay() {
+        if (!userInfoDisplay) {
+            userInfoDisplay = document.getElementById('user-info-display');
+        if (!userInfoDisplay) {
+            return;
+        }
+        }
+        if (userId) {
+        const displayText = userHandle ? `${userName} (${userHandle})` : (userName || '未設定');
+        userInfoDisplay.innerHTML = `ユーザー: ${displayText}
+        ${ userHandle ? `<button id="show-profile-btn" class="ml-2 text-blue-500 hover:underline text-xs">プロフィール</button>`:''}
+        ${ window.innerWidth < 768 ?
+            `<button id="account-btn" class="ml-2 text-blue-500 hover:underline text-xs" data-view="account">アカウント</button>`: ''}`;
+        } else {
+        userInfoDisplay.textContent = 'ログインしていません';
+        nonLoginMenu.style.display = 'block';
+    }
+    };
 
-            // マーカーの初期化
-            initializeMapContent();
+    function showMessage(message, type = 'info') {
+        if (!messagesDiv) {
+            messagesDiv = document.getElementById('messages');
+            if (!messagesDiv) return;
+        }
+        messagesDiv.textContent = message;
+        messagesDiv.classList.remove('hidden', 'bg-blue-50', 'text-blue-800', 'bg-green-50', 'text-green-800', 'bg-red-50', 'text-red-800');
+        
+        const typeClasses = {
+            success: ['bg-green-50', 'text-green-800'],
+            error: ['bg-red-50', 'text-red-800'],
+            info: ['bg-blue-50', 'text-blue-800']
+        };
+        messagesDiv.classList.add(...(typeClasses[type] || typeClasses.info));
+        messagesDiv.classList.add('block');
 
-            map.addListener('click', (mapsMouseEvent) => {
-                const lat = mapsMouseEvent.latLng.lat();
-                const lng = mapsMouseEvent.latLng.lng();
+        setTimeout(() => {
+            messagesDiv.classList.add('hidden');
+            messagesDiv.classList.remove(...(typeClasses[type] || typeClasses.info));
+        }, 3000);
+    }
 
-                document.getElementById('latitude').value = lat.toFixed(6);
-                document.getElementById('longitude').value = lng.toFixed(6);
+    function escapeHTML(str) {
+        if (!str) return '';
+        const p = document.createElement('p');
+        p.appendChild(document.createTextNode(str));
+        return p.innerHTML;
+    }
 
-                // Remove previous marker if it exists
-                if (selectedGoogleMapMarker) {
-                    selectedGoogleMapMarker.setMap(null);
+    function getFirebaseAuthErrorMessage(error) {
+        switch (error.code) {
+            case 'auth/invalid-email': return '無効なメールアドレス形式です。';
+            case 'auth/user-disabled': return 'このアカウントは無効です。';
+            case 'auth/user-not-found': return 'このメールアドレスは登録されていません。';
+            case 'auth/wrong-password': return 'パスワードが間違っています。';
+            case 'auth/email-already-in-use': return 'このメールアドレスは既に使用されています。';
+            case 'auth/weak-password': return 'パスワードは6文字以上で入力してください。';
+            default:
+                console.error("Unhandled auth error:", error);
+                return '認証に失敗しました。時間をおいて再試行してください。';
+        }
+    }
+
+    function initOpenStreetMap() {
+        if (map) return; // すでに初期化されている場合は何もしない
+        try {
+            map = L.map('map').setView([35.6895, 139.6917], 13); // 東京を初期中心に設定
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            map.on('click', function(e) {
+                const { lat, lng } = e.latlng;
+                latitudeInput.value = lat.toFixed(6);
+                longitudeInput.value = lng.toFixed(6);
+
+                if (selectedMarker) {
+                    map.removeLayer(selectedMarker);
                 }
-
-                // Create a new marker at the clicked location
-                selectedGoogleMapMarker = new google.maps.Marker({
-                    position: { lat: lat, lng: lng },
-                    map: map,
-                    icon: { // You can customize the marker icon here
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#8B5CF6', // Indigo color
-                        fillOpacity: 1.0,
-                        strokeColor: '#FFFFFF',
-                        strokeWeight: 2,
-                        scale: 8
-                    }
-                });
-
-                // Open info window for the new marker
-                infoWindow.setContent('選択された位置');
-                infoWindow.open(map, selectedGoogleMapMarker);
-
+                selectedMarker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color:#8B5CF6; width:16px; height:16px; border-radius:50%; border: 2px solid white;"></div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(map);
+                selectedMarker.bindPopup('選択された位置').openPopup();
                 showMessage(`マップで位置を選択しました: 緯度 ${lat.toFixed(6)}, 経度 ${lng.toFixed(6)}`, 'info');
             });
 
-            // 初期ロード時に現在地を取得
+            console.log("OpenStreetMapが初期化されました。");
             getCurrentLocation();
-            // Firebase関連の初期化とデータ取得は、Google Mapが準備できた後に行う
             initializeFirebaseAndFetchPosts();
-        }; // セミコロンを追加
-        
-        /**
-        * マップのコンテンツを初期化 (マーカーの配置など)
-        */
-        function initializeMapContent() {
-            // マーカーライブラリが完全に読み込まれているか確認
-            if (typeof google.maps === 'undefined' || 
-                typeof google.maps.Marker === 'undefined') {
-                console.warn("Google Maps Markerライブラリがまだ利用できません。3秒後に再試行します...");
-                setTimeout(initializeMapContent, 3000); // 3秒後に再試行
-                return;
-            }
-
-            try {
-                console.log("Google Maps Markerが利用可能です。マーカーを初期化します。");
-
-                const lat = 35.6895; // 東京の緯度
-                const lng = 139.6917; // 東京の経度
-                document.getElementById('latitude').value = lat.toFixed(6);
-                document.getElementById('longitude').value = lng.toFixed(6);
-
-                if (selectedGoogleMapMarker) {
-                    selectedGoogleMapMarker.setMap(null);
-                }
-
-                // マーカー作成前に再度チェック
-                if (typeof google.maps.Marker === 'undefined') {
-                    throw new Error("Google Maps Markerが利用できません");
-                }
-
-                // 標準のMarkerを使用 (AdvancedMarkerElementではなく)
-                selectedGoogleMapMarker = new google.maps.Marker({
-                    position: { lat: lat, lng: lng },
-                    map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#8B5CF6',
-                        fillOpacity: 1.0,
-                        strokeColor: '#FFFFFF',
-                        strokeWeight: 2,
-                        scale: 8
-                    }
-                });
-
-                infoWindow.setContent('選択された投稿位置');
-                infoWindow.open(map, selectedGoogleMapMarker);
-            } catch (error) {
-                console.error("マーカー初期化エラー:", error);
-                showMessage('地図マーカーの初期化に失敗しました。ページをリロードしてください。', 'error');
-            }
+        } catch (error) {
+            console.error("OpenStreetMapの初期化に失敗しました:", error);
+            showMessage("マップの読み込みに失敗しました。ページをリロードしてください。", "error");
         }
+    }
 
+    function getCurrentLocation() {
+        if (navigator.geolocation) {
+            showMessage("現在地を取得中...", 'info');
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    latitudeInput.value = latitude.toFixed(6);
+                    longitudeInput.value = longitude.toFixed(6);
 
-        /**
-         * 現在地を取得し、マップに表示する関数
-         */
-        function getCurrentLocation() {
-            if (navigator.geolocation) {
-                showMessage("現在地を取得中...", 'info');
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        const latLng = new google.maps.LatLng(lat, lng);
-
-                        document.getElementById('latitude').value = lat.toFixed(6);
-                        document.getElementById('longitude').value = lng.toFixed(6);
-
-                        if (currentGoogleMapMarker) {
-                            currentGoogleMapMarker.setMap(null);
+                    if (map) {
+                        map.setView([latitude, longitude], 15);
+                        if (currentMarker) {
+                            map.removeLayer(currentMarker);
                         }
-                        if (selectedGoogleMapMarker) {
-                            selectedGoogleMapMarker.setMap(null);
-                            selectedGoogleMapMarker = null;
-                        }
-
-                        map.setCenter(latLng);
-                        map.setZoom(15);
-
-                        currentGoogleMapMarker = new google.maps.Marker({
-                            position: latLng,
-                            map: map,
-                            icon: {
-                                path: google.maps.SymbolPath.CIRCLE,
-                                fillColor: '#EF4444',
-                                fillOpacity: 1,
-                                strokeColor: '#FFFFFF',
-                                strokeWeight: 2,
-                                scale: 8
-                            }
-                        });
-                        infoWindow.setContent('あなたの現在地');
-                        infoWindow.open(map, currentGoogleMapMarker);
-
-                        showMessage('現在地を取得しました！', 'success');
-                        console.log(`現在地: 緯度 ${lat}, 経度 ${lng}`);
-                    },
-                    (error) => {
-                        console.error("現在地の取得に失敗しました:", error);
-                        let errorMessage = "現在地の取得に失敗しました。";
-                        switch(error.code) {
-                            case error.PERMISSION_DENIED:
-                                errorMessage += "位置情報の利用が許可されていません。";
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                errorMessage += "位置情報が利用できません。";
-                                break;
-                            case error.TIMEOUT:
-                                errorMessage += "位置情報の取得がタイムアウトしました。";
-                                break;
-                            default:
-                                errorMessage += "不明なエラーが発生しました。";
-                                break;
-                        }
-                        showMessage(errorMessage, 'error');
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
+                        currentMarker = L.marker([latitude, longitude], {
+                            icon: L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div style="background-color:#EF4444; width:16px; height:16px; border-radius:50%; border: 2px solid white;"></div>`,
+                                iconSize: [20, 20],
+                                iconAnchor: [10, 10]
+                            })
+                        }).addTo(map);
+                        currentMarker.bindPopup('あなたの現在地').openPopup();
                     }
-                );
-            } else {
-                showMessage('お使いのブラウザはGeolocationをサポートしていません。', 'error');
-                console.warn("Geolocationはサポートされていません。");
-            }
-        }; // セミコロンを追加
-
-
-        /**
-         * Firebaseの初期化と投稿の取得を行う関数
-         */
-        async function initializeFirebaseAndFetchPosts() {
-            try {
-                app = firebase.initializeApp(firebaseConfig);
-                console.log("Firebase app initialized:", app);
-                analytics = firebase.analytics();
-                db = firebase.firestore();
-                auth = firebase.auth();
-                storage = firebase.storage();
-
-                // Handle Google sign-in redirect result
-                auth.getRedirectResult().catch((error) => {
-                    console.error("Google認証リダイレクト結果の取得に失敗:", error);
-                });
-
-                auth.onAuthStateChanged(async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        console.log("Firebase Auth Ready. User ID:", userId);
-                        authReady = true;
-
-                        const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
-                        const userDocSnap = await userDocRef.get();
-
-                        if (userDocSnap.exists && userDocSnap.data().name) {
-                            const userData = userDocSnap.data();
-                            userName = userData.name;
-                            userPhotoURL = userData.photoURL || null;
-                            userHandle = userData.username || '';
-                            userBio = userData.bio || '';
-                            updateUserInfoDisplay();
-                            nameInputModal.style.display = 'none'; // モーダルを非表示にする
-                            console.log("DEBUG: Attempting to fetch posts after auth ready.");
-                            fetchPosts();
-                            fetchTimelinePosts();
-                            fetchFollowingList();
-                            nonLoginMenu.style.display = 'none';
-                        } else {
-                            // 新規ユーザーまたは名前が未設定の既存ユーザーの場合
-                            if (user.displayName) {
-                                userName = user.displayName;
-                                userInfoDisplay.textContent = `ユーザー名: ${userName} (Google)`;
-                            } else {
-                                userName = "未設定"; // displayNameがない場合は「未設定」とする
-                            }
-                            // 新規ユーザー作成時にカウントフィールドを追加
-                            await userDocRef.set({
-                                name: userName,
-                                createdAt: new Date().toISOString(),
-                                authProvider: user.providerData[0].providerId || 'email', // email認証の場合も考慮
-                                followingCount: 0,
-                                followerCount: 0,
-                                bio: '' // bioフィールドも初期化
-                            }, { merge: true });
-
-                            nameInputModal.style.display = 'flex'; // モーダルを表示する
-                            nameInputModal.style.opacity = '1';
-                            nameInputModal.style.visibility = 'visible';
-                            console.log("DEBUG: Showing name input modal for new or unnamed user.");
-                            nonLoginMenu.style.display = 'none'; // ログイン済みなので非表示
-                        }
-                    } else {
-                        // ユーザーがログアウトした場合の処理
-                        if (nameInputModal) {
-                            nameInputModal.style.display = 'flex';
-                            nameInputModal.style.opacity = '1';
-                            nameInputModal.style.visibility = 'visible';
-                        }
-                        userId = null;
-                        userName = "匿名ユーザー";
-                        userHandle = "";
-                        currentUserFollowing = [];
-                        updateUserInfoDisplay();
-                        nonLoginMenu.style.display = 'block';
-                        if (map) map.data.forEach(feature => map.data.remove(feature));
-                        timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
-                        userNameInput.value = ''; // ユーザー名入力をクリア
-                        userIdInput.value = ''; // ユーザーID入力をクリア
-                        console.log("User logged out, showing name input modal.");
-                        // ログアウト時にローカルストレージのいいね情報をクリア
-                        clearLikedPostsFromLocalStorage();
+                    showMessage('現在地を取得しました！', 'success');
+                },
+                (error) => {
+                    let msg = "現在地の取得に失敗しました。";
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED: msg += "位置情報の利用が許可されていません。"; break;
+                        case error.POSITION_UNAVAILABLE: msg += "位置情報が利用できません。"; break;
+                        case error.TIMEOUT: msg += "位置情報の取得がタイムアウトしました。"; break;
                     }
-                    if (user) {
-                        loadLikedPostsFromLocalStorage();
-                    }
-                    updateUserInfoDisplay();
-        function getLikedPostsKey() {
-            return `likedPosts_${userId || 'anonymous'}`;
+                    showMessage(msg, 'error');
+                }
+            );
+        } else {
+            showMessage('お使いのブラウザはGeolocationをサポートしていません。', 'error');
         }
+    }
 
-        function loadLikedPostsFromLocalStorage() {
-            const likedPostsKey = getLikedPostsKey();
-            let likedPosts = localStorage.getItem(likedPostsKey);
-            if (likedPosts) {
-                try {
-                    likedPosts = JSON.parse(likedPosts);
-                } catch (e) {
-                    likedPosts = [];
-                }
-            }
-            localStorage.setItem(likedPostsKey, JSON.stringify(likedPosts || []));
+    async function initializeFirebaseAndFetchPosts() {
+        if (firebase.apps.length === 0) {
+            app = firebase.initializeApp(firebaseConfig);
+        } else {
+            app = firebase.app();
         }
+        analytics = firebase.analytics();
+        db = firebase.firestore();
+        auth = firebase.auth();
+        storage = firebase.storage();
 
-        function clearLikedPostsFromLocalStorage() {
-            const likedPostsKey = getLikedPostsKey();
-            localStorage.removeItem(likedPostsKey);
-        }
-
-        function saveLikedPostsToLocalStorage(likedPosts) {
-            const likedPostsKey = getLikedPostsKey();
-            localStorage.setItem(likedPostsKey, JSON.stringify(likedPosts));
-        }
-                });
-                if (accountMenu) {
-             accountMenu.addEventListener('click', async (event) => {
-            if (event.target.id === 'logout-btn-account') {
-                try {
-                    await auth.signOut();
-                    showMessage('ログアウトしました。', 'info');
-                    switchView('map');
-                } catch (error) {
-                    console.error("ログアウトに失敗しました:", error);
-                    showMessage('ログアウトに失敗しました。', 'error');
-                }
-            } else if (event.target.id === 'switch-account-btn') {
-                try {
-                        auth.signOut();
-                        showMessage('アカウントを切り替えます。', 'info');
-                        nameInputModal.classList.add('active');
-                       switchView('map');
-                    } catch (error) {
-                        console.error("アカウントの切り替えに失敗しました:", error);
-                        showMessage('アカウントの切り替えに失敗しました。', 'error');
-                    }
-                }
-            });
-           }
-
-            } catch (error) {
-                console.error("Firebaseの初期化に失敗しました:", error);
-                showMessage("アプリケーションの初期化に失敗しました。", "error");
-            }
-        } // セミコロンを追加
-
-
-        /**
-         * Firebaseから投稿をリアルタイムで取得し、マップに表示する関数
-         */
-        function fetchPosts() {
-            if (!authReady) {
-                console.warn("認証が完了していません。マップ投稿の取得を遅延します。");
-                return;
-            }
-            if (!db) {
-                console.error("Firestore database (db) is not initialized.");
-                showMessage("データベースが初期化されていません。", "error");
-                return;
-            }
-
-            const postsColRef = db.collection(`artifacts/${appId}/public/data/posts`);
-            console.log("DEBUG: Subscribing to Firestore posts collection for map.");
-
-            postsColRef.onSnapshot(snapshot => {
-                console.log(`マップ用: Firestoreから ${snapshot.size} 件の投稿をリアルタイムで同期しました。`);
-                if (map) {
-                    map.data.forEach(feature => {
-                        map.data.remove(feature);
-                    });
-                }
-                
-                snapshot.forEach(doc => {
-                    const post = doc.data();
-                    post.id = doc.id;
-                    addPostToMap(post);
-                });
-            }, error => {
-                console.error("DEBUG: Firestore onSnapshot for map failed with error:", error);
-                showMessage("マップ投稿の取得中にエラーが発生しました。", "error");
-            }); // セミコロンを追加
-        }; // セミコロンを追加
-
-
-        /**
-         * マップに投稿マーカーを追加する関数 (Google Maps用)
-         * @param {object} post - 投稿オブジェクト
-         */
-        function addPostToMap(post) {
-            if (!post.latitude || !post.longitude || (!post.text && !post.imageUrl) || !map || !post.id) {
-                console.warn("無効な投稿データまたはマップが未初期化です:", post);
-                return;
-            }
-
-            const latLng = new google.maps.LatLng(post.latitude, post.longitude);
-            const postDate = new Date(post.timestamp);
-            const now = new Date();
-            const diffTime = Math.abs(now.getTime() - postDate.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            const likesCount = post.likedBy ? post.likedBy.length : 0;
-            const isLikedByMe = userId && post.likedBy && post.likedBy.includes(userId);
-            const likeButtonText = isLikedByMe ? `いいね済み (${likesCount})` : `いいね (${likesCount})`;
-            const likeButtonClass = isLikedByMe ? 'bg-pink-500 hover:bg-pink-600' : 'bg-gray-400 hover:bg-gray-500';
-
-            const escapedPostText = escapeHTML(post.text || '');
-            const escapedPostUserName = escapeHTML(post.userName);
-
-            const infoWindowContent = `
-            <div class="p-2 font-sans text-sm">
-                    <p class="font-bold text-gray-800 mb-1">${postDate.toLocaleString()}</p>
-                    <p class="text-gray-700 mb-2">投稿者: ${escapedPostUserName}</p>
-                    ${post.imageUrl ? `<img src="${escapeHTML(post.imageUrl)}" alt="投稿画像" class="my-2 rounded-md max-w-full h-auto" style="max-height: 150px; object-fit: contain;">` : ''}
-                    <p class="text-gray-900 mb-3">${escapedPostText}</p>
-                    <div class="flex items-center space-x-2">
-                        <button class="like-btn text-white py-1 px-3 rounded-md text-xs transition duration-150 ease-in-out ${likeButtonClass}" data-post-id="${post.id}" data-liked-by="${JSON.stringify(post.likedBy || [])}">
-                            ${likeButtonText}
-                        </button>
-            `;
-             map.data.add({
-                geometry: new google.maps.Data.Point(latLng),
-                properties: {
-                    text: post.text,
-                    userName: post.userName,
-                    timestamp: post.timestamp,
-                    id: post.id,
-                    userId: post.userId,
-                    likedBy: post.likedBy || [],
-                    imageUrl: post.imageUrl || null
-                }
-            });
-
-            map.data.setStyle({
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: '#10B981',
-                    fillOpacity: 1.0, // すべての投稿を不透明で表示
-                    strokeColor: '#FFFFFF',
-                    strokeWeight: 2,
-                    scale: 8
-                }
-            });
-
-            map.data.addListener('click', function(event) {
-                const clickedPostId = event.feature.getProperty('id');
-                const clickedPostUserId = event.feature.getProperty('userId');
-                const clickedPostLikedBy = event.feature.getProperty('likedBy');
-                const clickedPostTimestamp = event.feature.getProperty('timestamp');
-                const clickedPostDateFormatted = new Date(clickedPostTimestamp).toLocaleString();
-                const clickedPostUserName = escapeHTML(event.feature.getProperty('userName') || '');
-                const clickedPostText = escapeHTML(event.feature.getProperty('text') || '');
-                const clickedPostImageUrl = event.feature.getProperty('imageUrl');
-
-                let currentInfoWindowContent = `
-                    <div class="p-2 font-sans text-sm">
-                        <p class="font-bold text-gray-800 mb-1">${clickedPostDateFormatted}</p>
-                        <p class="text-gray-700 mb-2">投稿者: 
-                            <button class="user-profile-link text-blue-600 hover:underline" data-user-id="${clickedPostUserId}">${clickedPostUserName}</button>
-                        </p>
-                        ${clickedPostImageUrl ? `<img src="${escapeHTML(clickedPostImageUrl)}" alt="投稿画像" class="my-2 rounded-md max-w-full h-auto" style="max-height: 150px; object-fit: contain;">` : ''}
-                        <p class="text-gray-900 mb-3 whitespace-pre-wrap">${clickedPostText}</p>
-                        <div class="flex items-center space-x-2">
-                            <button class="like-btn text-white py-1 px-3 rounded-md text-xs transition duration-150 ease-in-out ${clickedPostLikedBy && userId && clickedPostLikedBy.includes(userId) ? 'bg-pink-500 hover:bg-pink-600' : 'bg-gray-400 hover:bg-gray-500'}" data-post-id="${clickedPostId}" data-liked-by="${JSON.stringify(clickedPostLikedBy)}">
-                                ${clickedPostLikedBy && clickedPostLikedBy.includes(userId) ? `いいね済み (${clickedPostLikedBy.length})` : `いいね (${clickedPostLikedBy.length})`}
-                            </button>
-                `;
-
-                if (userId && clickedPostUserId === userId) {
-                    currentInfoWindowContent += `
-                            <button class="delete-btn bg-red-500 text-white py-1 px-3 rounded-md text-xs hover:bg-red-600 transition duration-150 ease-in-out" data-post-id="${clickedPostId}">
-                                削除
-                            </button>
-                    `;
-                }
-                currentInfoWindowContent += `
-                    </div>
-                </div>
-            `;
-
-            infoWindow.setContent(currentInfoWindowContent);
-            infoWindow.setPosition(event.feature.getGeometry().get());
-            infoWindow.open(map);
-
-            console.log(`マップにマーカーを追加しました: ${post.text} (${post.latitude}, ${post.longitude})`);
-        });} // セミコロンを追加
-
-
-        /**
-         * Firebaseからタイムライン用の投稿をリアルタイムで取得し、表示する関数
-         */
-        function fetchTimelinePosts(filter = 'all') {
-            if (!authReady) {
-                console.warn("認証が完了していません。タイムライン投稿の取得を遅延します。");
-                return;
-            }
-            if (!db) {
-                console.error("Firestore database (db) is not initialized.");
-                showMessage("データベースが初期化されていません。", "error");
-                return;
-            }
-
-            let postsQuery = db.collection(`artifacts/${appId}/public/data/posts`);
-            
-            if (filter === 'following') {
-                if (currentUserFollowing.length === 0) {
-                    timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">フォロー中のユーザーの投稿はありません。</p>';
-                    return;
-                }
-                // Firestore 'in' query has a limit of 30 values in the array
-                postsQuery = postsQuery.where('userId', 'in', currentUserFollowing.slice(0, 30));
-            }
-            postsQuery = postsQuery.orderBy('timestamp', 'desc');
-
-            console.log("DEBUG: Subscribing to Firestore posts collection for timeline.");
-            
-            postsQuery.onSnapshot((snapshot) => {
-                console.log(`タイムライン用: Firestoreから ${snapshot.size} 件の投稿をリアルタイムで同期しました。`);
-                timelinePostsContainer.innerHTML = '';
-
-                if (snapshot.empty) {
-                    timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
-                    return;
-                }
-
-                snapshot.forEach(doc => {
-                    const post = { ...doc.data(), id: doc.id };
-                    const postElement = createPostElement(post, 'timeline');
-                    try {
-                        if (timelinePostsContainer && postElement) {
-                            timelinePostsContainer.appendChild(postElement);
-                        }
-                    } catch (e) {
-                        console.error("Error during appendChild:", e); // Corrected error message
-                    }
-                });
-            }, (error) => {
-                console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
-                showMessage("タイムライン投稿の取得中にエラーが発生しました。", "error");
-            });
-        }
-
-
-        /**
-         * ユーザーのフォローリストを取得する関数
-         */
-        function fetchFollowingList() {
-            if (!authReady || !userId) {
-                console.warn("認証が完了していません。フォローリストの取得を遅延します。");
-                return;
-            }
-            if (!db) {
-                console.error("Firestore database (db) is not initialized.");
-                return;
-            }
-
-            const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
-            console.log("DEBUG: Subscribing to current user's follow list.");
-
-            followDocRef.onSnapshot((docSnap) => {
-                if (docSnap.exists) {
-                    currentUserFollowing = docSnap.data().following || [];
-                    console.log("DEBUG: Current user following list updated:", currentUserFollowing);
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                userId = user.uid;
+                authReady = true;
+                const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
+                const userDocSnap = await userDocRef.get();
+                if (userDocSnap.exists && userDocSnap.data().name) {
+                    const userData = userDocSnap.data();
+                    userName = userData.name;
+                    userPhotoURL = userData.photoURL || null;
+                    userHandle = userData.username || '';
+                    userBio = userData.bio || '';
+                    if (nameInputModal) nameInputModal.style.display = 'none';
                 } else {
-                    currentUserFollowing = [];
-                    console.log("DEBUG: Current user has no following list.");
+                    userName = user.displayName || "未設定";
+                    await userDocRef.set({ name: userName, createdAt: new Date().toISOString() }, { merge: true });
+                    if (nameInputModal) {
+                        nameInputModal.style.display = 'flex';
+                        nameInputModal.style.opacity = '1';
+                        nameInputModal.style.visibility = 'visible';
+                    }
                 }
-                fetchTimelinePosts(currentTimelineTab); // Follow list update might affect the timeline
-            }, (error) => {
-                console.error("DEBUG: Firestore onSnapshot for follow list failed with error:", error);
-                showMessage("フォローリストの取得中にエラーが発生しました。", "error");
+                updateUserInfoDisplay();
+                fetchPosts();
+                fetchTimelinePosts('all');
+                fetchFollowingList();
+            } else {
+                authReady = false;
+                userId = null;
+                userName = "匿名ユーザー";
+                userHandle = "";
+                currentUserFollowing = [];
+                if (nameInputModal) {
+                    nameInputModal.style.display = 'flex';
+                    nameInputModal.style.opacity = '1';
+                    nameInputModal.style.visibility = 'visible';
+                }
+                // Clear map and timeline
+                Object.values(postMarkers).forEach(marker => map.removeLayer(marker));
+                if (timelinePostsContainer) timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">ログインしてください。</p>';
+                updateUserInfoDisplay();
+            }
+            switchView('map');
+        });
+        setupEmailAuthListeners();
+    }
+
+// ...existing code...
+
+    function fetchTimelinePosts(filter = 'all', hashtag = null) {
+        if (!db) return;
+        let postsQuery = db.collection(`artifacts/${appId}/public/data/posts`);
+        if (filter === 'hashtag' && hashtag) {
+            postsQuery = postsQuery.where('hashtags', 'array-contains', hashtag);
+        } else if (filter === 'following' && userId) {
+            if (currentUserFollowing.length === 0) {
+                timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">フォロー中のユーザーの投稿はありません。</p>';
+                return;
+            }
+            postsQuery = postsQuery.where('userId', 'in', currentUserFollowing.slice(0, 30));
+        }
+        postsQuery = postsQuery.orderBy('timestamp', 'desc').limit(50);
+
+        postsQuery.onSnapshot((snapshot) => {
+            timelinePostsContainer.innerHTML = '';
+            if (snapshot.empty) {
+                timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
+                return;
+            }
+            snapshot.forEach(doc => {
+                const post = { ...doc.data(), id: doc.id };
+                const postElement = createPostElement(post, 'timeline');
+                if (timelinePostsContainer && postElement) {
+                    timelinePostsContainer.appendChild(postElement);
+                }
             });
-        };
+        }, (error) => {
+            console.error("タイムライン取得エラー:", error);
+            showMessage("タイムラインの取得中にエラーが発生しました。", "error");
+        });
+    }
+    
+    function fetchFollowingList() {
+        if (!authReady || !userId || !db) return;
+        const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
+        followDocRef.onSnapshot((docSnap) => {
+            currentUserFollowing = docSnap.exists ? (docSnap.data().following || []) : [];
+            if (currentTimelineTab === 'following') {
+                fetchTimelinePosts('following');
+            }
+        }, (error) => {
+            console.error("フォローリスト取得エラー:", error);
+        });
+    }
 
-
-        /**
-         * 投稿を削除する関数
-         * @param {string} postId - 削除する投稿のID
-         */
-        async function deletePost(postId) {
+    async function deletePost(postId) {
+        if (!db || !userId) return;
+        showConfirmModal('本当にこの投稿を削除しますか？', async () => {
             try {
-                if (!db || !userId) {
-                    showMessage('認証またはデータベースが準備できていません。', 'error');
-                    return;
-                }
                 await db.collection(`artifacts/${appId}/public/data/posts`).doc(postId).delete();
                 showMessage('投稿を削除しました！', 'success');
-                infoWindow.close();
             } catch (error) {
-                console.error("投稿の削除に失敗しました:", error);
                 showMessage('投稿の削除に失敗しました。', 'error');
             }
-        };
+        });
+    }
 
-
-        /**
-         * いいねを切り替える関数
-         * @param {string} postId - いいねを切り替える投稿のID
-         * @param {Array<string>} currentLikedBy - 現在のいいねしたユーザーIDの配列
-         */
-        async function toggleLike(postId, currentLikedBy) {
-            if (!db || !userId) {
-                showMessage('認証またはデータベースが準備できていません。', 'error');
-                return;
-            }
-
-            const postRef = db.collection(`artifacts/${appId}/public/data/posts`).doc(postId);
-            const batch = db.batch();
-
-            if (currentLikedBy.includes(userId)) {
-                batch.update(postRef, {
-                    likedBy: firebase.firestore.FieldValue.arrayRemove(userId)
-                });
-                showMessage('いいねを解除しました。', 'info');
-            } else {
-                batch.update(postRef, {
-                    likedBy: firebase.firestore.FieldValue.arrayUnion(userId)
-                });
-                showMessage('いいねしました！', 'success');
-            }
-
-            try {
-                await batch.commit();
-            } catch (error) {
-                console.error("いいねの更新に失敗しました:", error);
-                showMessage('いいねの更新に失敗しました。', 'error');
-            }
-        };
-
-
-        /**
-         * フォロー/フォロー解除を切り替える関数
-         * @param {string} targetUserId - フォロー/解除対象のユーザーID
-         */
-        async function toggleFollow(targetUserId) {
-            if (!db || !userId) {
-                showMessage('認証またはデータベースが準備できていません。', 'error');
-                return;
-            }
-            if (userId === targetUserId) {
-                showMessage('自分自身をフォロー/フォロー解除することはできません。', 'error');
-                return;
-            }
-
-            const isCurrentlyFollowing = currentUserFollowing.includes(targetUserId);
-
-            // Firestoreのフォローリストを更新（これはUIの即時反映のために残す）
-            const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
-            const updateAction = isCurrentlyFollowing 
-                ? firebase.firestore.FieldValue.arrayRemove(targetUserId)
-                : firebase.firestore.FieldValue.arrayUnion(targetUserId);
-            
-            await followDocRef.set({ following: updateAction }, { merge: true });
-
-            showMessage(isCurrentlyFollowing ? 'フォローを解除しました。' : 'フォローしました！', 'success');
-        };
-
-
-        /**
-         * 画像をFirebase Storageにアップロードし、ダウンロードURLを返す関数
-         * @param {File} file - アップロードする画像ファイル
-         * @returns {Promise<string|null>} ダウンロードURL、またはエラーの場合はnull
-         */
-        async function uploadImage(file, purpose = 'post') {
-            if (!storage || !userId) {
-                showMessage('アップロードの準備ができていません。', 'error');
-                console.error("Upload failed: Storage or userId not ready. userId:", userId); 
-                return null;
-            }
-
-            let storagePath;
-            if (purpose === 'profile') {
-                // ユーザーアイコンは同じパスに上書きする
-                storagePath = `artifacts/${appId}/public/images/users/${userId}/profile_icon`;
-            } else {
-                const uniqueFileName = `${Date.now()}_${file.name}`;
-                storagePath = `artifacts/${appId}/public/images/posts/${uniqueFileName}`;
-            }
-            const storageRef = storage.ref(storagePath);
-            
-            const metadata = {
-                contentType: file.type // ファイルのMIMEタイプを明示
-            };
-
-            try {
-                showMessage('画像をアップロード中...', 'info');
-
-                const snapshot = await storageRef.put(file, metadata);
-                const downloadURL = await snapshot.ref.getDownloadURL();
-                showMessage('画像のアップロードが完了しました！', 'success');
-                return downloadURL;
-            } catch (error) {
-                showMessage('画像のアップロードに失敗しました。', 'error');
-                return null;
-            } finally {
-                submitPostBtn.disabled = false;
-                selectImageBtn.disabled = false;
-            }
-        };
-
-
-        /**
-         * 確認モーダルを表示する
-         * @param {string} message - モーダルに表示するメッセージ
-         * @param {string} postId - アクションに関連する投稿ID
-         */
-        function showConfirmModal(message, postId) {
-            confirmModal.classList.add('active');
-            confirmMessage.textContent = message;
-            currentActionPostId = postId;
-        };
-
-
-        /**
-         * 確認モーダルを閉じる
-         */
-        function hideConfirmModal() {
-            confirmModal.classList.remove('active');
-            currentActionPostId = null;
+    async function toggleLike(postId) {
+        if (!db || !userId) {
+            showMessage('ログインが必要です。', 'error');
+            return;
         }
+        const postRef = db.collection(`artifacts/${appId}/public/data/posts`).doc(postId);
+        const doc = await postRef.get();
+        if (!doc.exists) return;
+        const likedBy = doc.data().likedBy || [];
+        const isLiked = likedBy.includes(userId);
+
+        await postRef.update({
+            likedBy: isLiked 
+                ? firebase.firestore.FieldValue.arrayRemove(userId)
+                : firebase.firestore.FieldValue.arrayUnion(userId)
+        });
+    }
+
+    async function toggleFollow(targetUserId) {
+        if (!db || !userId || userId === targetUserId) return;
+        const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
+        const isCurrentlyFollowing = currentUserFollowing.includes(targetUserId);
+        const updateAction = isCurrentlyFollowing 
+            ? firebase.firestore.FieldValue.arrayRemove(targetUserId)
+            : firebase.firestore.FieldValue.arrayUnion(targetUserId);
+        await followDocRef.set({ following: updateAction }, { merge: true });
+        showMessage(isCurrentlyFollowing ? 'フォローを解除しました。' : 'フォローしました！', 'success');
+    }
+
+    async function uploadImage(file, purpose = 'post') {
+        if (!storage || !userId) return null;
+        const storagePath = purpose === 'profile'
+            ? `artifacts/${appId}/public/images/users/${userId}/profile_icon`
+            : `artifacts/${appId}/public/images/posts/${Date.now()}_${file.name}`;
+        const storageRef = storage.ref(storagePath);
+        showMessage('画像をアップロード中...', 'info');
+        const snapshot = await storageRef.put(file);
+        const downloadURL = await snapshot.ref.getDownloadURL();
+        showMessage('画像のアップロードが完了しました！', 'success');
+        return downloadURL;
+    }
+
+    function showConfirmModal(message, onConfirm) {
+        if (!confirmModal) return;
+        confirmMessage.textContent = message;
+        confirmModal.style.opacity = '1';
+        confirmModal.style.visibility = 'visible';
+        confirmModal.style.display = 'flex';
+
+        confirmYesBtn.onclick = () => {
+            onConfirm();
+            hideConfirmModal();
+        };
+        confirmNoBtn.onclick = () => {
+            hideConfirmModal();
+        };
+    }
+
+    function hideConfirmModal() {
+        if (!confirmModal) return;
+        confirmModal.style.opacity = '0';
+        confirmModal.style.visibility = 'hidden';
+    }
+
+    function switchView(view) {
+        const mapArea = document.getElementById('map-area');
+        const rightSidebar = document.getElementById('right-sidebar');
+        const sidebarTimelineSection = document.getElementById('sidebar-timeline-section');
+        const sidebarSubmitSection = document.getElementById('sidebar-submit-section');
+        const sidebarAccountSection = document.getElementById('sidebar-account-section');
+        const nameInputModal = document.getElementById('name-input-modal');
+
+        // Hide all sidebar content sections first
+        if (sidebarTimelineSection) sidebarTimelineSection.style.display = 'none';
+        if (sidebarSubmitSection) sidebarSubmitSection.style.display = 'none';
+        if (sidebarAccountSection) sidebarAccountSection.style.display = 'none';
+
+        // Reset nav button styles
+        ['nav-map-btn', 'nav-post-btn', 'nav-timeline-btn', 'nav-account-btn'].forEach(id => {
+            document.getElementById(id)?.classList.replace('text-blue-600', 'text-gray-600');
+        });
+
+        if (!authReady || !userId) {
+            if (nameInputModal) {
+                nameInputModal.style.display = 'flex';
+                nameInputModal.style.opacity = '1';
+                nameInputModal.style.visibility = 'visible';
+            }
+            if (mapArea) mapArea.style.display = 'block';
+            if (rightSidebar) rightSidebar.style.display = 'none';
+            if (map) map.invalidateSize();
+            return;
+        } else {
+            if (nameInputModal) nameInputModal.style.display = 'none';
+        }
+
+        const isMobile = window.innerWidth < 768;
+
+        if (isMobile) {
+            // On mobile, show one view at a time
+            mapArea.style.display = 'none';
+            rightSidebar.style.display = 'none';
+
+            switch (view) {
+                case 'map':
+                    mapArea.style.display = 'block';
+                    document.getElementById('nav-map-btn')?.classList.replace('text-gray-600', 'text-blue-600');
+                    break;
+                case 'post':
+                    rightSidebar.style.display = 'flex';
+                    if (sidebarSubmitSection) sidebarSubmitSection.style.display = 'block';
+                    document.getElementById('nav-post-btn')?.classList.replace('text-gray-600', 'text-blue-600');
+                    break;
+                case 'timeline':
+                    rightSidebar.style.display = 'flex';
+                    if (sidebarTimelineSection) sidebarTimelineSection.style.display = 'block';
+                    document.getElementById('nav-timeline-btn')?.classList.replace('text-gray-600', 'text-blue-600');
+                    fetchTimelinePosts(currentTimelineTab);
+                    break;
+                case 'account':
+                    rightSidebar.style.display = 'flex';
+                    if (sidebarAccountSection) sidebarAccountSection.style.display = 'block';
+                    document.getElementById('nav-account-btn')?.classList.replace('text-gray-600', 'text-blue-600');
+                    break;
+                default:
+                    mapArea.style.display = 'block';
+                    document.getElementById('nav-map-btn')?.classList.replace('text-gray-600', 'text-blue-600');
+                    break;
+            }
+        } else {
+            // On desktop, map is always visible, sidebar shows different content
+            mapArea.style.display = 'block';
+            rightSidebar.style.display = 'flex';
+
+            switch (view) {
+                case 'post':
+                    if (sidebarSubmitSection) sidebarSubmitSection.style.display = 'block';
+                    break;
+                case 'account':
+                    if (sidebarAccountSection) sidebarAccountSection.style.display = 'block';
+                    break;
+                case 'timeline':
+                case 'map': // 'map' view on desktop defaults to showing timeline
+                default:
+                    if (sidebarTimelineSection) sidebarTimelineSection.style.display = 'block';
+                    break;
+            }
+        }
+
+        if (map) map.invalidateSize(); // Recalculate map size
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Element assignments
+        messagesDiv = document.getElementById('messages');
+        userInfoDisplay = document.getElementById('user-info-display');
+        nameInputModal = document.getElementById('name-input-modal');
+        nameForm = document.getElementById('name-form');
+        userNameInput = document.getElementById('user-name-input');
+        userIdInput = document.getElementById('user-id-input');
+        userBioInput = document.getElementById('user-bio-input');
+        userIconInput = document.getElementById('user-icon-input');
+        selectIconBtn = document.getElementById('select-icon-btn');
+        userIconPreview = document.getElementById('user-icon-preview');
+        usernameError = document.getElementById('username-error');
+        logoutBtn = document.getElementById('logout-btn');
+        postForm = document.getElementById('post-form');
+        postText = document.getElementById('post-text');
+        latitudeInput = document.getElementById('latitude');
+        longitudeInput = document.getElementById('longitude');
+        timelinePostsContainer = document.getElementById('timeline-posts');
+        timelineTabs = document.getElementById('timeline-tabs');
+        submitPostBtn = document.getElementById('submit-post-btn');
+        userProfileModal = document.getElementById('user-profile-modal');
+        closeProfileBtn = document.getElementById('close-profile-btn');
+        profileUserName = document.getElementById('profile-user-name');
+        profileUserHandle = document.getElementById('profile-user-handle');
+        profileBio = document.getElementById('profile-bio');
+        profileFollowBtn = document.getElementById('profile-follow-btn');
+        profileFollowingCount = document.getElementById('profile-following-count');
+        profileFollowerCount = document.getElementById('profile-follower-count');
+        profileAvatar = document.getElementById('profile-avatar');
+        profilePostsContainer = document.getElementById('profile-posts-container');
+        confirmModal = document.getElementById('confirm-modal');
+        confirmMessage = document.getElementById('confirm-message');
+        confirmYesBtn = document.getElementById('confirm-yes-btn');
+        confirmNoBtn = document.getElementById('confirm-no-btn');
+        nonLoginMenu = document.getElementById('non-login-menu');
+        accountUserNameInput = document.getElementById('account-name-input');
+        accountBioInput = document.getElementById('account-bio-input');
+        accountIconInput = document.getElementById('account-icon-input');
+        accountIconPreview = document.getElementById('account-icon-preview');
+        saveAccountBtn = document.getElementById('save-account-btn');
+
+        initOpenStreetMap(); // Initialize map first
+
+        // Event Listeners
+        document.getElementById('nav-map-btn').addEventListener('click', () => switchView('map'));
+        document.getElementById('nav-post-btn').addEventListener('click', () => switchView('post'));
+        document.getElementById('nav-timeline-btn').addEventListener('click', () => switchView('timeline'));
+        document.getElementById('nav-account-btn').addEventListener('click', () => switchView('account'));
         
+        document.getElementById('get-location-btn').addEventListener('click', getCurrentLocation);
 
-        /**
-         * ビューを切り替える関数
-         * @param {string} view - 'map', 'post', 'timeline'
-        */
-        function switchView(view) {
-            // すべてのコンテンツとサイドバーを一旦非表示にする
-            document.getElementById('map-area').style.display = 'none';
-            document.getElementById('user-profile-view').style.display = 'none'; // これは常にhiddenで良いはず
-            accountMenu.style.display = 'none';
-            postFormOverlay.style.display = 'none';
-            timelineContainer.style.display = 'none';
-            document.getElementById('right-sidebar').style.display = 'none'; // サイドバーをデフォルトで非表示に
-
-            // ナビゲーションボタンのアクティブ状態をリセット
-            navMapBtn.classList.remove('text-blue-600');
-            navMapBtn.classList.add('text-gray-600');
-            navPostBtn.classList.remove('text-blue-600');
-            navPostBtn.classList.add('text-gray-600');
-            navTimelineBtn.classList.remove('text-blue-600');
-            navTimelineBtn.classList.add('text-gray-600');
-            navAccountBtn.classList.remove('text-blue-600');
-            navAccountBtn.classList.add('text-gray-600');
-
-            // 選択されたビューに応じて表示を切り替える
-            if (view === 'map') {
-                document.getElementById('map-area').style.display = 'block';
-                navMapBtn.classList.add('text-blue-600');
-                // マップビューではright-sidebarを非表示にする
-                document.getElementById('right-sidebar').style.display = 'none';
-            }
-            else if (view === 'post') {
-                document.getElementById('map-area').style.display = 'block'; // マップも表示
-                postFormOverlay.style.display = 'flex';
-                navPostBtn.classList.add('text-blue-600');
-                document.getElementById('right-sidebar').style.display = 'flex'; // 投稿ビューではサイドバーを表示
-            }
-            else if (view === 'account') {
-                // アカウントビューに切り替える際に、現在のユーザー情報でフォームを埋める
-                if (authReady && userId) {
-                    accountUserNameInput.value = userName;
-                    accountBioInput.value = userBio;
-                    accountIconPreview.src = userPhotoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                }
-                document.getElementById('map-area').style.display = 'block'; // マップも表示
-                accountMenu.style.display = 'flex';
-                navAccountBtn.classList.add('text-blue-600');
-                document.getElementById('right-sidebar').style.display = 'flex'; // アカウントビューではサイドバーを表示
-            }
-            else if (view === 'timeline') {
-                document.getElementById('map-area').style.display = 'block'; // マップも表示
-                timelineContainer.style.display = 'flex';
-                navTimelineBtn.classList.add('text-blue-600');
-                fetchTimelinePosts();
-                document.getElementById('right-sidebar').style.display = 'flex'; // タイムラインビューではサイドバーを表示
-            } else {
-                console.warn(`switchView: Unknown view "${view}"`);
-                // 意図しないviewが指定された場合の処理（例: マップビューをデフォルトにする）
-                switchView('map');
-            }
-        }
-
-
-
-        // DOMContentLoadedイベントで初期化処理を実行
-        document.addEventListener('DOMContentLoaded', () => {
-            messagesDiv = document.getElementById('messages');
-            userInfoDisplay = document.getElementById('user-info-display');
-            postFormOverlay = document.getElementById('post-form-overlay');
-            openFormBtn = document.getElementById('open-form-btn');
-            closeFormBtn = document.getElementById('close-form-btn');
-          nameInputModal = document.getElementById('name-input-modal');
-            nameForm = document.getElementById('name-form');
-            userBioInput = document.getElementById('user-bio-input');
-            userIconInput = document.getElementById('user-icon-input');
-            selectIconBtn = document.getElementById('select-icon-btn');
-            userIconPreview = document.getElementById('user-icon-preview');
-            userNameInput = document.getElementById('user-name-input');
-            userIdInput = document.getElementById('user-id-input');
-            usernameError = document.getElementById('username-error');
-            googleSignInBtn = document.getElementById('google-sign-in-btn');
-            emailInput = document.getElementById('email-input');
-            passwordInput = document.getElementById('password-input');
-                   emailLoginBtn = document.getElementById('email-login-btn');
-            emailSignupBtn = document.getElementById('email-signup-btn');
-                   emailError = document.getElementById('email-error');
-                   changeNameBtn = document.getElementById('change-name-btn');
-                   logoutBtn = document.getElementById('logout-btn');
-            postForm = document.getElementById('post-form');
-            postText = document.getElementById('post-text');
-            latitudeInput = document.getElementById('latitude');
-            longitudeInput = document.getElementById('longitude');
-            getLocationBtn = document.getElementById('get-location-btn');
-            postImageInput = document.getElementById('post-image-input');
-            selectImageBtn = document.getElementById('select-image-btn');
-            imagePreviewContainer = document.getElementById('image-preview-container');
-            imagePreview = document.getElementById('image-preview');
-            clearImageBtn = document.getElementById('clear-image-btn');
-            submitPostBtn = document.getElementById('submit-post-btn');
-            navMapBtn = document.getElementById('nav-map-btn');
-            navPostBtn = document.getElementById('nav-post-btn');
-            navTimelineBtn = document.getElementById('nav-timeline-btn');
-            navAccountBtn = document.getElementById('nav-account-btn');
-            userProfileView = document.getElementById('user-profile-view');
-            showLoginModalBtn = document.getElementById('show-login-modal-btn');
-            mainContent = document.getElementById('main-content');
-            mainContentWrapper = document.getElementById('main-content-wrapper');
-            timelineContainer = document.getElementById('timeline-container');
-            timelinePostsContainer = document.getElementById('timeline-posts');
-            timelineTabs = document.getElementById('timeline-tabs');
-
-            // Profile modal elements initialization
-            userProfileModal = document.getElementById('user-profile-modal');
-            closeProfileBtn = document.getElementById('close-profile-btn');
-            profileUserName = document.getElementById('profile-user-name');
-            profileUserName = document.getElementById('profile-user-name');
-            profileUserHandle = document.getElementById('profile-user-handle');
-            profileBio = document.getElementById('profile-bio');
-            profileFollowBtn = document.getElementById('profile-follow-btn');
-            profileFollowingCount = document.getElementById('profile-following-count');
-            profileFollowerCount = document.getElementById('profile-follower-count');
-            profileAvatar = document.getElementById('profile-avatar');
-            profilePostsContainer = document.getElementById('profile-posts-container');
-            
-            // Account menu elements initialization (Desktop)
-            accountMenu = document.getElementById('account-menu');
-            accountUserNameInput = document.getElementById('account-name-input');
-            accountBioInput = document.getElementById('account-bio-input');
-            accountIconInput = document.getElementById('account-icon-input');
-            accountIconPreview = document.getElementById('account-icon-preview');
-            saveAccountBtn = document.getElementById('save-account-btn');
-
-
-            confirmModal = document.getElementById('confirm-modal');
-            confirmMessage = document.getElementById('confirm-message');
-            confirmYesBtn = document.getElementById('confirm-yes-btn');
-            desktopTabs = document.getElementById('desktop-tabs');
-            confirmNoBtn = document.getElementById('confirm-no-btn');
-            nonLoginMenu = document.getElementById('non-login-menu');
-
-            if (confirmYesBtn) {
-                confirmYesBtn.addEventListener('click', () => {
-                    if (currentActionPostId) {
-                        deletePost(currentActionPostId);
-                    }
-                    hideConfirmModal();
-                });
-            }
-            if (confirmNoBtn) {
-                confirmNoBtn.addEventListener('click', () => {
-                    hideConfirmModal();
-                });
-            }
-
-            if (selectImageBtn) {
-                selectImageBtn.addEventListener('click', () => {
-                    postImageInput.click();
-                });
-            }
-
-            if (postImageInput) {
-                postImageInput.addEventListener('change', (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            imagePreview.src = e.target.result;
-                            imagePreviewContainer.classList.remove('hidden');
-                        };
-                        reader.readAsDataURL(file);
-                    } else {
-                        imagePreview.src = '#';
-                        imagePreviewContainer.classList.add('hidden');
-                    }
-                });
-            }
-
-            if (clearImageBtn) {
-                clearImageBtn.addEventListener('click', () => {
-                    postImageInput.value = '';
-                    imagePreview.src = '#';
-                    imagePreviewContainer.classList.add('hidden');
-                });
-            }
-            
-            if(accountIconInput) {
-                accountIconInput.addEventListener('change', (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        accountIconPreview.src = URL.createObjectURL(file);
-                    }
-                });
-            }
-
-            if(selectIconBtn) {
-                selectIconBtn.addEventListener('click', () => userIconInput.click());
-            }
-
-            if(userIconInput) {
-                userIconInput.addEventListener('change', (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        userIconPreview.src = URL.createObjectURL(file);
-                    }
-                });
-            }
-            
-            const resizeObserver = new ResizeObserver(entries => {
-                for (let entry of entries) {
-                    if (mapElement && map && entry.target === mapElement) {
-                        console.log("ResizeObserver detected map element resize. Google Maps handles this automatically.");
-                    }
-                }
-                
-                if (map) {
-                    map.data.setStyle(map.data.getStyle());
-                }
-            });
-            resizeObserver.observe(document.getElementById('map-area'));
-
+        if (nameForm) {
             nameForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const inputName = userNameInput.value.trim();
-                const inputUsername = userIdInput.value.trim();
+                const inputUserId = userIdInput.value.trim();
                 const inputBio = userBioInput.value.trim();
                 const iconFile = userIconInput.files[0];
+
+                if (!inputName || !inputUserId) return showMessage('ユーザー名とユーザーIDは必須です。', 'error');
+                if (!inputUserId.match(/^@[a-zA-Z0-9_]{3,15}$/)) {
+                    usernameError.textContent = 'ユーザーIDは@から始まり、英数字と_で3〜15文字です。';
+                    return usernameError.classList.remove('hidden');
+                }
                 usernameError.classList.add('hidden');
 
-                if (!inputName || !inputUsername) {
-                    showMessage('ユーザー名とユーザーIDの両方を入力してください。', 'error');
-                    return;
-                }
+                const saveButton = event.submitter;
+                saveButton.disabled = true;
 
-                if (!/^@[a-zA-Z0-9_]{3,15}$/.test(inputUsername)) {
-                    usernameError.textContent = 'IDは@で始め、3〜15文字の英数字と_のみ使用できます。';
-                    usernameError.classList.remove('hidden');
-                    return;
-                }
-                
-                // Check if username is being changed or set for the first time
-                if (inputUsername !== userHandle) {
-                    const exists = await checkUsernameExists(inputUsername);
-                    if (exists) {
-                        usernameError.textContent = 'このユーザーIDは既に使用されています。';
-                        usernameError.classList.remove('hidden');
-                        return;
-                    }
-                }
-
-                submitPostBtn.disabled = true; // 連続送信防止
                 try {
                     let newPhotoURL = userPhotoURL;
-                    if (iconFile) {
-                        newPhotoURL = await uploadImage(iconFile, 'profile');
-                    }
+                    if (iconFile) newPhotoURL = await uploadImage(iconFile, 'profile');
+                    
                     const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
-                    const userData = {
+                    await userDocRef.set({
                         name: inputName,
-                        username: inputUsername,
-                        bio: inputBio
-                    };
-
-                    // アイコンとカウント数は、既存の値がある場合はマージ時に維持される
-                    const updateData = {
-                        photoURL: newPhotoURL,
+                        username: inputUserId,
+                        bio: inputBio,
+                        photoURL: newPhotoURL || null,
                         updatedAt: new Date().toISOString()
-                    };
-                    
-                    await userDocRef.set(userData, { merge: true });
-                    
-                    const nameChanged = userName !== inputName; 
-                    const handleChanged = userHandle !== inputUsername;
+                    }, { merge: true });
 
                     userName = inputName;
-                    userHandle = inputUsername;
-                    userPhotoURL = newPhotoURL;
+                    userHandle = inputUserId;
                     userBio = inputBio;
-
-                    // Update posts only if name or handle changed
-                    if (nameChanged || handleChanged) {
-                        await updatePostsUserInfo(userId, userName, userHandle);
-                    }
-
+                    userPhotoURL = newPhotoURL;
                     updateUserInfoDisplay();
-                    nameInputModal.style.display = 'none';
-                    nameInputModal.style.opacity = '0';
-                    nameInputModal.style.visibility = 'hidden';
-                    showMessage('ユーザー情報が保存されました！', 'success');
                     
-                    console.log("DEBUG: Attempting to fetch posts after name set.");
-
-                    fetchPosts();
-                    fetchTimelinePosts(currentTimelineTab);
+                    if (nameInputModal) nameInputModal.style.display = 'none';
+                    showMessage('ユーザー情報が保存されました！', 'success');
                 } catch (error) {
-                    console.error("ユーザー情報の保存に失敗しました:", error);
                     showMessage('ユーザー情報の保存に失敗しました。', 'error');
                 } finally {
-                    submitPostBtn.disabled = false;
+                    saveButton.disabled = false;
                 }
             });
+        }
 
-
-            /**
-             * ユーザー名とIDの変更を投稿データに反映する関数
-             * @param {string} userId - ユーザーID
-             * @param {string} newUserName - 新しいユーザー名
-             * @param {string} newUserHandle - 新しいユーザーID
-             */
-            async function updatePostsUserInfo(userId, newUserName, newUserHandle) {
-                const postsRef = db.collection(`artifacts/${appId}/public/data/posts`);
-                const query = postsRef.where('userId', '==', userId);
-                
-                try {
-                    const snapshot = await query.get();
-                    if (!snapshot.empty) {
-                        const batch = db.batch();
-                        snapshot.forEach(doc => {
-                            batch.update(doc.ref, { userName: newUserName, userHandle: newUserHandle });
-                        });
-                        await batch.commit();
-                        console.log(`Updated ${snapshot.size} posts for user ${userId}.`);
-                    }
-                } catch (error) {
-                    console.error("Failed to update user's posts info:", error);
-                }
-            };
-
-
-            /**
-             * ユーザーIDの重複をチェックする関数
-             * @param {string} username - チェックするユーザーID
-             * @returns {Promise<boolean>} 重複している場合はtrue、そうでない場合はfalse
-             */
-            async function checkUsernameExists(username) {
-                const usersRef = db.collection(`artifacts/${appId}/public/data/users`);
-                // We also need to check that it's not the current user's own username.
-                const query = usersRef.where('username', '==', username).where(firebase.firestore.FieldPath.documentId(), '!=', userId);
-                try {
-                    const snapshot = await query.get();
-                    return !snapshot.empty;
-                } catch (error) {
-                    console.error("ユーザーIDの重複チェックに失敗しました:", error);
-                    return true; // エラー時は安全側に倒し、重複ありと見なす
-                }
-            };
-
-            if (googleSignInBtn) {
-                googleSignInBtn.addEventListener('click', async () => {
-                    try {
-                        const provider = new firebase.auth.GoogleAuthProvider();
-                        showMessage('Googleのログインページに移動します...', 'info');
-                        await auth.signInWithRedirect(provider);
-                        // After redirect, auth.getRedirectResult() and onAuthStateChanged will handle the result.
-                    } catch (error) {
-                        console.error("Google認証に失敗しました:", error);
-                        showMessage(`Google認証に失敗しました: ${error.message}`, 'error');
-                    }
-                });
-            }
-
-            // Email/Password Auth listeners
-            if (emailLoginBtn) {
-                emailLoginBtn.addEventListener('click', async () => {
-                    const email = emailInput.value.trim();
-                    const password = passwordInput.value;
-                    emailError.textContent = '';
-                    emailError.classList.add('hidden');
-
-                    if (!email || !password) {
-                        emailError.textContent = 'メールアドレスとパスワードを入力してください。';
-                        emailError.classList.remove('hidden');
-                        return;
-                    }
-
-                    try {
-                        await auth.signInWithEmailAndPassword(email, password);
-                        // ログイン成功後、モーダルを閉じる
-                        nameInputModal.style.display = 'none';
-                        nameInputModal.style.opacity = '0';
-                        nameInputModal.style.visibility = 'hidden';
-                        showMessage('ログインしました！', 'success');
-                    } catch (error) {
-                        emailError.textContent = getFirebaseAuthErrorMessage(error);
-                        emailError.classList.remove('hidden');
-                    }
-                });
-            }
-
-            if (emailSignupBtn) {
-                emailSignupBtn.addEventListener('click', async () => {
-                    const email = emailInput.value.trim();
-                    const password = passwordInput.value;
-                    emailError.textContent = '';
-                    emailError.classList.add('hidden');
-                    
-                    if (!email || !password) {
-                        emailError.textContent = 'メールアドレスとパスワードを入力してください。';
-                        emailError.classList.remove('hidden');
-                        return;
-                    }
-                    if (password.length < 6) {
-                        emailError.textContent = 'パスワードは6文字以上で入力してください。';
-                        emailError.classList.remove('hidden');
-                        return;
-                    }
-
-                    try {
-                        await auth.createUserWithEmailAndPassword(email, password);
-                        showMessage('新規登録が完了しました。続けて、表示される名前とIDを設定してください。', 'info');
-                        passwordInput.value = '';
-                        // nameInputModalの表示はonAuthStateChangedに任せる
-                    } catch (error) {
-                        emailError.textContent = getFirebaseAuthErrorMessage(error);
-                        emailError.classList.remove('hidden');
-                    }
-                });
-            }
-
-            if (changeNameBtn) {
-                changeNameBtn.addEventListener('click', () => {
-                    userNameInput.value = userName;
-
-                    userIdInput.value = userHandle;
-                    userPhotoURL = null;
-                    userBio = "";
-                    userIconPreview.src = '#';
-                    nameInputModal.classList.add('active');
-                });
-            }
-
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', async () => {
-                    try {
-                        await auth.signOut();
-                        showMessage('ログアウトしました。', 'info');
-                        userId = null;
-                        userName = "匿名ユーザー";
-                        userHandle = "";
-                        userPhotoURL = null;
-                        userBio = "";
-                        currentUserFollowing = [];
-                        updateUserInfoDisplay();
-                        if (map) map.data.forEach(feature => map.data.remove(feature));
-                        timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
-                    } catch (error) {
-                        console.error("ログアウトに失敗しました:", error);
-                        showMessage('ログアウトに失敗しました。', 'error');
-                   }
-                });
-            }
-
-            getLocationBtn.addEventListener('click', getCurrentLocation);
-
+        if (postForm) {
             postForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
+                if (!authReady || !userId) return showMessage('投稿するにはログインが必要です。', 'error');
 
                 const postTextValue = postText.value.trim();
                 const latitude = parseFloat(latitudeInput.value);
                 const longitude = parseFloat(longitudeInput.value);
-                const imageFile = postImageInput.files[0];
+                const imageFile = document.getElementById('post-image-input').files[0];
 
-                if (postTextValue && (postTextValue.length < 10 || postTextValue.length > 500)) {
-                    showMessage('メッセージは10文字以上500文字以下で入力してください。', 'error');
-                    return;
-                }
+                if (!postTextValue && !imageFile) return showMessage('メッセージまたは画像を入力してください。', 'error');
+                if (isNaN(latitude) || isNaN(longitude)) return showMessage('有効な位置情報を取得してください。', 'error');
 
-                if (!postTextValue && !imageFile) {
-                    showMessage('メッセージまたは画像を入力してください。', 'error');
-                    return;
-                }
-                if (isNaN(latitude) || isNaN(longitude)) {
-                    showMessage('有効な緯度と経度を入力または選択してください。', 'error');
-                    return;
-                }
-
-                if (!authReady || !userId) {
-                    showMessage('認証が完了していません。しばらくお待ちください。', 'error');
-                    console.warn("Firebase Authが準備できていないか、userIdがnullです。 Current userId:", userId, "authReady:", authReady);
-                    return;
-                }
+                submitPostBtn.disabled = true;
+                let imageUrl = null;
+                if (imageFile) imageUrl = await uploadImage(imageFile);
 
                 const hashtagRegex = /#([^\s#]+)/g;
                 const hashtags = [...postTextValue.matchAll(hashtagRegex)].map(match => match[1]);
 
-
-                if (userName === "匿名ユーザー" || !userHandle) {
-                    nameInputModal.classList.add('active');
-                    showMessage('投稿するにはユーザー名を設定してください。', 'info');
-                    return;
-                }
-                const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
-                const userDocSnap = await userDocRef.get();
-
-                const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-                let imageUrl = null;
-                if (imageFile) {
-                    submitPostBtn.disabled = true;
-                    selectImageBtn.disabled = true;
-                    imageUrl = await uploadImage(imageFile);
-                    submitPostBtn.disabled = false;
-                    selectImageBtn.disabled = false;
-                    if (!imageUrl) {
-                        return;
-                    }
-                }
-
-                const newPost = {
-                    text: postTextValue,
-                    latitude: latitude,
-                    longitude: longitude,
-                    timestamp: new Date().toISOString(),
-                    userId: userId,
-                    userName: userName,
-                    userHandle: userHandle,
-                    likedBy: [],
-                    imageUrl: imageUrl,
-                    hashtags: hashtags
-                };
-
                 try {
-                    await db.collection(`artifacts/${appId}/public/data/posts`).add(newPost);
+                    await db.collection(`artifacts/${appId}/public/data/posts`).add({
+                        text: postTextValue,
+                        latitude,
+                        longitude,
+                        timestamp: new Date().toISOString(),
+                        userId,
+                        userName,
+                        userHandle,
+                        likedBy: [],
+                        imageUrl,
+                        hashtags
+                    });
                     postText.value = '';
-                    postImageInput.value = '';
-                    imagePreview.src = '#';
-                    imagePreviewContainer.classList.add('hidden');
+                    document.getElementById('post-image-input').value = '';
+                    document.getElementById('image-preview-container').classList.add('hidden');
                     showMessage('投稿を送信しました！', 'success');
-                    
-                    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-                // Add the post ID to the liked posts in localStorage
-                if (!likedPosts.includes(newPost.id)) {
-                   likedPosts.push(newPost.id);
-                    saveLikedPostsForUser(likedPosts);
-                    console.log(`Post ${newPost.id} liked and added to localStorage`);
-
-                } }catch (e) {
-                    console.error("Firestoreへの投稿エラー:", e);
+                    switchView('timeline');
+                } catch (e) {
                     showMessage('投稿に失敗しました。', 'error');
-                }
-
-            });
-
-            if (openFormBtn) {
-                openFormBtn.addEventListener('click', () => switchView('post'));
-            }
-           if (closeFormBtn) {
-                closeFormBtn.addEventListener('click', () => {
-                    postFormOverlay.classList.remove('active');
-                    switchView('map');
-                });
-            }
-
-            if (navMapBtn) {
-                navMapBtn.addEventListener('click', () => switchView('map'));
-           }
-            if (navPostBtn) {
-                navPostBtn.addEventListener('click', () => switchView('post'));
-            }
-            if (navTimelineBtn) { // Reusing timeline button for account
-                navTimelineBtn.addEventListener('click', () => switchView('timeline'));
-            }
-            if (navAccountBtn) {
-                navAccountBtn.addEventListener('click', () => switchView('account'));
-            }
-
-
-            // Event delegation for dynamically created elements
-            document.body.addEventListener('click', async (event) => {
-                const target = event.target;
-
-                // "プロフィール"リンクのクリックでアカウント設定画面に遷移
-                if (target.id === 'show-profile-btn') {
-                    switchView('account');
-                    return;
-                }
-
-                // Like button
-                const likeBtn = target.closest('.like-btn');
-                if (likeBtn) {
-                    const postId = likeBtn.dataset.postId;
-                   const docRef = db.collection(`artifacts/${appId}/public/data/posts`).doc(postId);                
-                    const docSnap = await docRef.get();
-                    if (docSnap.exists) {
-                        await toggleLike(postId, docSnap.data().likedBy || []);
-                    }
-                }
-
-                // Delete button
-                const deleteBtn = target.closest('.delete-btn');
-                if (deleteBtn) {
-                    showConfirmModal('本当にこの投稿を削除しますか？', deleteBtn.dataset.postId);
-                }
-
-                // Follow button
-                const followBtn = target.closest('.follow-btn');
-                if (followBtn) {
-                    await toggleFollow(followBtn.dataset.targetUserId);
-                }
-
-                // User profile link
-                const profileLink = target.closest('.user-profile-link');
-                if (profileLink) {
-                    await showUserProfile(profileLink.dataset.userId);
+                } finally {
+                    submitPostBtn.disabled = false;
                 }
             });
-
-            // Timeline tabs event listener
-            if (timelineTabs) {
-                timelineTabs.addEventListener('click', (event) => {
-                    if (event.target.matches('.timeline-tab-btn')) {
-                        const tab = event.target.dataset.tab;
-                        if (tab !== currentTimelineTab) {
-                            currentTimelineTab = tab;
-                            document.querySelectorAll('.timeline-tab-btn').forEach(btn => btn.classList.remove('active'));
-                            event.target.classList.add('active');
-                            fetchTimelinePosts(currentTimelineTab);
-                        }
-                    }
-                });
-            }
-
-            if (saveAccountBtn) {
-                saveAccountBtn.addEventListener('click', async () => {
-                    const inputName = accountUserNameInput.value.trim();
-                    const inputBio = accountBioInput.value.trim();
-                    const iconFile = accountIconInput.files[0];
-
-                    if (!inputName) {
-                        showMessage('ユーザー名を入力してください。', 'error');
-                        return;
-                    }
-                    
-                    saveAccountBtn.disabled = true;
-                    try {
-                        let newPhotoURL = userPhotoURL;
-                        if (iconFile) {
-                            newPhotoURL = await uploadImage(iconFile, 'profile');
-                        }
-                        
-                        const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
-                        const userDataToUpdate = {
-                            name: inputName,
-                            bio: inputBio,
-                            photoURL: newPhotoURL,
-                            updatedAt: new Date().toISOString()
-                        };
-                        
-                        await userDocRef.set(userDataToUpdate, { merge: true });
-
-                        // Update global state and user's posts if name changed
-                        if (userName !== inputName) await updatePostsUserInfo(userId, inputName, userHandle);
-                        userName = inputName;
-                        userPhotoURL = newPhotoURL;
-                        userBio = inputBio;
-                        
-                        updateUserInfoDisplay();
-                        showMessage('アカウント情報が更新されました！', 'success');
-                    } catch (error) {
-                        console.error("アカウント情報の更新に失敗しました:", error);
-                        showMessage('アカウント情報の更新に失敗しました。', 'error');
-                    } finally {
-                        saveAccountBtn.disabled = false;
-                    }
-                });
-            }
-
-            // Profile modal listeners
-            if(closeProfileBtn) {
-                closeProfileBtn.addEventListener('click', () => {
-                    userProfileModal.classList.add('hidden'); // hidden クラスを追加
-                });
-           }
-            if(userProfileModal) {
-               userProfileModal.addEventListener('click', (e) => {
-                    if(e.target === userProfileModal) {
-                        userProfileModal.classList.add('hidden'); // hidden クラスを追加
-                    }
-                });
-            }
-
-            // デスクトップタブの初期化とイベントリスナー
-            initDesktopTabs();
-            
-            // ユーザー情報表示の初期状態を調整
-            // モバイルでは非表示、デスクトップでは表示
-            // ユーザー情報表示の初期状態を調整
-            // モバイルでは非表示、デスクトップでは表示
-            if (window.innerWidth < 768) {
-                userInfoDisplay.classList.add('hidden');
-                nonLoginMenu.classList.add('hidden');
-            } else {
-                userInfoDisplay.classList.remove('hidden');
-                // ログイン状態に応じてnonLoginMenuの表示を切り替える
-                if (userId) { // userIdが設定されていればログイン済み
-                    nonLoginMenu.classList.add('hidden');
-                } else {
-                    nonLoginMenu.classList.remove('hidden');
-                }
-            }
-
-            // 初期表示をマップにする
-            switchView('map');
-
-            fetchTrendingHashtags();
-        }); // セミコロンを追加
-        // トレンドのハッシュタグを取得して表示する関数
-        async function fetchTrendingHashtags() {
-            if (!db) return;
-            const trendingHashtagsList = document.getElementById('trending-hashtags-list');
-            if (!trendingHashtagsList) return;
-
-            trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドを読み込み中...</p>';
-
-            try {
-                // 本格的な実装ではCloud Functionで集計した結果を取得します。
-                // ここではデモとして、直近50件の投稿から簡易的にトレンドを集計します。
-                const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`)
-                                              .orderBy('timestamp', 'desc')
-                                            .limit(50)
-                                            .get();
-
-                const hashtagCounts = {};
-                postsSnapshot.forEach(doc => {
-                    const post = doc.data();
-                    if (post.hashtags && Array.isArray(post.hashtags)) {
-                        post.hashtags.forEach(tag => {
-                            hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
-                        });
-                    }
-                });
-
-                const sortedHashtags = Object.entries(hashtagCounts)
-                                            .sort(([,a],[,b]) => b - a)
-                                            .slice(0, 5); // 上位5件を表示
-            
-                renderTrendingHashtags(sortedHashtags);
-                console.log("トレンドのハッシュタグを取得しました:", sortedHashtags);
-
-            } catch (error) {
-                console.error("トレンドのハッシュタグ取得エラー:", error);
-                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドの取得に失敗しました。</p>';
-            }
         }
 
-        function renderTrendingHashtags(hashtags) {
-        const trendingHashtagsList = document.getElementById('trending-hashtags-list');
-            trendingHashtagsList.innerHTML = '';
+        document.body.addEventListener('click', async (event) => {
+            const target = event.target;
+            const likeBtn = target.closest('.like-btn');
+            const deleteBtn = target.closest('.delete-btn');
+            const followBtn = target.closest('.follow-btn');
+            const profileLink = target.closest('.user-profile-link');
+            const accountBtnLink = target.closest('#account-btn');
+            const logoutBtnAccount = target.closest('#logout-btn-account');
 
-            if (hashtags.length === 0) {
-                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
-                return;
-            }
+            if (likeBtn) await toggleLike(likeBtn.dataset.postId);
+            if (deleteBtn) await deletePost(deleteBtn.dataset.postId);
+            if (followBtn) await toggleFollow(followBtn.dataset.targetUserId);
+            if (profileLink) await showUserProfile(profileLink.dataset.userId);
+            if (accountBtnLink) switchView('account');
+            if (logoutBtnAccount) await auth.signOut();
+        });
 
-            hashtags.forEach(([hashtag, count]) => {
-                const hashtagElement = document.createElement('p');
-                hashtagElement.className = 'text-sm text-gray-700';
-                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${escapeHTML(hashtag)}</a> (${count})`;
-                trendingHashtagsList.appendChild(hashtagElement);
+        if (timelineTabs) {
+            timelineTabs.addEventListener('click', (event) => {
+                if (event.target.matches('.timeline-tab-btn')) {
+                    const tab = event.target.dataset.tab;
+                    if (tab !== currentTimelineTab) {
+                        currentTimelineTab = tab;
+                        document.querySelectorAll('.timeline-tab-btn').forEach(btn => btn.classList.remove('active'));
+                        event.target.classList.add('active');
+                        fetchTimelinePosts(currentTimelineTab);
+                    }
+                }
             });
-        }
-        function createPostElement(post, context = 'timeline') {
-        function getLikedPostsKey() {
-            return `likedPosts_${userId || 'anonymous'}`;
-        }
-
-            const postElement = document.createElement('div');
-            postElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
-
-            const postDate = new Date(post.timestamp).toLocaleString();
-            const escapedPostText = escapeHTML(post.text || '');
-            const escapedPostUserName = escapeHTML(post.userName || '名無し');
-            const hashtagRegex = /#([^\s#]+)/g;
-            const linkedPostText = escapedPostText.replace(hashtagRegex, '<a href="#" onclick="filterByHashtag(event, \'$1\')" class="text-blue-500 hover:underline">#$1</a>');
-            const escapedUserHandle = escapeHTML(post.userHandle || '');
-
-            const isFollowing = userId && post.userId !== userId && currentUserFollowing.includes(post.userId);
-            const followButtonClass = isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600';
-            const followButtonText = isFollowing ? 'フォロー中' : 'フォロー';
-            const followButtonHtml = userId && post.userId !== userId ? `
-                <button class="follow-btn text-white py-1 px-2 rounded-md text-xs transition duration-150 ease-in-out ${followButtonClass}" data-target-user-id="${post.userId}">
-                    ${followButtonText}
-                </button>
-            ` : '';
-
-            const isLiked = post.likedBy && userId && post.likedBy.includes(userId);
-
-              postElement.innerHTML = `
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center space-x-2">
-                        <button class="user-profile-link font-bold text-gray-800 text-sm hover:underline" data-user-id="${post.userId}">${escapedPostUserName}</button>
-                        ${context === 'timeline' ? followButtonHtml : ''}
-                    </div>
-                    <span class="text-gray-500 text-xs">${postDate}</span>
-                </div>
-                ${post.imageUrl ? `<img src="${escapeHTML(post.imageUrl)}" alt="投稿画像" class="my-2 rounded-md max-w-full h-auto" style="max-height: 200px; object-fit: contain;">` : ''}
-                    <p class="text-gray-700 text-sm whitespace-pre-wrap">${linkedPostText}</p>
-                <div class="flex items-center mt-3">
-                    <button class="like-btn flex items-center space-x-1 text-xs transition duration-150 ease-in-out" data-post-id="${post.id}">
-                        <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>
-                        <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
-                    </button>
-                        ${userId && post.userId === userId ? `
-                        <button class="delete-btn bg-red-500 text-white py-1 px-2 rounded-md text-xs hover:bg-red-600 transition duration-150 ease-in-out ml-auto" data-post-id="${post.id}">
-                            削除
-                        </button>
-                    ` : ''}
-                </div>
-            `;
-            return postElement;
-          }
-
-        async function showUserProfile(targetUserId) {
-            if (!targetUserId || !db) return;
-            
-            // プロフィールモーダルを表示する
-            userProfileModal.classList.remove('hidden'); // hidden クラスを削除
-
-            const userDoc = await db.collection(`artifacts/${appId}/public/data/users`).doc(targetUserId).get();
-            if (!userDoc.exists) {
-                profileUserName.textContent = "不明なユーザー";
-                profileUserHandle.textContent = "";
-                profileBio.textContent =  'データがありません';
-                profileAvatar.src = "";
-                return;
-            }
-
-            const userData = userDoc.data();
-            profileUserName.textContent = userData.name;
-            profileUserHandle.textContent = userData.username;
-            profileBio.textContent = userData.bio || '';
-            profileFollowingCount.textContent = userData.followingCount || 0;
-            profileFollowerCount.textContent = userData.followerCount || 0;
-            profileAvatar.src = userData.photoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-            if (userId && userId !== targetUserId) {
-                profileFollowBtn.dataset.targetUserId = targetUserId;
-                if (currentUserFollowing.includes(targetUserId)) {
-                    profileFollowBtn.textContent = "フォロー中";
-                    profileFollowBtn.classList.replace('bg-blue-500', 'bg-gray-500');
-                } else {
-                    profileFollowBtn.textContent = "フォロー";
-                    profileFollowBtn.classList.replace('bg-gray-500', 'bg-blue-500');
-                }
-                profileFollowBtn.classList.remove('hidden');
-            } else {
-                profileFollowBtn.classList.add('hidden');
-            }
-            
-            profilePostsContainer.innerHTML = '<p class="text-gray-500">投稿を読み込み中...</p>';
-            const postsQuery = db.collection(`artifacts/${appId}/public/data/posts`)
-                .where('userId', '==', targetUserId)
-                .orderBy('timestamp', 'desc')
-                .limit(20);
-
-            const postsSnapshot = await postsQuery.get();
-            profilePostsContainer.innerHTML = '';
-            if (postsSnapshot.empty) {
-                profilePostsContainer.innerHTML = '<p class="text-gray-500">このユーザーの投稿はまだありません。</p>';
-            } else {
-                postsSnapshot.forEach(doc => {
-                    const post = { ...doc.data(), id: doc.id };
-                    const postElement = createPostElement(post, 'profile');
-                    profilePostsContainer.appendChild(postElement);
-                });
-            }
-        }
-        function initDesktopTabs() {
-            // desktop-tabsは不要になったため、この関数は空にします。
-        }
-    
-        // トレンドのハッシュタグを取得して表示する関数
-        async function fetchTrendingHashtags() {
-            if (!db) return;
-            const trendingHashtagsList = document.getElementById('trending-hashtags-list');
-            if (!trendingHashtagsList) return;
-
-            trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドを読み込み中...</p>';
-
-            try {
-                // 本格的な実装ではCloud Functionで集計した結果を取得します。
-                // ここではデモとして、直近50件の投稿から簡易的にトレンドを集計します。
-                const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`)
-                                              .orderBy('timestamp', 'desc')
-                                            .limit(50)
-                                            .get();
-
-                const hashtagCounts = {};
-                postsSnapshot.forEach(doc => {
-                    const post = doc.data();
-                    if (post.hashtags && Array.isArray(post.hashtags)) {
-                        post.hashtags.forEach(tag => {
-                            hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
-                        });
-                    }
-                });
-
-                const sortedHashtags = Object.entries(hashtagCounts)
-                                            .sort(([,a],[,b]) => b - a)
-                                            .slice(0, 5); // 上位5件を表示
-            
-                renderTrendingHashtags(sortedHashtags);
-                console.log("トレンドのハッシュタグを取得しました:", sortedHashtags);
-
-            } catch (error) {
-                console.error("トレンドのハッシュタグ取得エラー:", error);
-                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドの取得に失敗しました。</p>';
-            }
-        }
-
-        function renderTrendingHashtags(hashtags) {
-        const trendingHashtagsList = document.getElementById('trending-hashtags-list');
-            trendingHashtagsList.innerHTML = '';
-
-            if (hashtags.length === 0) {
-                trendingHashtagsList.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
-                return;
-            }
-
-            hashtags.forEach(([hashtag, count]) => {
-                const hashtagElement = document.createElement('p');
-                hashtagElement.className = 'text-sm text-gray-700';
-                hashtagElement.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${hashtag}')" class="text-blue-500 hover:underline">#${escapeHTML(hashtag)}</a> (${count})`;
-                trendingHashtagsList.appendChild(hashtagElement);
-            });
-        }
-        function createPostElement(post, context = 'timeline') {
-        function getLikedPostsKey() {
-            return `likedPosts_${userId || 'anonymous'}`;
-        }
-
-            const postElement = document.createElement('div');
-            postElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
-
-            const postDate = new Date(post.timestamp).toLocaleString();
-            const escapedPostText = escapeHTML(post.text || '');
-            const escapedPostUserName = escapeHTML(post.userName || '名無し');
-            const hashtagRegex = /#([^\s#]+)/g;
-            const linkedPostText = escapedPostText.replace(hashtagRegex, '<a href="#" onclick="filterByHashtag(event, \'$1\')" class="text-blue-500 hover:underline">#$1</a>');
-            const escapedUserHandle = escapeHTML(post.userHandle || '');
-
-            const isFollowing = userId && post.userId !== userId && currentUserFollowing.includes(post.userId);
-            const followButtonClass = isFollowing ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600';
-            const followButtonText = isFollowing ? 'フォロー中' : 'フォロー';
-            const followButtonHtml = userId && post.userId !== userId ? `
-                <button class="follow-btn text-white py-1 px-2 rounded-md text-xs transition duration-150 ease-in-out ${followButtonClass}" data-target-user-id="${post.userId}">
-                    ${followButtonText}
-                </button>
-            ` : '';
-
-            const isLiked = post.likedBy && userId && post.likedBy.includes(userId);
-
-              postElement.innerHTML = `
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center space-x-2">
-                        <button class="user-profile-link font-bold text-gray-800 text-sm hover:underline" data-user-id="${post.userId}">${escapedPostUserName}</button>
-                        ${context === 'timeline' ? followButtonHtml : ''}
-                    </div>
-                    <span class="text-gray-500 text-xs">${postDate}</span>
-                </div>
-                ${post.imageUrl ? `<img src="${escapeHTML(post.imageUrl)}" alt="投稿画像" class="my-2 rounded-md max-w-full h-auto" style="max-height: 200px; object-fit: contain;">` : ''}
-                    <p class="text-gray-700 text-sm whitespace-pre-wrap">${linkedPostText}</p>
-                <div class="flex items-center mt-3">
-                    <button class="like-btn flex items-center space-x-1 text-xs transition duration-150 ease-in-out" data-post-id="${post.id}">
-                        <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>
-                        <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
-                    </button>
-                        ${userId && post.userId === userId ? `
-                        <button class="delete-btn bg-red-500 text-white py-1 px-2 rounded-md text-xs hover:bg-red-600 transition duration-150 ease-in-out ml-auto" data-post-id="${post.id}">
-                            削除
-                        </button>
-                    ` : ''}
-                </div>
-            `;
-            return postElement;
-          }
-
-        async function showUserProfile(targetUserId) {
-            if (!targetUserId || !db) return;
-            
-            // プロフィールモーダルを表示する
-            userProfileModal.classList.remove('hidden'); // hidden クラスを削除
-
-            const userDoc = await db.collection(`artifacts/${appId}/public/data/users`).doc(targetUserId).get();
-            if (!userDoc.exists) {
-
-            const postRef = db.collection(`artifacts/${appId}/public/data/posts`).doc(postId);
-            const batch = db.batch();
-            const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-            if (likedPosts.includes(postId)) {
-                batch.update(postRef, { likedBy: firebase.firestore.FieldValue.arrayRemove(userId) });
-               localStorage.setItem('likedPosts', JSON.stringify(likedPosts.filter(id => id !== postId)));
-            } else {
-                batch.update(postRef, { likedBy: firebase.firestore.FieldValue.arrayUnion(userId) });
-               localStorage.setItem('likedPosts', JSON.stringify([...likedPosts, postId]));
-           }
-           await batch.commit();
-        }
-
-        async function fetchTimelinePosts(filter = 'all', hashtag = null) {
-            if (!authReady) {
-              console.warn("認証が完了していません。タイムライン投稿の取得を遅延します。");
-              return;
-            }
-            if (!db) {
-              console.error("Firestore database (db) is not initialized.");
-              showMessage("データベースが初期化されていません。", "error");
-              return;
-            }
-
-            let postsQuery = db.collection(`artifacts/${appId}/public/data/posts`);
-            if (filter === 'hashtag' && hashtag) {
-                postsQuery = postsQuery.where('hashtags', 'array-contains', hashtag);
-            }
-            postsQuery = postsQuery.orderBy('timestamp', 'desc');
-
-            console.log("DEBUG: Subscribing to Firestore posts collection for timeline.");
-
-            postsQuery.onSnapshot((snapshot) => {
-                console.log(`タイムライン用: Firestoreから ${snapshot.size} 件の投稿をリアルタイムで同期しました。`);
-                timelinePostsContainer.innerHTML = '';
-
-                if (snapshot.empty) {
-                    console.log("Timeline snapshot is empty.");
-                    timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
-                    return;
-                }
-            snapshot.forEach(doc => {
-                    const post = { ...doc.data(), id: doc.id };
-                    const postElement = createPostElement(post, 'timeline');
-                    if (timelinePostsContainer && postElement) {
-                        timelinePostsContainer.appendChild(postElement);
-                    }
-                });
-            }, (error) => {
-                console.error("DEBUG: Firestore onSnapshot for timeline failed with error:", error);
-                showMessage("タイムライン投稿の取得中にエラーが発生しました。", "error");
-            });
-        }
-        }
-
-        function filterByHashtag(event, hashtag) {
-            if (event) {
-                event.preventDefault();
-            }
-            fetchTimelinePosts('hashtag', hashtag);
-        }
-    </script>
-    <!-- Google Maps JavaScript APIの読み込み (最新の安定版を明示的に指定) -->
-    <script>
-        let googleMapsLoaded = false; // const から let に変更
-        function loadGoogleMaps() {
-            if(googleMapsLoaded) return;
-            
-            // 環境変数からAPIキーを取得 (Cloudflare Pagesでは__env__を使用)
-        const apiKey = "AIzaSyCxRXRQftG4Yu9hq31Cmkfu06QdB8G9AnE"; // Replace with your actual API key
-            
-            if (!apiKey) {
-                console.error('Google Maps APIキーが設定されていません');
-                showMessage('地図機能を利用するには管理者に連絡してください。APIキーが設定されていません。', 'error');
-                return;
-            }
-            
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initGoogleMap&loading=async`;
-            script.async = true;
-            script.defer = true;
-            script.onerror = () => {
-                console.error('Google Maps APIの読み込みに失敗しました');
-                showMessage('地図の読み込みに失敗しました。ページをリロードしてください。', 'error');
-                // Hide map and show login modal
-                const mapArea = document.getElementById('map-area');
-                if (mapArea) {
-                    mapArea.style.display = 'none';
-                }
-                const nameInputModal = document.getElementById('name-input-modal');
-                if (nameInputModal) {
-                    nameInputModal.classList.add('active');
-                }
-            };
-            
-            // スクリプトが読み込まれたか確認
-            script.onload = () => {
-                console.log('Google Maps APIが正常に読み込まれました');
-                googleMapsLoaded = true;
-            };
-            
-            document.head.appendChild(script);
         }
         
-        // DOM読み込み後にGoogle Maps APIをロード
-        document.addEventListener('DOMContentLoaded', loadGoogleMaps);
+        if (closeProfileBtn) closeProfileBtn.addEventListener('click', () => {
+            userProfileModal.classList.add('hidden');
+            userProfileModal.style.display = 'none';
+        });
+        if (userProfileModal) userProfileModal.addEventListener('click', (e) => {
+            if (e.target === userProfileModal) {
+                userProfileModal.classList.add('hidden');
+                userProfileModal.style.display = 'none';
+            }
+        });
+
+        // Initial setup
+        updateUserInfoDisplay();
+        fetchTrendingHashtags();
+    });
+
+    function createPostElement(post, context = 'timeline') {
+        const postElement = document.createElement('div');
+        postElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200';
+        const postDate = new Date(post.timestamp).toLocaleString();
+        const linkedPostText = escapeHTML(post.text || '').replace(/#([^\s#]+)/g, `<a href="#" onclick="filterByHashtag(event, '$1')" class="text-blue-500 hover:underline">#$1</a>`);
+        const isLiked = post.likedBy && userId && post.likedBy.includes(userId);
+
+        postElement.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center space-x-2">
+                    <img src="${escapeHTML(post.photoURL || post.userPhotoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')}" class="w-8 h-8 rounded-full bg-gray-200 object-cover cursor-pointer user-profile-link" data-user-id="${post.userId}">
+                    <div class="flex items-center">
+                        <button class="user-profile-link font-bold text-gray-800 text-sm hover:underline" data-user-id="${post.userId}">${escapeHTML(post.name || post.userName || '名無し')}</button>
+                        <button class="follow-btn ml-2 px-2 py-1 rounded text-xs ${userId && post.userId !== userId && currentUserFollowing.includes(post.userId) ? 'bg-gray-300 text-gray-700' : 'bg-blue-500 text-white'}" data-target-user-id="${post.userId}" style="display:${userId && post.userId !== userId ? 'inline-block':'none'}">${userId && post.userId !== userId && currentUserFollowing.includes(post.userId) ? 'フォロー解除' : 'フォロー'}</button>
+                    </div>
+                    <p class="text-gray-500 text-xs">${escapeHTML(post.username || post.userHandle || '')}</p>
+                </div>
+                <span class="text-gray-500 text-xs">${postDate}</span>
+            </div>
+            ${post.imageUrl ? `<img src="${escapeHTML(post.imageUrl)}" alt="投稿画像" class="my-2 rounded-md max-w-full h-auto" style="max-height: 200px;">` : ''}
+            <p class="text-gray-700 text-sm whitespace-pre-wrap">${linkedPostText}</p>
+            <div class="flex items-center justify-between mt-3">
+                <button class="like-btn flex items-center space-x-1 text-xs" data-post-id="${post.id}">
+                    <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
+                    <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
+                </button>
+                ${userId && post.userId === userId ? `<button class="delete-btn bg-red-500 text-white py-1 px-2 rounded-md text-xs" data-post-id="${post.id}">削除</button>` : ''}
+            </div>`;
+        postElement.querySelectorAll('.user-profile-link').forEach(el => {
+            el.addEventListener('click', e => {
+                e.preventDefault();
+                showUserProfile(el.dataset.userId);
+            });
+        });
+        postElement.querySelectorAll('.follow-btn').forEach(btn => {
+            btn.addEventListener('click', async e => {
+                e.stopPropagation();
+                await toggleFollow(btn.dataset.targetUserId);
+                btn.textContent = currentUserFollowing.includes(btn.dataset.targetUserId) ? 'フォロー解除' : 'フォロー';
+                btn.classList.toggle('bg-blue-500', !currentUserFollowing.includes(btn.dataset.targetUserId));
+                btn.classList.toggle('text-white', !currentUserFollowing.includes(btn.dataset.targetUserId));
+                btn.classList.toggle('bg-gray-300', currentUserFollowing.includes(btn.dataset.targetUserId));
+                btn.classList.toggle('text-gray-700', currentUserFollowing.includes(btn.dataset.targetUserId));
+            });
+        });
+        return postElement;
+    }
+
+    async function showUserProfile(targetUserId) {
+        if (!targetUserId || !db) return;
+        userProfileModal.classList.remove('hidden');
+        userProfileModal.style.display = 'flex'; // マップは隠さない
+        const userDoc = await db.collection(`artifacts/${appId}/public/data/users`).doc(targetUserId).get();
+        if (!userDoc.exists) return;
+        const userData = userDoc.data();
+        profileUserName.textContent = userData.name || '';
+        profileUserHandle.textContent = userData.username || '';
+        profileBio.textContent = userData.bio || '';
+        profileAvatar.src = userData.photoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        // フォローボタン表示（自分以外）
+        if (targetUserId && userId && targetUserId !== userId) {
+            profileFollowBtn.classList.remove('hidden');
+            profileFollowBtn.style.display = 'inline-block';
+            profileFollowBtn.textContent = currentUserFollowing.includes(targetUserId) ? 'フォロー解除' : 'フォロー';
+            profileFollowBtn.className = `ml-auto bg-blue-500 text-white py-2 px-4 rounded-full text-sm font-semibold ${currentUserFollowing.includes(targetUserId) ? 'bg-gray-300 text-gray-700' : 'bg-blue-500 text-white'}`;
+            profileFollowBtn.onclick = async () => {
+                await toggleFollow(targetUserId);
+                profileFollowBtn.textContent = currentUserFollowing.includes(targetUserId) ? 'フォロー解除' : 'フォロー';
+                profileFollowBtn.className = `ml-auto bg-blue-500 text-white py-2 px-4 rounded-full text-sm font-semibold ${currentUserFollowing.includes(targetUserId) ? 'bg-gray-300 text-gray-700' : 'bg-blue-500 text-white'}`;
+            };
+        } else {
+            profileFollowBtn.classList.add('hidden');
+            profileFollowBtn.style.display = 'none';
+        }
+        
+        // Fetch user posts
+        profilePostsContainer.innerHTML = '<p class="text-gray-500">投稿を読み込み中...</p>';
+        const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`).where('userId', '==', targetUserId).orderBy('timestamp', 'desc').limit(20).get();
+        profilePostsContainer.innerHTML = '';
+        if (postsSnapshot.empty) {
+            profilePostsContainer.innerHTML = '<p class="text-gray-500">このユーザーの投稿はまだありません。</p>';
+        } else {
+            postsSnapshot.forEach(doc => {
+                profilePostsContainer.appendChild(createPostElement({ ...doc.data(), id: doc.id }, 'profile'));
+            });
+        }
+    }
+
+    async function fetchTrendingHashtags() {
+        if (!db) return;
+        const listEl = document.getElementById('trending-hashtags-list');
+        if (!listEl) return;
+        listEl.innerHTML = '<p class="text-sm text-gray-500">トレンドを読み込み中...</p>';
+        try {
+            const snapshot = await db.collection(`artifacts/${appId}/public/data/posts`).orderBy('timestamp', 'desc').limit(50).get();
+            const counts = {};
+            snapshot.forEach(doc => {
+                const post = doc.data();
+                if (post.hashtags) post.hashtags.forEach(tag => counts[tag] = (counts[tag] || 0) + 1);
+            });
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            renderTrendingHashtags(sorted);
+        } catch (error) {
+            listEl.innerHTML = '<p class="text-sm text-gray-500">トレンドの取得に失敗しました。</p>';
+        }
+    }
+
+    function renderTrendingHashtags(hashtags) {
+        const listEl = document.getElementById('trending-hashtags-list');
+        listEl.innerHTML = '';
+        if (hashtags.length === 0) {
+            listEl.innerHTML = '<p class="text-sm text-gray-500">トレンドはありません。</p>';
+            return;
+        }
+        hashtags.forEach(([tag, count]) => {
+            const p = document.createElement('p');
+            p.className = 'text-sm text-gray-700';
+            p.innerHTML = `<a href="#" onclick="filterByHashtag(event, '${tag}')" class="text-blue-500 hover:underline">#${escapeHTML(tag)}</a> (${count})`;
+            listEl.appendChild(p);
+        });
+    }
+
+    function filterByHashtag(event, hashtag) {
+        event.preventDefault();
+        fetchTimelinePosts('hashtag', hashtag);
+        if (window.innerWidth < 768) {
+            switchView('timeline');
+        }
+    }
+    
+    async function setupEmailAuthListeners() {
+        const emailLoginBtn = document.getElementById('email-login-btn');
+        const emailSignupBtn = document.getElementById('email-signup-btn');
+        const emailInput = document.getElementById('email-input');
+        const passwordInput = document.getElementById('password-input');
+        const emailError = document.getElementById('email-error');
+
+        emailLoginBtn.addEventListener('click', async () => {
+            if (!emailInput.value || !passwordInput.value) {
+                emailError.textContent = 'メールアドレスとパスワードを入力してください。';
+                emailError.classList.remove('hidden');
+                return;
+            }
+            try {
+                emailError.classList.add('hidden');
+                await auth.signInWithEmailAndPassword(emailInput.value, passwordInput.value);
+            } catch (error) {
+                emailError.textContent = getFirebaseAuthErrorMessage(error);
+                emailError.classList.remove('hidden');
+            }
+        });
+
+        emailSignupBtn.addEventListener('click', async () => {
+            if (!emailInput.value || !passwordInput.value) {
+                emailError.textContent = 'メールアドレスとパスワードを入力してください。';
+                emailError.classList.remove('hidden');
+                return;
+            }
+            if (passwordInput.value.length < 6) {
+                emailError.textContent = 'パスワードは6文字以上で入力してください。';
+                emailError.classList.remove('hidden');
+                return;
+            }
+            try {
+                emailError.classList.add('hidden');
+                await auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value);
+            } catch (error) {
+                emailError.textContent = getFirebaseAuthErrorMessage(error);
+                emailError.classList.remove('hidden');
+            }
+        });
+    }
     </script>
 </body>
-
 </html>
