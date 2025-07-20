@@ -1095,9 +1095,9 @@
             if (savedAccount) {
                 const info = JSON.parse(savedAccount);
                 setTimeout(() => {
-                    if (info.name) userNameInput.value = info.name;
-                    if (info.username) userIdInput.value = info.username;
-                    if (info.bio) userBioInput.value = info.bio;
+                    if (info.name && userNameInput) userNameInput.value = info.name;
+                    if (info.username && userIdInput) userIdInput.value = info.username;
+                    if (info.bio && userBioInput) userBioInput.value = info.bio;
                 }, 100);
             }
         } catch(e) {}
