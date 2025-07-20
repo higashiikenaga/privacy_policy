@@ -1137,6 +1137,8 @@
                     if (profileSetupModal) {
                         profileSetupModal.classList.remove('hidden');
                         profileSetupModal.style.display = 'flex';
+                        profileSetupModal.style.opacity = '1';
+                        profileSetupModal.style.visibility = 'visible';
                     }
                 } catch (error) {
                     showMessage('ユーザー情報の保存に失敗しました。', 'error');
