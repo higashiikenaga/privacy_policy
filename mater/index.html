@@ -150,12 +150,18 @@
             max-height: 80vh;
             overflow-y: auto;
             box-sizing: border-box;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
         }
         #name-input-modal .modal-content {
             max-height: 90vh;
             height: auto;
             overflow-y: auto;
             box-sizing: border-box;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
         }
         @media (max-width: 767px) {
     #name-input-modal .modal-content {
@@ -168,6 +174,7 @@
         overflow-y: auto;
         overscroll-behavior: contain;
         touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
     }
     #timeline-posts {
         max-width: 100vw;
@@ -178,6 +185,7 @@
         overflow-y: auto;
         overscroll-behavior: contain;
         touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
     }
     #sidebar-timeline-section {
         max-height: 90vh;
@@ -185,6 +193,7 @@
         box-sizing: border-box;
         overscroll-behavior: contain;
         touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
     }
 }
 
@@ -1095,38 +1104,37 @@
         
         document.getElementById('get-location-btn').addEventListener('click', getCurrentLocation);
 
-        if (nameForm) {
-            // --- localStorage復元 ---
-            try {
-                const savedAccount = localStorage.getItem('accountInfo');
-                if (savedAccount) {
-                    const info = JSON.parse(savedAccount);
+        // --- localStorage復元（スマホ対応: input要素の値セットをsetTimeoutで遅延）---
+        try {
+            const savedAccount = localStorage.getItem('accountInfo');
+            if (savedAccount) {
+                const info = JSON.parse(savedAccount);
+                setTimeout(() => {
                     if (info.name) userNameInput.value = info.name;
                     if (info.username) userIdInput.value = info.username;
                     if (info.bio) userBioInput.value = info.bio;
-                }
-            } catch(e) {}
+                }, 100);
+            }
+        } catch(e) {}
+
+        if (nameForm) {
             nameForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const inputName = userNameInput.value.trim();
                 const inputUserId = userIdInput.value.trim();
                 const inputBio = userBioInput.value.trim();
                 const iconFile = userIconInput.files[0];
-
                 if (!inputName || !inputUserId) return showMessage('ユーザー名とユーザーIDは必須です。', 'error');
                 if (!inputUserId.match(/^@[a-zA-Z0-9_]{3,15}$/)) {
                     usernameError.textContent = 'ユーザーIDは@から始まり、英数字と_で3〜15文字です。';
                     return usernameError.classList.remove('hidden');
                 }
                 usernameError.classList.add('hidden');
-
                 const saveButton = event.submitter;
                 saveButton.disabled = true;
-
                 try {
                     let newPhotoURL = userPhotoURL;
                     if (iconFile) newPhotoURL = await uploadImage(iconFile, 'profile');
-                    
                     const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
                     await userDocRef.set({
                         name: inputName,
@@ -1135,19 +1143,20 @@
                         photoURL: newPhotoURL || null,
                         updatedAt: new Date().toISOString()
                     }, { merge: true });
-
                     userName = inputName;
                     userHandle = inputUserId;
                     userBio = inputBio;
                     userPhotoURL = newPhotoURL;
                     updateUserInfoDisplay();
-                    // --- localStorage保存 ---
-                    localStorage.setItem('accountInfo', JSON.stringify({
-                        name: userName,
-                        username: userHandle,
-                        bio: userBio,
-                        photoURL: userPhotoURL
-                    }));
+                    // --- localStorage保存（スマホ対応: setTimeoutで遅延）---
+                    setTimeout(() => {
+                        localStorage.setItem('accountInfo', JSON.stringify({
+                            name: userName,
+                            username: userHandle,
+                            bio: userBio,
+                            photoURL: userPhotoURL
+                        }));
+                    }, 100);
                     if (nameInputModal) nameInputModal.style.display = 'none';
                     showMessage('ユーザー情報が保存されました！', 'success');
                 } catch (error) {
@@ -1318,10 +1327,9 @@
             profileFollowBtn.className = `ml-auto bg-blue-500 text-white py-2 px-4 rounded-full text-sm font-semibold ${currentUserFollowing.includes(targetUserId) ? 'bg-gray-300 text-gray-700' : 'bg-blue-500 text-white'}`;
             profileFollowBtn.onclick = async () => {
                 await toggleFollow(targetUserId);
+                await updateProfileFollowCounts(targetUserId);
                 profileFollowBtn.textContent = currentUserFollowing.includes(targetUserId) ? 'フォロー解除' : 'フォロー';
                 profileFollowBtn.className = `ml-auto bg-blue-500 text-white py-2 px-4 rounded-full text-sm font-semibold ${currentUserFollowing.includes(targetUserId) ? 'bg-gray-300 text-gray-700' : 'bg-blue-500 text-white'}`;
-                // フォロワー数再取得
-                await updateProfileFollowCounts(targetUserId);
             };
         } else {
             profileFollowBtn.classList.add('hidden');
@@ -1347,10 +1355,10 @@
     // フォロー数
     const followDoc = await db.collection(`artifacts/${appId}/public/data/follows`).doc(targetUserId).get();
     const followingArr = followDoc.exists ? (followDoc.data().following || []) : [];
-    profileFollowingCount.textContent = followingArr.length;
+    if (profileFollowingCount) profileFollowingCount.textContent = followingArr.length;
     // フォロワー数
     const followerSnapshot = await db.collection(`artifacts/${appId}/public/data/follows`).where('following', 'array-contains', targetUserId).get();
-    profileFollowerCount.textContent = followerSnapshot.size;
+    if (profileFollowerCount) profileFollowerCount.textContent = followerSnapshot.size;
 }
 
     function filterByHashtag(event, hashtag) {
