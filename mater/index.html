@@ -1411,6 +1411,42 @@
             }
         });
     }
+
+    // 人気ハッシュタグ取得・表示（直近24時間の投稿から集計）
+async function fetchTrendingHashtags() {
+    if (!db) return;
+    const hashtagsCount = {};
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const postsRef = db.collection(`artifacts/${appId}/public/data/posts`);
+    // 24時間以内の投稿を取得
+    const snapshot = await postsRef.where('timestamp', '>=', yesterday.toISOString()).get();
+    snapshot.forEach(doc => {
+        const post = doc.data();
+        if (Array.isArray(post.hashtags)) {
+            post.hashtags.forEach(tag => {
+                if (!tag) return;
+                hashtagsCount[tag] = (hashtagsCount[tag] || 0) + 1;
+            });
+        }
+    });
+    // トレンド上位5件を抽出
+    const trending = Object.entries(hashtagsCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    // 表示
+    const container = document.getElementById('trending-hashtags-container');
+    if (container) {
+        if (trending.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">直近24時間のトレンドタグはありません。</p>';
+        } else {
+            container.innerHTML = '<h4 class="font-bold mb-2 text-blue-700">トレンドタグ（24h）</h4>' +
+                trending.map(([tag, count]) =>
+                    `<a href="#" onclick="filterByHashtag(event, '${tag}')" class="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full mr-2 mb-2 text-sm font-semibold hover:bg-blue-200">#${tag} <span class="text-xs text-gray-500">${count}</span></a>`
+                ).join('');
+        }
+    }
+}
     </script>
 </body>
 </html>
