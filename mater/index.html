@@ -149,12 +149,29 @@
         #timeline-posts {
             max-height: 80vh;
             overflow-y: auto;
+            box-sizing: border-box;
         }
         #name-input-modal .modal-content {
-            max-height: none; /* max-heightを削除 */
-            height: auto; /* 高さを自動調整 */
+            max-height: 90vh;
+            height: auto;
             overflow-y: auto;
+            box-sizing: border-box;
         }
+        @media (max-width: 767px) {
+    #name-input-modal .modal-content {
+        max-width: 95vw;
+        min-width: 0;
+        padding: 1rem;
+        border-radius: 1rem;
+        box-sizing: border-box;
+    }
+    #timeline-posts {
+        max-width: 100vw;
+        min-width: 0;
+        padding: 0.5rem;
+        box-sizing: border-box;
+    }
+}
 
         /* デスクトップビューのスタイル */
         @media (min-width: 768px) {
@@ -801,8 +818,6 @@
         setupEmailAuthListeners();
     }
 
-// ...existing code...
-
     function fetchTimelinePosts(filter = 'all', hashtag = null) {
         if (!db) return;
         let postsQuery = db.collection(`artifacts/${appId}/public/data/posts`);
@@ -1101,7 +1116,13 @@
                     userBio = inputBio;
                     userPhotoURL = newPhotoURL;
                     updateUserInfoDisplay();
-                    
+                    // --- localStorage保存 ---
+                    localStorage.setItem('accountInfo', JSON.stringify({
+                        name: userName,
+                        username: userHandle,
+                        bio: userBio,
+                        photoURL: userPhotoURL
+                    }));
                     if (nameInputModal) nameInputModal.style.display = 'none';
                     showMessage('ユーザー情報が保存されました！', 'success');
                 } catch (error) {
