@@ -1115,12 +1115,16 @@
                 usernameError.classList.add('hidden');
                 const saveButton = event.submitter;
                 saveButton.disabled = true;
-                // Debug: Compare userId and auth.uid before saving
-                if (auth && auth.currentUser) {
-                    console.log('userId:', userId, 'auth.uid:', auth.currentUser.uid);
-                } else {
-                    console.log('auth/currentUser not available:', auth);
-                }
+                // Debug: Log userId, authReady, and auth.currentUser
+                setTimeout(() => {
+                  console.log('[DEBUG] userId:', userId);
+                  console.log('[DEBUG] authReady:', authReady);
+                  if (auth && auth.currentUser) {
+                    console.log('[DEBUG] auth.currentUser.uid:', auth.currentUser.uid);
+                  } else {
+                    console.log('[DEBUG] auth/currentUser not available:', auth);
+                  }
+                }, 0);
                 try {
                     const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
                     await userDocRef.set({
@@ -1137,14 +1141,21 @@
                             username: userHandle
                         }));
                     }, 100);
-                    if (nameInputModal) nameInputModal.style.display = 'none';
-                    // Show profile setup modal
+                    // Always hide registration modal and show profile setup modal after registration
+                    if (nameInputModal) {
+                        nameInputModal.style.display = 'none';
+                        nameInputModal.classList.add('hidden');
+                        nameInputModal.style.opacity = '0';
+                        nameInputModal.style.visibility = 'hidden';
+                    }
                     const profileSetupModal = document.getElementById('profile-setup-modal');
                     if (profileSetupModal) {
                         profileSetupModal.classList.remove('hidden');
                         profileSetupModal.style.display = 'flex';
                         profileSetupModal.style.opacity = '1';
                         profileSetupModal.style.visibility = 'visible';
+                    } else {
+                        console.log('[DEBUG] profile-setup-modal not found');
                     }
                 } catch (error) {
                     showMessage('ユーザー情報の保存に失敗しました。', 'error');
