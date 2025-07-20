@@ -1223,15 +1223,19 @@
             event.preventDefault();
             const iconFile = setupIconInput.files[0];
             const bio = setupBioInput.value.trim();
+            const accountName = document.getElementById('setup-account-name-input').value.trim();
             let newPhotoURL = userPhotoURL;
             if (iconFile) newPhotoURL = await uploadImage(iconFile, 'profile');
             try {
                 const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
                 await userDocRef.set({
+                    userId: userId,
+                    name: accountName,
                     bio: bio,
                     photoURL: newPhotoURL || null,
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
+                userName = accountName;
                 userBio = bio;
                 userPhotoURL = newPhotoURL;
                 updateUserInfoDisplay();
