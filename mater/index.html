@@ -433,62 +433,47 @@
             </button>
     </div>
 
+    <!-- Profile Setup Modal -->
+    <div id="profile-setup-modal" class="fixed inset-0 bg-transparent hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-md max-h-[90vh] flex flex-col" style="background:rgba(255,255,255,0.98);">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">プロフィール設定</h3>
+                <button id="close-profile-setup-btn" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <form id="profile-setup-form" class="p-6 overflow-y-auto flex flex-col gap-4">
+                <div>
+                    <label for="setup-icon-input" class="block text-sm font-medium text-gray-700">アイコン画像</label>
+                    <input type="file" id="setup-icon-input" accept="image/*">
+                    <img id="setup-icon-preview" src="" alt="アイコンプレビュー" class="w-16 h-16 rounded-full mt-2 hidden">
+                </div>
+                <div>
+                    <label for="setup-bio-input" class="block text-sm font-medium text-gray-700">一言（自己紹介）</label>
+                    <textarea id="setup-bio-input" rows="3" maxlength="100" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="自己紹介など (100文字以内)"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition font-semibold">保存</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Name Input Modal -->
     <div id="name-input-modal">
         <div class="modal-content text-left">
-            <h3 class="text-xl font-semibold mb-2 text-gray-800">ユーザー情報設定</h3>
-            <p class="text-sm text-gray-600 mb-6">表示される名前と、一意のIDを設定してください。</p>
-            <form id="name-form" class="space-y-4">
+            <h3 class="text-xl font-semibold mb-2 text-gray-800">ログイン / 新規登録</h3>
+            <form id="email-password-form" class="space-y-4" onsubmit="return false;">
                 <div>
-                    <label for="user-name-input" class="block text-sm font-medium text-gray-700">ユーザー名</label>
-                    <input type="text" id="user-name-input" name="name" required
-                           class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                           placeholder="あなたの表示名">
+                    <label for="email-input" class="block text-sm font-medium text-gray-700">メールアドレス</label>
+                    <input type="email" id="email-input" name="email" required autocomplete="email" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="メールアドレス">
                 </div>
                 <div>
-                    <label for="user-id-input" class="block text-sm font-medium text-gray-700">ユーザーID</label>
-                    <input type="text" id="user-id-input" name="username" required pattern="^@[a-zA-Z0-9_]{3,15}$"
-                           class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                           placeholder="@ + 英数字と_ (3〜15文字)">
-                    <p id="username-error" class="text-red-500 text-xs mt-1 hidden"></p>
+                    <label for="password-input" class="block text-sm font-medium text-gray-700">パスワード</label>
+                    <input type="password" id="password-input" name="password" required autocomplete="current-password" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="パスワード (6文字以上)">
                 </div>
-                <!-- Icon Upload -->
-                <div>
-                    <label for="user-icon-input" class="block text-sm font-medium text-gray-700">アイコン画像</label>
-                    <div class="mt-1 flex items-center space-x-4">
-                        <img id="user-icon-preview" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="アイコンプレビュー" class="w-16 h-16 rounded-full object-cover bg-gray-200">
-                        <input type="file" id="user-icon-input" class="hidden" accept="image/jpeg, image/png">
-                        <button type="button" id="select-icon-btn" class="bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50">画像を選択</button>
-                    </div>
+                <p id="email-error" class="text-red-500 text-xs mt-1 hidden"></p>
+                <div class="flex space-x-2">
+                    <button type="button" id="email-login-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 font-semibold">ログイン</button>
+                    <button type="button" id="email-signup-btn" class="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 font-semibold">新規登録</button>
                 </div>
-                <!-- Bio -->
-                <div>
-                    <label for="user-bio-input" class="block text-sm font-medium text-gray-700">一言</label>
-                    <textarea id="user-bio-input" rows="3" maxlength="100" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="自己紹介など (100文字以内)"></textarea>
-                
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-1150 ease-in-out font-semibold">
-                    保存
-                </button>
             </form>
-            <div class="mt-6 border-t pt-4 border-gray-200">
-                <p class="text-sm text-gray-600 mb-3 text-center">またはメールアドレスでログイン/登録:</p>
-                <form id="email-password-form" class="space-y-4" onsubmit="return false;">
-                    <div>
-                        <label for="email-input" class="sr-only">メールアドレス</label>
-                        <input type="email" id="email-input" name="email" required autocomplete="email" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="メールアドレス">
-                    </div>
-                    <div>
-                        <label for="password-input" class="sr-only">パスワード</label>
-                        <input type="password" id="password-input" name="password" required autocomplete="current-password" class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="パスワード (6文字以上)">
-                    </div>
-                    <p id="email-error" class="text-red-500 text-xs mt-1 hidden"></p>
-                    <div class="flex space-x-2">
-                        <button type="button" id="email-login-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 font-semibold">ログイン</button>
-                        <button type="button" id="email-signup-btn" class="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 font-semibold">新規登録</button>
-                    </div>
-                </form>
-            </div>
         </div>
     </div>
 
@@ -1122,8 +1107,6 @@
                 event.preventDefault();
                 const inputName = userNameInput.value.trim();
                 const inputUserId = userIdInput.value.trim();
-                const inputBio = userBioInput.value.trim();
-                const iconFile = userIconInput.files[0];
                 if (!inputName || !inputUserId) return showMessage('ユーザー名とユーザーIDは必須です。', 'error');
                 if (!inputUserId.match(/^@[a-zA-Z0-9_]{3,15}$/)) {
                     usernameError.textContent = 'ユーザーIDは@から始まり、英数字と_で3〜15文字です。';
@@ -1133,38 +1116,95 @@
                 const saveButton = event.submitter;
                 saveButton.disabled = true;
                 try {
-                    let newPhotoURL = userPhotoURL;
-                    if (iconFile) newPhotoURL = await uploadImage(iconFile, 'profile');
                     const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
                     await userDocRef.set({
                         name: inputName,
                         username: inputUserId,
-                        bio: inputBio,
-                        photoURL: newPhotoURL || null,
                         updatedAt: new Date().toISOString()
                     }, { merge: true });
                     userName = inputName;
                     userHandle = inputUserId;
-                    userBio = inputBio;
-                    userPhotoURL = newPhotoURL;
                     updateUserInfoDisplay();
-                    // --- localStorage保存（スマホ対応: setTimeoutで遅延）---
                     setTimeout(() => {
                         localStorage.setItem('accountInfo', JSON.stringify({
                             name: userName,
-                            username: userHandle,
-                            bio: userBio,
-                            photoURL: userPhotoURL
+                            username: userHandle
                         }));
                     }, 100);
                     if (nameInputModal) nameInputModal.style.display = 'none';
-                    showMessage('ユーザー情報が保存されました！', 'success');
+                    // Show profile setup modal
+                    const profileSetupModal = document.getElementById('profile-setup-modal');
+                    if (profileSetupModal) {
+                        profileSetupModal.classList.remove('hidden');
+                        profileSetupModal.style.display = 'flex';
+                    }
                 } catch (error) {
                     showMessage('ユーザー情報の保存に失敗しました。', 'error');
                 } finally {
                     saveButton.disabled = false;
                 }
             });
+        // Profile setup modal close
+        const closeProfileSetupBtn = document.getElementById('close-profile-setup-btn');
+        const profileSetupForm = document.getElementById('profile-setup-form');
+        const setupIconInput = document.getElementById('setup-icon-input');
+        const setupIconPreview = document.getElementById('setup-icon-preview');
+        const setupBioInput = document.getElementById('setup-bio-input');
+
+        if (closeProfileSetupBtn) closeProfileSetupBtn.addEventListener('click', () => {
+            const profileSetupModal = document.getElementById('profile-setup-modal');
+            profileSetupModal.classList.add('hidden');
+            profileSetupModal.style.display = 'none';
+        });
+
+        // アイコン画像プレビュー
+        if (setupIconInput) setupIconInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    setupIconPreview.src = ev.target.result;
+                    setupIconPreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                setupIconPreview.classList.add('hidden');
+            }
+        });
+
+        // プロフィール保存
+        if (profileSetupForm) profileSetupForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const iconFile = setupIconInput.files[0];
+            const bio = setupBioInput.value.trim();
+            let newPhotoURL = userPhotoURL;
+            if (iconFile) newPhotoURL = await uploadImage(iconFile, 'profile');
+            try {
+                const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
+                await userDocRef.set({
+                    bio: bio,
+                    photoURL: newPhotoURL || null,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                userBio = bio;
+                userPhotoURL = newPhotoURL;
+                updateUserInfoDisplay();
+                setTimeout(() => {
+                    localStorage.setItem('accountInfo', JSON.stringify({
+                        name: userName,
+                        username: userHandle,
+                        bio: userBio,
+                        photoURL: userPhotoURL
+                    }));
+                }, 100);
+                showMessage('プロフィール情報が保存されました！', 'success');
+                const profileSetupModal = document.getElementById('profile-setup-modal');
+                profileSetupModal.classList.add('hidden');
+                profileSetupModal.style.display = 'none';
+            } catch (error) {
+                showMessage('プロフィール情報の保存に失敗しました。', 'error');
+            }
+        });
         }
 
         if (postForm) {
