@@ -1316,6 +1316,7 @@
             if (iconFile) newPhotoURL = await uploadImage(iconFile, 'profile');
             const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
             await userDocRef.set({
+                userId: userId,
                 name: inputName,
                 bio: inputBio,
                 photoURL: newPhotoURL || null,
