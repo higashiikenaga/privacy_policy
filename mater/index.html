@@ -1115,6 +1115,12 @@
                 usernameError.classList.add('hidden');
                 const saveButton = event.submitter;
                 saveButton.disabled = true;
+                // Debug: Compare userId and auth.uid before saving
+                if (auth && auth.currentUser) {
+                    console.log('userId:', userId, 'auth.uid:', auth.currentUser.uid);
+                } else {
+                    console.log('auth/currentUser not available:', auth);
+                }
                 try {
                     const userDocRef = db.collection(`artifacts/${appId}/public/data/users`).doc(userId);
                     await userDocRef.set({
