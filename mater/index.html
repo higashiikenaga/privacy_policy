@@ -1224,6 +1224,14 @@
             const iconFile = setupIconInput.files[0];
             const bio = setupBioInput.value.trim();
             const accountName = document.getElementById('setup-account-name-input').value.trim();
+            if (!accountName) {
+                showMessage('アカウント名は必須です。', 'error');
+                return;
+            }
+            if (!bio) {
+                showMessage('一言（自己紹介）は必須です。', 'error');
+                return;
+            }
             let newPhotoURL = userPhotoURL;
             if (iconFile) newPhotoURL = await uploadImage(iconFile, 'profile');
             try {
