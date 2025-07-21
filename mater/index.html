@@ -889,46 +889,38 @@
         });
     }
     
-snapshot.forEach(doc => {
-                const post = { ...doc.data(), id: doc.id };
-                const postElement = createPostElement(post, 'timeline');
-                if (timelinePostsContainer && postElement) {
-                    timelinePostsContainer.appendChild(postElement);
-                }
-            });
-         (error) => {
-            console.error("タイムライン取得エラー:", error);
-            showMessage("タイムラインの取得中にエラーが発生しました。", "error");
-        };
-    
     function fetchFollowingList() {
         if (!authReady || !userId || !db) return;
         const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
         followDocRef.onSnapshot((docSnap) => {
             currentUserFollowing = docSnap.exists ? (docSnap.data().following || []) : [];
-            if (currentTimelineTab === 'following') {
-                fetchTimelinePosts('following');
-            }
+            fetchTimelinePosts(currentTimelineTab); // タイムラインを再描画
         }, (error) => {
             console.error("フォローリスト取得エラー:", error);
         });
     }
 
-         (error) => {
-            console.error("タイムライン取得エラー:", error);
-            showMessage("タイムラインの取得中にエラーが発生しました。", "error");
-        };
-    
-    function fetchFollowingList() {
-        if (!authReady || !userId || !db) return;
+    async function toggleFollow(targetUserId) {
+        if (!db || !userId || userId === targetUserId) return;
         const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
-        followDocRef.onSnapshot((docSnap) => {
-            currentUserFollowing = docSnap.exists ? (docSnap.data().following || []) : [];
-            if (currentTimelineTab === 'following') {
-                fetchTimelinePosts('following');
+        const isCurrentlyFollowing = currentUserFollowing.includes(targetUserId);
+        const updateAction = isCurrentlyFollowing 
+            ? firebase.firestore.FieldValue.arrayRemove(targetUserId)
+            : firebase.firestore.FieldValue.arrayUnion(targetUserId);
+        await followDocRef.set({ following: updateAction }, { merge: true });
+        showMessage(isCurrentlyFollowing ? 'フォローを解除しました。' : 'フォローしました！', 'success');
+        await fetchFollowingList(); // fetchFollowingList関数を呼び出してUIを更新
+    }
+
+    async function deletePost(postId) {
+        if (!db || !userId) return;
+        showConfirmModal('本当にこの投稿を削除しますか？', async () => {
+            try {
+                await db.collection(`artifacts/${appId}/public/data/posts`).doc(postId).delete();
+                showMessage('投稿を削除しました！', 'success');
+            } catch (error) {
+                showMessage('投稿の削除に失敗しました。', 'error');
             }
-        }, (error) => {
-            console.error("フォローリスト取得エラー:", error);
         });
     }
 
