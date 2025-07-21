@@ -1429,12 +1429,12 @@
         postElement.innerHTML = `
             <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center space-x-2">
-                    <img src="${escapeHTML(post.photoURL || post.userPhotoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')}" class="w-8 h-8 rounded-full bg-gray-200 object-cover cursor-pointer user-profile-link" data-user-id="${post.userId}">
+                    <img src="${escapeHTML(post.userPhotoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')}" class="w-8 h-8 rounded-full bg-gray-200 object-cover cursor-pointer user-profile-link" data-user-id="${post.userId}">
                     <div class="flex items-center">
-                        <button class="user-profile-link font-bold text-gray-800 text-sm hover:underline" data-user-id="${post.userId}">${escapeHTML(post.name || post.userName || '名無し')}</button>
+                        <button class="user-profile-link font-bold text-gray-800 text-sm hover:underline" data-user-id="${post.userId}">${escapeHTML(post.name || '名無し')}</button>
                         <button class="follow-btn ml-2 px-2 py-1 rounded text-xs ${userId && post.userId !== userId && currentUserFollowing.includes(post.userId) ? 'bg-gray-300 text-gray-700' : 'bg-blue-500 text-white'}" data-target-user-id="${post.userId}" style="display:${userId && post.userId !== userId ? 'inline-block':'none'}">${userId && post.userId !== userId && currentUserFollowing.includes(post.userId) ? 'フォロー解除' : 'フォロー'}</button>
                     </div>
-                    <p class="text-gray-500 text-xs">${escapeHTML(post.username || post.userHandle || '')}</p>
+                    <p class="text-gray-500 text-xs">${escapeHTML(post.username || '')}</p>
                 </div>
                 <span class="text-gray-500 text-xs">${postDate}</span>
             </div>
