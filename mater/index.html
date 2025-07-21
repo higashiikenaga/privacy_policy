@@ -1190,6 +1190,7 @@
                     saveButton.disabled = false;
                 }
             });
+        }
         // Profile setup modal close
         const closeProfileSetupBtn = document.getElementById('close-profile-setup-btn');
         const profileSetupForm = document.getElementById('profile-setup-form');
@@ -1263,7 +1264,6 @@
                 showMessage('プロフィール情報の保存に失敗しました。', 'error');
             }
         });
-        }
 
         if (postForm) {
             postForm.addEventListener('submit', async (event) => {
@@ -1551,7 +1551,7 @@
             }
         });
     }
-
+    
     // 人気ハッシュタグ取得・表示（直近24時間の投稿から集計）
 async function fetchTrendingHashtags() {
     if (!db) return;
