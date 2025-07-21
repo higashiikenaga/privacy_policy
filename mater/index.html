@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地図に書き込めるSNS</title>
+    <title>mater - 地図に書き込めるSNS</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Leaflet (for OpenStreetMap) -->
@@ -1397,6 +1397,26 @@
         // Initial setup
         updateUserInfoDisplay();
         fetchTrendingHashtags();
+
+        // Adjust layout for mobile view to account for the bottom navigation bar
+        function adjustMobileLayout() {
+            const isMobile = window.innerWidth < 768;
+            const bottomNav = document.getElementById('bottom-nav');
+            const mainContent = document.getElementById('main-content');
+
+            if (isMobile && bottomNav && mainContent) {
+                const navHeight = bottomNav.offsetHeight;
+                // Default padding is 1rem (from p-4 class). Add nav height to it.
+                mainContent.style.paddingBottom = `calc(1rem + ${navHeight}px)`;
+            } else if (mainContent) {
+                // Reset for desktop view, allowing CSS class to take over
+                mainContent.style.paddingBottom = '';
+            }
+        }
+
+        // Run on load and on resize
+        adjustMobileLayout();
+        window.addEventListener('resize', adjustMobileLayout);
     });
 
     function createPostElement(post, context = 'timeline') {
