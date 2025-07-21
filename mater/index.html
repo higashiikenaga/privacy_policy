@@ -1357,6 +1357,7 @@
         document.body.addEventListener('click', async (event) => {
             const target = event.target;
             const likeBtn = target.closest('.like-btn');
+            const boostBtn = target.closest('.boost-btn');
             const deleteBtn = target.closest('.delete-btn');
             const followBtn = target.closest('.follow-btn');
             const profileLink = target.closest('.user-profile-link');
