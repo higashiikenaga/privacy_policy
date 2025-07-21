@@ -302,7 +302,8 @@
                         <div class="flex items-center justify-between mb-4">
                             <h2 class="text-2xl font-bold text-gray-800">タイムライン</h2>
                             <div id="timeline-tabs" class="flex space-x-1 bg-gray-200 p-1 rounded-lg">
-                                <button class="timeline-tab-btn active" data-tab="all">すべて</button>
+                                <button class="timeline-tab-btn active" data-tab="recommended">おすすめ</button>
+                                <button class="timeline-tab-btn" data-tab="all">すべて</button>
                                 <button class="timeline-tab-btn" data-tab="following">フォロー中</button>
                             </div>
                         </div>
@@ -551,12 +552,13 @@
         let userPhotoURL = null;
         let userBio = "";
         let currentUserFollowing = [];
+        const userCache = {};
 
         // DOM要素の参照をスクリプトのトップレベルで宣言 (DOMContentLoadedで初期化)
         let messagesDiv, userInfoDisplay, postFormOverlay, openFormBtn, closeFormBtn, nameInputModal, nameForm;
         let userNameInput, userIdInput, userBioInput, userIconInput, selectIconBtn, userIconPreview, usernameError, googleSignInBtn;
         let emailInput, emailError, logoutBtn, postForm, postText, latitudeInput, longitudeInput;
-        let timelineContainer, timelinePostsContainer, timelineTabs, currentTimelineTab = 'all', submitPostBtn;
+        let timelineContainer, timelinePostsContainer, timelineTabs, currentTimelineTab = 'recommended', submitPostBtn;
         let userProfileModal, closeProfileBtn, profileUserName, profileUserHandle, profileBio, profileFollowBtn, profileFollowingCount, profileFollowerCount, profileAvatar, profilePostsContainer;
         let confirmModal, confirmMessage, confirmYesBtn, desktopTabs, nonLoginMenu, accountBtn, confirmNoBtn;
         let accountUserNameInput, accountBioInput, accountIconInput, accountIconPreview, saveAccountBtn, currentActionPostId;
@@ -1425,6 +1427,7 @@
         const postDate = new Date(post.timestamp).toLocaleString();
         const linkedPostText = escapeHTML(post.text || '').replace(/#([^\s#]+)/g, `<a href="#" onclick="filterByHashtag(event, '$1')" class="text-blue-500 hover:underline">#$1</a>`);
         const isLiked = post.likedBy && userId && post.likedBy.includes(userId);
+        const isBoosted = post.boostedBy && userId && post.boostedBy.includes(userId);
 
         postElement.innerHTML = `
             <div class="flex items-center justify-between mb-2">
@@ -1441,10 +1444,16 @@
             ${post.imageUrl ? `<img src="${escapeHTML(post.imageUrl)}" alt="投稿画像" class="my-2 rounded-md max-w-full h-auto" style="max-height: 200px;">` : ''}
             <p class="text-gray-700 text-sm whitespace-pre-wrap">${linkedPostText}</p>
             <div class="flex items-center justify-between mt-3">
-                <button class="like-btn flex items-center space-x-1 text-xs" data-post-id="${post.id}">
-                    <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
-                    <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
-                </button>
+                <div class="flex items-center space-x-4">
+                    <button class="like-btn flex items-center space-x-1 text-xs" data-post-id="${post.id}">
+                        <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
+                        <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
+                    </button>
+                    <button class="boost-btn flex items-center space-x-1 text-xs" data-post-id="${post.id}">
+                        <svg class="w-4 h-4 ${isBoosted ? 'text-green-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15a1 1 0 01-1-1V6.414l-1.293 1.293a1 1 0 11-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 6.414V14a1 1 0 01-1 1z"></path><path d="M4 5a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z"></path></svg>
+                        <span class="${isBoosted ? 'text-green-600' : 'text-gray-500'}">${post.boostedBy ? post.boostedBy.length : 0}</span>
+                    </button>
+                </div>
                 ${userId && post.userId === userId ? `<button class="delete-btn bg-red-500 text-white py-1 px-2 rounded-md text-xs" data-post-id="${post.id}">削除</button>` : ''}
             </div>`;
         postElement.querySelectorAll('.user-profile-link').forEach(el => {
