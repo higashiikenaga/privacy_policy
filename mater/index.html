@@ -868,7 +868,11 @@
             }
             postsQuery = postsQuery.where('userId', 'in', currentUserFollowing.slice(0, 30));
         }
-        postsQuery = postsQuery.orderBy('timestamp', 'desc').limit(50);
+        if (filter === 'recommended') {
+            postsQuery = postsQuery.orderBy('boostedBy', 'desc').limit(50);
+        } else {
+            postsQuery = postsQuery.orderBy('timestamp', 'desc').limit(50);
+        }
 
         postsQuery.onSnapshot((snapshot) => {
             timelinePostsContainer.innerHTML = '';
@@ -1473,18 +1477,6 @@ await fetchFollowingList(); // fetchFollowingList関数を呼び出してUIを�
                         <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
                         <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
                     </button>
-                    <button class="boost-btn flex items-center space-x-1 text-xs ml-4" data-post-id="${post.id}">
-                        <svg class="w-4 h-4 ${isBoosted ? 'text-green-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15a1 1 0 01-1-1V6.414l-1.293 1.293a1 1 0 11-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 6.414V14a1 1 0 01-1 1z"></path><path d="M4 5a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z"></path></svg>
-                        <span class="${isBoosted ? 'text-green-600' : 'text-gray-500'}">${post.boostedBy ? post.boostedBy.length : 0}</span>
-                    </button>
-                </div>
-                            <svg class="w-4 h-4 ${isBoosted ? 'text-green-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15a1 1 0 01-1-1V6.414l-1.293 1.293a1 1 0 11-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 6.414V14a1 1 0 01-1 1z"></path><path d="M4 5a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z"></path></svg>
-                            <span class="${isBoosted ? 'text-green-600' : 'text-gray-500'}">${post.boostedBy ? post.boostedBy.length : 0}</span>
-                        </button>
-                    </button>
-                        <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
-                        <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
-                    </button>
                     <button class="boost-btn flex items-center space-x-1 text-xs" data-post-id="${post.id}">
                         <svg class="w-4 h-4 ${isBoosted ? 'text-green-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15a1 1 0 01-1-1V6.414l-1.293 1.293a1 1 0 11-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 6.414V14a1 1 0 01-1 1z"></path><path d="M4 5a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z"></path></svg>
                         <span class="${isBoosted ? 'text-green-600' : 'text-gray-500'}">${post.boostedBy ? post.boostedBy.length : 0}</span>
@@ -1509,8 +1501,38 @@ await fetchFollowingList(); // fetchFollowingList関数を呼び出してUIを�
                 btn.classList.toggle('text-gray-700', currentUserFollowing.includes(btn.dataset.targetUserId));
             });
         });
+        
+        // boost-btn のクリックイベントリスナーを追加
+        postElement.querySelector('.boost-btn').addEventListener('click', async (e) => {
+            e.stopPropagation(); // 親要素へのイベント伝播を防ぐ
+            const postId = e.target.closest('.boost-btn').dataset.postId;
+            if (!authReady || !userId) return showMessage('ブーストするにはログインが必要です。', 'error');
+            const postRef = db.collection(`artifacts/${appId}/public/data/posts`).doc(postId);
+            try {
+                const doc = await postRef.get();
+                if (!doc.exists) return showMessage('投稿が見つかりません。', 'error');
+                const boostedBy = doc.data().boostedBy || [];
+                const isBoosted = boostedBy.includes(userId);
+                await postRef.update({
+                    boostedBy: isBoosted
+                        ? firebase.firestore.FieldValue.arrayRemove(userId)
+                        : firebase.firestore.FieldValue.arrayUnion(userId)
+                });
+                showMessage(isBoosted ? 'ブーストを解除しました。' : 'ブーストしました！', 'success');
+                // ブースト数を更新
+                const boostCountSpan = e.target.querySelector('span');
+                if (boostCountSpan) {
+                    const boostedCount = doc.data().boostedBy ? doc.data().boostedBy.length : 0;
+                    boostCountSpan.textContent = isBoosted ? boostedCount - 1 : boostedCount + 1;
+                }
+            } catch (error) {
+                console.error('ブースト処理中にエラーが発生しました:', error);
+                showMessage('ブースト処理中にエラーが発生しました。', 'error');
+            }
+        });
         return postElement;
     }
+
 
     async function showUserProfile(targetUserId) {
         if (!targetUserId || !db) return;
