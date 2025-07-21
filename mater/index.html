@@ -889,6 +889,36 @@
         });
     }
     
+snapshot.forEach(doc => {
+                const post = { ...doc.data(), id: doc.id };
+                const postElement = createPostElement(post, 'timeline');
+                if (timelinePostsContainer && postElement) {
+                    timelinePostsContainer.appendChild(postElement);
+                }
+            });
+         (error) => {
+            console.error("タイムライン取得エラー:", error);
+            showMessage("タイムラインの取得中にエラーが発生しました。", "error");
+        };
+    
+    function fetchFollowingList() {
+        if (!authReady || !userId || !db) return;
+        const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
+        followDocRef.onSnapshot((docSnap) => {
+            currentUserFollowing = docSnap.exists ? (docSnap.data().following || []) : [];
+            if (currentTimelineTab === 'following') {
+                fetchTimelinePosts('following');
+            }
+        }, (error) => {
+            console.error("フォローリスト取得エラー:", error);
+        });
+    }
+
+         (error) => {
+            console.error("タイムライン取得エラー:", error);
+            showMessage("タイムラインの取得中にエラーが発生しました。", "error");
+        };
+    
     function fetchFollowingList() {
         if (!authReady || !userId || !db) return;
         const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
