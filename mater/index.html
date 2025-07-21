@@ -1497,6 +1497,7 @@
         // フォロー・フォロワー数取得
         await updateProfileFollowCounts(targetUserId);
         // Fetch user posts
+        // Fetch user posts
         profilePostsContainer.innerHTML = '<p class="text-gray-500">投稿を読み込み中...</p>';
         const postsSnapshot = await db.collection(`artifacts/${appId}/public/data/posts`).where('userId', '==', targetUserId).orderBy('timestamp', 'desc').limit(20).get();
         profilePostsContainer.innerHTML = '';
