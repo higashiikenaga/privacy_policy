@@ -630,7 +630,17 @@
                 iconAnchor: [10, 10]
             })
         }).addTo(map);
-        marker.bindPopup(`<strong>${escapeHTML(post.text || '')}</strong>`);
+        const linkedText = escapeHTML(post.text || '').replace(/#([^\s#]+)/g, `<a href="#" onclick="filterByHashtag(event, '$1')" class="text-blue-500 hover:underline">#$1</a>`);
+        marker.bindPopup(`
+            <div class="space-y-2">
+                <div class="flex items-center space-x-2">
+                    <img src="${escapeHTML(post.userPhotoURL || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')}" 
+                         class="w-6 h-6 rounded-full bg-gray-200 object-cover">
+                    <span class="font-medium text-gray-800">${escapeHTML(post.name || '名無し')}</span>
+                </div>
+                <p class="text-sm text-gray-700 whitespace-pre-wrap">${linkedText}</p>
+            </div>
+        `);
         postMarkers[post.id] = marker;
     }
 
