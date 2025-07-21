@@ -970,14 +970,33 @@
 
     async function toggleFollow(targetUserId) {
         if (!db || !userId || userId === targetUserId) return;
+        
         const followDocRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(userId);
         const isCurrentlyFollowing = currentUserFollowing.includes(targetUserId);
         const updateAction = isCurrentlyFollowing 
             ? firebase.firestore.FieldValue.arrayRemove(targetUserId)
             : firebase.firestore.FieldValue.arrayUnion(targetUserId);
-await followDocRef.set({ following: updateAction }, { merge: true });
-showMessage(isCurrentlyFollowing ? 'フォローを解除しました。' : 'フォローしました！', 'success');
-await fetchFollowingList(); // fetchFollowingList関数を呼び出してUIを更新
+            
+        await followDocRef.set({ following: updateAction }, { merge: true });
+        
+        // フォロワー数の更新をトリガー
+        if (!isCurrentlyFollowing) {
+            // フォローした場合、ターゲットユーザーのフォロワー数を更新
+            const targetUserFollowRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(targetUserId);
+            await targetUserFollowRef.set({
+                followers: firebase.firestore.FieldValue.arrayUnion(userId)
+            }, { merge: true });
+        } else {
+            // フォロー解除した場合、ターゲットユーザーのフォロワー数を更新
+            const targetUserFollowRef = db.collection(`artifacts/${appId}/public/data/follows`).doc(targetUserId);
+            await targetUserFollowRef.set({
+                followers: firebase.firestore.FieldValue.arrayRemove(userId)
+            }, { merge: true });
+        }
+        
+        showMessage(isCurrentlyFollowing ? 'フォローを解除しました。' : 'フォローしました！', 'success');
+        await fetchFollowingList();
+        await updateProfileFollowCounts(targetUserId); // プロフィールのフォロワー数も更新
     }
 
     async function uploadImage(file, purpose = 'post') {
@@ -1594,15 +1613,19 @@ await fetchFollowingList(); // fetchFollowingList関数を呼び出してUIを�
     // フォロー・フォロワー数取得関数
     async function updateProfileFollowCounts(targetUserId) {
         if (!db) return;
-        const followDoc = await db.collection(`artifacts/${appId}/public/data/follows`).doc(targetUserId).get();
-        if (followDoc.exists) {
-            const userData = followDoc.data();
-            if (profileFollowingCount) profileFollowingCount.textContent = userData.following ? userData.following.length : 0;
-            if (profileFollowerCount) profileFollowerCount.textContent = userData.followers ? userData.followers.length : 0;
-        } else {
-            if (profileFollowingCount) profileFollowingCount.textContent = 0;
-            if (profileFollowerCount) profileFollowerCount.textContent = 0;
-        }
+        
+        // フォロー数を取得
+        const followingDoc = await db.collection(`artifacts/${appId}/public/data/follows`).doc(targetUserId).get();
+        const followingCount = followingDoc.exists && followingDoc.data().following ? followingDoc.data().following.length : 0;
+        
+        // フォロワー数を取得（他のユーザーのfollowingリストにtargetUserIdが含まれている数をカウント）
+        const followersQuery = await db.collection(`artifacts/${appId}/public/data/follows`)
+            .where('following', 'array-contains', targetUserId)
+            .get();
+        const followerCount = followersQuery.size;
+        
+        if (profileFollowingCount) profileFollowingCount.textContent = followingCount;
+        if (profileFollowerCount) profileFollowerCount.textContent = followerCount;
     }
 
     function filterByHashtag(event, hashtag) {
