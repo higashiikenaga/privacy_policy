@@ -1504,7 +1504,12 @@
             profilePostsContainer.innerHTML = '<p class="text-gray-500">このユーザーの投稿はまだありません。</p>';
         } else {
             postsSnapshot.forEach(doc => {
-                profilePostsContainer.appendChild(createPostElement({ ...doc.data(), id: doc.id }, 'profile'));
+                const post = { ...doc.data(), id: doc.id };
+                // Use the fresh userData for the post's author info
+                post.name = userData.name || post.name;
+                post.userPhotoURL = userData.photoURL || post.userPhotoURL;
+                post.username = userData.username || post.username;
+                profilePostsContainer.appendChild(createPostElement(post, 'profile'));
             });
         }
     }
