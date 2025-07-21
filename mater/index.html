@@ -939,8 +939,9 @@
         const updateAction = isCurrentlyFollowing 
             ? firebase.firestore.FieldValue.arrayRemove(targetUserId)
             : firebase.firestore.FieldValue.arrayUnion(targetUserId);
-        await followDocRef.set({ following: updateAction }, { merge: true });
-        showMessage(isCurrentlyFollowing ? 'フォローを解除しました。' : 'フォローしました！', 'success');
+await followDocRef.set({ following: updateAction }, { merge: true });
+showMessage(isCurrentlyFollowing ? 'フォローを解除しました。' : 'フォローしました！', 'success');
+await fetchFollowingList(); // fetchFollowingList関数を呼び出してUIを更新
     }
 
     async function uploadImage(file, purpose = 'post') {
