@@ -552,6 +552,7 @@
         let userPhotoURL = null;
         let userBio = "";
         let currentUserFollowing = [];
+        let unsubscribeTimeline = null; // タイムラインのリスナーを管理
         const userCache = {};
 
         // DOM要素の参照をスクリプトのトップレベルで宣言 (DOMContentLoadedで初期化)
@@ -858,6 +859,13 @@
 
     function fetchTimelinePosts(filter = 'all', hashtag = null) {
         if (!db) return;
+
+        // 以前のリスナーを解除
+        if (unsubscribeTimeline) {
+            unsubscribeTimeline();
+            unsubscribeTimeline = null;
+        }
+
         let postsQuery = db.collection(`artifacts/${appId}/public/data/posts`);
         if (filter === 'hashtag' && hashtag) {
             postsQuery = postsQuery.where('hashtags', 'array-contains', hashtag);
@@ -870,11 +878,13 @@
         }
         if (filter === 'recommended') {
             postsQuery = postsQuery.orderBy('boostedBy', 'desc').limit(50);
+        } else if (filter === 'all') {
+            postsQuery = postsQuery.orderBy('timestamp', 'desc').limit(50);
         } else {
             postsQuery = postsQuery.orderBy('timestamp', 'desc').limit(50);
         }
 
-        postsQuery.onSnapshot((snapshot) => {
+        unsubscribeTimeline = postsQuery.onSnapshot((snapshot) => {
             timelinePostsContainer.innerHTML = '';
             if (snapshot.empty) {
                 timelinePostsContainer.innerHTML = '<p class="text-gray-500 text-center">投稿がありません。</p>';
