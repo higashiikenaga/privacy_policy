@@ -1470,6 +1470,11 @@ await fetchFollowingList(); // fetchFollowingList関数を呼び出してUIを�
             <div class="flex items-center justify-between mt-3">
                 <div class="flex items-center space-x-4">
                     <button class="like-btn flex items-center space-x-1 text-xs" data-post-id="${post.id}">
+                        <button class="boost-btn flex items-center space-x-1 text-xs" data-post-id="${post.id}">
+                            <svg class="w-4 h-4 ${isBoosted ? 'text-green-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M10 15a1 1 0 01-1-1V6.414l-1.293 1.293a1 1 0 11-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 6.414V14a1 1 0 01-1 1z"></path><path d="M4 5a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z"></path></svg>
+                            <span class="${isBoosted ? 'text-green-600' : 'text-gray-500'}">${post.boostedBy ? post.boostedBy.length : 0}</span>
+                        </button>
+                    </button>
                         <svg class="w-4 h-4 ${isLiked ? 'text-pink-500' : 'text-gray-400'}" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path></svg>
                         <span class="${isLiked ? 'text-pink-600' : 'text-gray-500'}">${post.likedBy ? post.likedBy.length : 0}</span>
                     </button>
@@ -1549,15 +1554,17 @@ await fetchFollowingList(); // fetchFollowingList関数を呼び出してUIを�
     }
     // フォロー・フォロワー数取得関数
     async function updateProfileFollowCounts(targetUserId) {
-    if (!db) return;
-    // フォロー数
-    const followDoc = await db.collection(`artifacts/${appId}/public/data/follows`).doc(targetUserId).get();
-    const followingArr = followDoc.exists ? (followDoc.data().following || []) : [];
-    if (profileFollowingCount) profileFollowingCount.textContent = followingArr.length;
-    // フォロワー数
-    const followerSnapshot = await db.collection(`artifacts/${appId}/public/data/follows`).where('following', 'array-contains', targetUserId).get();
-    if (profileFollowerCount) profileFollowerCount.textContent = followerSnapshot.size;
-}
+        if (!db) return;
+        const followDoc = await db.collection(`artifacts/${appId}/public/data/follows`).doc(targetUserId).get();
+        if (followDoc.exists) {
+            const userData = followDoc.data();
+            if (profileFollowingCount) profileFollowingCount.textContent = userData.following ? userData.following.length : 0;
+            if (profileFollowerCount) profileFollowerCount.textContent = userData.followers ? userData.followers.length : 0;
+        } else {
+            if (profileFollowingCount) profileFollowingCount.textContent = 0;
+            if (profileFollowerCount) profileFollowerCount.textContent = 0;
+        }
+    }
 
     function filterByHashtag(event, hashtag) {
         event.preventDefault();
