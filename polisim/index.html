@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>政党運営シミュレーター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; color: #333; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background-color: white; padding: 2.5rem; border-radius: 0.75rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); max-width: 90%; width: 600px; text-align: center; position: relative; animation: fadeIn 0.3s ease-out; max-height: 90vh; overflow-y: auto; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none; }
+        .map-prefecture { transition: fill 0.3s ease; stroke: #333; stroke-width: 0.5; }
+        .party-select-btn { text-align: left; }
+        .party-select-btn .ideology { font-size: 0.9rem; opacity: 0.8; }
+        .status-badge { padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; color: white; }
+        .status-ruling { background-color: #c2410c; }
+        .status-opposition { background-color: #1d4ed8; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="startScreen" class="modal-overlay"><div class="modal-content"><h2 class="text-3xl font-bold text-blue-700 mb-6">難易度を選択</h2><div class="space-y-3"><button class="difficulty-btn w-full bg-green-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-green-700 transition" data-difficulty="easy">イージー</button><button class="difficulty-btn w-full bg-blue-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition" data-difficulty="normal">ノーマル</button></div></div></div>
+    <div id="partySelectScreen" class="modal-overlay hidden"><div class="modal-content"><h2 class="text-3xl font-bold text-blue-700 mb-6">政党を選択</h2><div id="partySelection" class="space-y-3"></div></div></div>
+    <div id="newPartyModal" class="modal-overlay hidden"><div class="modal-content"><h2 class="text-3xl font-bold text-blue-700 mb-6">新党結成</h2><div class="space-y-4 text-left"><label>党名: <input type="text" id="newPartyName" class="w-full p-2 border rounded"></label><label>思想: <select id="newPartyIdeology" class="w-full p-2 border rounded"></select></label><label>シンボルカラー: <input type="color" id="newPartyColor" class="w-full h-10 p-1 border rounded" value="#60a5fa"></label></div><button id="confirmNewPartyBtn" class="mt-6 bg-blue-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition">この内容で結成</button></div></div>
+
+    <div id="gameScreen" class="bg-white rounded-xl shadow-2xl p-8 max-w-6xl w-full border border-gray-200 hidden">
+        <h1 class="text-4xl font-extrabold text-center text-blue-700 mb-8 tracking-tight">政党運営シミュレーター</h1>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-blue-50 p-5 rounded-lg shadow-inner border border-blue-200">
+                <h2 class="text-xl font-semibold text-blue-600 mb-3">自党情報</h2>
+                <p class="text-lg">党名: <span id="partyName" class="font-bold text-blue-800"></span> <span id="playerPartyStatus" class="status-badge"></span></p>
+                <p class="text-sm">議席: 衆 <span id="lowerHouseSeats" class="font-bold"></span>, 参 <span id="upperHouseSeats" class="font-bold"></span> (計 <span id="totalSeats" class="font-bold"></span>)</p>
+                <p class="text-lg">思想: <span id="partyIdeology" class="font-bold text-blue-800"></span></p>
+                <p class="text-lg">役職: <span id="playerPosition" class="font-bold text-blue-800"></span></p>
+                <p class="text-lg">ターン: <span id="turnCount" class="font-bold text-blue-800"></span></p>
+            </div>
+            <div class="bg-green-50 p-5 rounded-lg shadow-inner border border-green-200">
+                <h2 class="text-xl font-semibold text-green-600 mb-3">現状</h2>
+                <p class="text-lg">全体支持率: <span id="overallSupport" class="font-bold text-green-800"></span>%</p>
+                <p class="text-lg">資金: <span id="funds" class="font-bold text-green-800"></span>万円</p>
+            </div>
+            <div class="bg-yellow-50 p-5 rounded-lg shadow-inner border border-yellow-200">
+                <h2 class="text-xl font-semibold text-yellow-600 mb-3">他党の状況</h2>
+                <div id="npcPartySupports" class="space-y-1"></div>
+            </div>
+        </div>
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">都道府県別 優勢状況</h2>
+            <div class="bg-gray-50 p-4 rounded-lg shadow-inner border border-gray-200 flex justify-center items-center">
+                <svg id="japanMap" viewBox="0 0 650 450" class="w-full h-auto max-w-2xl"></svg>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <button id="proposePolicyBtn" class="action-btn w-full bg-indigo-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition font-semibold text-lg">政策提案</button>
+            <button id="holdRallyBtn" class="action-btn w-full bg-purple-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-purple-700 transition font-semibold text-lg">集会開催</button>
+            <button id="raiseFundsBtn" class="action-btn w-full bg-yellow-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-yellow-700 transition font-semibold text-lg">資金調達</button>
+            <button id="nextTurnBtn" class="w-full bg-gray-700 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-gray-800 transition font-semibold text-lg">次のターンへ</button>
+        </div>
+        <div id="messageBox" class="bg-gray-100 p-6 rounded-lg shadow-inner border min-h-[80px] flex items-center justify-center text-center text-lg italic">ゲームを開始しましょう！</div>
+    </div>
+
+    <div id="eventModal" class="modal-overlay hidden"><div class="modal-content"><h2 id="eventTitle" class="text-2xl font-bold text-gray-800 mb-4"></h2><p id="eventDescription" class="text-gray-700 mb-6"></p><div id="eventChoices" class="space-y-3"></div></div></div>
+    <div id="electionResultModal" class="modal-overlay hidden"><div class="modal-content !w-[700px]"><h2 id="electionResultTitle" class="text-3xl font-bold text-blue-700 mb-6"></h2><div id="electionResultsContainer" class="text-left mb-6 h-80 overflow-y-auto"></div><p id="electionSummary" class="text-xl font-bold mb-6"></p><button id="closeElectionResultBtn" class="bg-blue-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition">閉じる</button></div></div>
+    <div id="allocationModal" class="modal-overlay hidden"><div class="modal-content !w-[800px]"><h2 id="allocationTitle" class="text-3xl font-bold text-blue-700 mb-4">選挙対策本部</h2><p class="mb-4">選挙資金を各選挙区に配分し、支持を拡大しましょう。</p><div class="bg-gray-100 p-4 rounded-lg mb-4"><p class="text-lg">総資金: <span id="totalPartyFunds"></span>万円</p><p class="text-lg">選挙資金予算: <input type="number" id="electionBudget" class="w-40 p-1 border rounded" min="0"> 万円</p><p class="text-lg font-bold">残り配分: <span id="remainingAllocation"></span> 万円</p></div><div class="grid grid-cols-2 gap-6 h-80 overflow-y-auto"><div id="constituencyAllocation"></div><div id="prAllocation"></div></div><button id="confirmAllocationBtn" class="mt-6 bg-blue-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition">配分を決定し、選挙へ</button></div></div>
+
+    <script>
+        // Game State
+        let playerParty = {};
+        let npcParties = [];
+        let turn = 1;
+        let isEventActive = false;
+        let actionTakenThisTurn = false;
+        let electionGracePeriod = 0;
+        let difficulty = 'normal';
+
+        // DOM Elements
+        const dom = {
+            startScreen: document.getElementById('startScreen'),
+            partySelectScreen: document.getElementById('partySelectScreen'),
+            partySelection: document.getElementById('partySelection'),
+            newPartyModal: document.getElementById('newPartyModal'),
+            newPartyName: document.getElementById('newPartyName'),
+            newPartyIdeology: document.getElementById('newPartyIdeology'),
+            newPartyColor: document.getElementById('newPartyColor'),
+            confirmNewPartyBtn: document.getElementById('confirmNewPartyBtn'),
+            gameScreen: document.getElementById('gameScreen'),
+            partyName: document.getElementById('partyName'),
+            playerPartyStatus: document.getElementById('playerPartyStatus'),
+            lowerHouseSeats: document.getElementById('lowerHouseSeats'),
+            upperHouseSeats: document.getElementById('upperHouseSeats'),
+            totalSeats: document.getElementById('totalSeats'),
+            partyIdeology: document.getElementById('partyIdeology'),
+            playerPosition: document.getElementById('playerPosition'),
+            turnCount: document.getElementById('turnCount'),
+            overallSupport: document.getElementById('overallSupport'),
+            funds: document.getElementById('funds'),
+            messageBox: document.getElementById('messageBox'),
+            npcPartySupports: document.getElementById('npcPartySupports'),
+            nextTurnBtn: document.getElementById('nextTurnBtn'),
+            eventModal: document.getElementById('eventModal'),
+            eventTitle: document.getElementById('eventTitle'),
+            eventDescription: document.getElementById('eventDescription'),
+            eventChoices: document.getElementById('eventChoices'),
+            electionResultModal: document.getElementById('electionResultModal'),
+            electionResultTitle: document.getElementById('electionResultTitle'),
+            electionResultsContainer: document.getElementById('electionResultsContainer'),
+            electionSummary: document.getElementById('electionSummary'),
+            closeElectionResultBtn: document.getElementById('closeElectionResultBtn'),
+            allocationModal: document.getElementById('allocationModal'),
+            allocationTitle: document.getElementById('allocationTitle'),
+            totalPartyFunds: document.getElementById('totalPartyFunds'),
+            electionBudget: document.getElementById('electionBudget'),
+            remainingAllocation: document.getElementById('remainingAllocation'),
+            constituencyAllocation: document.getElementById('constituencyAllocation'),
+            prAllocation: document.getElementById('prAllocation'),
+            confirmAllocationBtn: document.getElementById('confirmAllocationBtn'),
+            japanMap: document.getElementById('japanMap'),
+            actionButtons: document.querySelectorAll('.action-btn')
+        };
+
+        // Game Data
+        const prefectures = {
+            'pref_01':{n:'北海道',x:500,y:0,w:100,h:50,seatsL:12,seatsU:3,pr_block:'hokkaido'},
+            'pref_02':{n:'青森県',x:500,y:60,w:50,h:30,seatsL:3,seatsU:1,pr_block:'tohoku'},
+            'pref_03':{n:'岩手県',x:555,y:60,w:45,h:30,seatsL:3,seatsU:1,pr_block:'tohoku'},
+            'pref_04':{n:'宮城県',x:555,y:95,w:45,h:30,seatsL:6,seatsU:2,pr_block:'tohoku'},
+            'pref_05':{n:'秋田県',x:500,y:95,w:50,h:30,seatsL:3,seatsU:1,pr_block:'tohoku'},
+            'pref_06':{n:'山形県',x:500,y:130,w:50,h:30,seatsL:3,seatsU:1,pr_block:'tohoku'},
+            'pref_07':{n:'福島県',x:555,y:130,w:45,h:30,seatsL:5,seatsU:2,pr_block:'tohoku'},
+            'pref_08':{n:'茨城県',x:560,y:170,w:40,h:25,seatsL:7,seatsU:2,pr_block:'kitakanto'},
+            'pref_09':{n:'栃木県',x:505,y:170,w:40,h:25,seatsL:5,seatsU:2,pr_block:'kitakanto'},
+            'pref_10':{n:'群馬県',x:450,y:170,w:40,h:25,seatsL:5,seatsU:2,pr_block:'kitakanto'},
+            'pref_11':{n:'埼玉県',x:505,y:200,w:40,h:25,seatsL:15,seatsU:4,pr_block:'kitakanto'},
+            'pref_12':{n:'千葉県',x:605,y:200,w:40,h:25,seatsL:13,seatsU:3,pr_block:'minamikanto'},
+            'pref_13':{n:'東京都',x:560,y:200,w:40,h:25,seatsL:25,seatsU:6,pr_block:'tokyo'},
+            'pref_14':{n:'神奈川県',x:505,y:230,w:40,h:25,seatsL:18,seatsU:4,pr_block:'minamikanto'},
+            'pref_15':{n:'新潟県',x:450,y:130,w:45,h:30,seatsL:6,seatsU:2,pr_block:'hokuriku'},
+            'pref_16':{n:'富山県',x:400,y:170,w:40,h:25,seatsL:3,seatsU:1,pr_block:'hokuriku'},
+            'pref_17':{n:'石川県',x:355,y:170,w:40,h:25,seatsL:3,seatsU:1,pr_block:'hokuriku'},
+            'pref_18':{n:'福井県',x:355,y:200,w:40,h:25,seatsL:2,seatsU:1,pr_block:'hokuriku'},
+            'pref_19':{n:'山梨県',x:450,y:230,w:40,h:25,seatsL:2,seatsU:1,pr_block:'minamikanto'},
+            'pref_20':{n:'長野県',x:450,y:200,w:40,h:25,seatsL:5,seatsU:2,pr_block:'hokuriku'},
+            'pref_21':{n:'岐阜県',x:400,y:200,w:40,h:25,seatsL:5,seatsU:2,pr_block:'tokai'},
+            'pref_22':{n:'静岡県',x:450,y:260,w:40,h:25,seatsL:8,seatsU:2,pr_block:'tokai'},
+            'pref_23':{n:'愛知県',x:400,y:230,w:40,h:25,seatsL:15,seatsU:4,pr_block:'tokai'},
+            'pref_24':{n:'三重県',x:400,y:260,w:40,h:25,seatsL:4,seatsU:2,pr_block:'tokai'},
+            'pref_25':{n:'滋賀県',x:355,y:230,w:40,h:25,seatsL:4,seatsU:2,pr_block:'kinki'},
+            'pref_26':{n:'京都府',x:310,y:230,w:40,h:25,seatsL:6,seatsU:2,pr_block:'kinki'},
+            'pref_27':{n:'大阪府',x:310,y:260,w:40,h:25,seatsL:19,seatsU:4,pr_block:'kinki'},
+            'pref_28':{n:'兵庫県',x:265,y:230,w:40,h:25,seatsL:12,seatsU:3,pr_block:'kinki'},
+            'pref_29':{n:'奈良県',x:355,y:260,w:40,h:25,seatsL:3,seatsU:1,pr_block:'kinki'},
+            'pref_30':{n:'和歌山県',x:310,y:290,w:40,h:25,seatsL:3,seatsU:1,pr_block:'kinki'},
+            'pref_31':{n:'鳥取県',x:220,y:230,w:40,h:25,seatsL:2,seatsU:1,pr_block:'chugoku'},
+            'pref_32':{n:'島根県',x:175,y:230,w:40,h:25,seatsL:2,seatsU:1,pr_block:'chugoku'},
+            'pref_33':{n:'岡山県',x:220,y:260,w:40,h:25,seatsL:5,seatsU:2,pr_block:'chugoku'},
+            'pref_34':{n:'広島県',x:175,y:260,w:40,h:25,seatsL:7,seatsU:2,pr_block:'chugoku'},
+            'pref_35':{n:'山口県',x:130,y:260,w:40,h:25,seatsL:4,seatsU:2,pr_block:'chugoku'},
+            'pref_36':{n:'徳島県',x:265,y:290,w:40,h:25,seatsL:2,seatsU:1,pr_block:'shikoku'},
+            'pref_37':{n:'香川県',x:220,y:290,w:40,h:25,seatsL:3,seatsU:1,pr_block:'shikoku'},
+            'pref_38':{n:'愛媛県',x:175,y:290,w:40,h:25,seatsL:4,seatsU:1,pr_block:'shikoku'},
+            'pref_39':{n:'高知県',x:220,y:320,w:40,h:25,seatsL:2,seatsU:1,pr_block:'shikoku'},
+            'pref_40':{n:'福岡県',x:85,y:290,w:40,h:25,seatsL:11,seatsU:3,pr_block:'kyushu'},
+            'pref_41':{n:'佐賀県',x:40,y:290,w:40,h:25,seatsL:2,seatsU:1,pr_block:'kyushu'},
+            'pref_42':{n:'長崎県',x:40,y:320,w:40,h:25,seatsL:4,seatsU:1,pr_block:'kyushu'},
+            'pref_43':{n:'熊本県',x:85,y:320,w:40,h:25,seatsL:4,seatsU:2,pr_block:'kyushu'},
+            'pref_44':{n:'大分県',x:130,y:290,w:40,h:25,seatsL:3,seatsU:1,pr_block:'kyushu'},
+            'pref_45':{n:'宮崎県',x:130,y:320,w:40,h:25,seatsL:3,seatsU:1,pr_block:'kyushu'},
+            'pref_46':{n:'鹿児島県',x:85,y:350,w:40,h:25,seatsL:4,seatsU:1,pr_block:'kyushu'},
+            'pref_47':{n:'沖縄県',x:10,y:400,w:40,h:25,seatsL:4,seatsU:2,pr_block:'kyushu'}
+        };
+        const pr_blocks = {
+            hokkaido: { name: '北海道', seatsL: 8, seatsU: 4 },
+            tohoku: { name: '東北', seatsL: 12, seatsU: 6 },
+            kitakanto: { name: '北関東', seatsL: 19, seatsU: 10 },
+            minamikanto: { name: '南関東', seatsL: 23, seatsU: 12 },
+            tokyo: { name: '東京', seatsL: 19, seatsU: 10 },
+            hokuriku: { name: '北陸信越', seatsL: 10, seatsU: 5 },
+            tokai: { name: '東海', seatsL: 21, seatsU: 11 },
+            kinki: { name: '近畿', seatsL: 28, seatsU: 14 },
+            chugoku: { name: '中国', seatsL: 10, seatsU: 5 },
+            shikoku: { name: '四国', seatsL: 6, seatsU: 3 },
+            kyushu: { name: '九州', seatsL: 20, seatsU: 10 }
+        };
+        const partyPresets = {
+            ruling: { name: "日本自由党", ideology: "保守", desc: "巨大与党。安定と伝統を重視する。", color: "#ef4444", initialSupport: 35, initialFunds: 2000, initialPosition: "幹部", initialStatus: "与党", seats: { lower: 180, upper_re: 45, upper_non_re: 48 } },
+            conservative: { name: "国民保守党", ideology: "保守", desc: "現実主義的な保守。財政規律を重視。", color: "#dc2626", initialSupport: 25, initialFunds: 1500, initialPosition: "党首", initialStatus: "野党", seats: { lower: 60, upper_re: 25, upper_non_re: 22 } },
+            center: { name: "中道改革党", ideology: "中道", desc: "リベラルと保守の橋渡し役。", color: "#22c55e", initialSupport: 15, initialFunds: 1000, initialPosition: "党首", initialStatus: "野党", seats: { lower: 20, upper_re: 10, upper_non_re: 8 } },
+            liberal: { name: "希望と自由の会", ideology: "リベラル", desc: "多様性と社会保障を重視するリベラル政党。", color: "#3b82f6", initialSupport: 12, initialFunds: 800, initialPosition: "党首", initialStatus: "野党", seats: { lower: 15, upper_re: 8, upper_non_re: 7 } },
+            green: { name: "緑の未来", ideology: "環境主義", desc: "環境問題解決を最優先に掲げる。", color: "#10b981", initialSupport: 8, initialFunds: 600, initialPosition: "党首", initialStatus: "野党", seats: { lower: 5, upper_re: 3, upper_non_re: 2 } },
+            economy: { name: "経済第一の会", ideology: "経済重視", desc: "規制緩和と経済成長を追求する。", color: "#f59e0b", initialSupport: 5, initialFunds: 1200, initialPosition: "党首", initialStatus: "野党", seats: { lower: 5, upper_re: 2, upper_non_re: 3 } }
+        };
+        const ideologies = ["保守", "リベラル", "中道", "環境主義", "経済重視"];
+        const events = {
+            random: [
+                { title: "衆議院解散の好機", type: 'dissolution', condition: (p) => p.status === '与党' && p.overallSupport > 40, description: "支持率も安定しており、今解散すれば有利に選挙戦を進められるかもしれません。", choices: [{ t: "解散総選挙に打って出る", e: { type: 'dissolve' } }, { t: "現体制を維持する", e: { type: 'maintain' } }] },
+                { title: "大規模自然災害", choices: [{ t: "復興支援に全力", e: { f: -300, s: {"リベラル": 8,"環境主義": 8,"中道": 5,"保守": 3,"経済重視": -2} } }, { t: "財政規律を優先", e: { f: -50, s: {"経済重視": 6,"保守": 6,"中道": -2,"リベラル": -5,"環境主義": -8} } }] },
+                { title: "国際経済サミット", choices: [{ t: "協調路線を強調", e: { f: -50, s: {"リベラル": 6,"中道": 4,"環境主義": 3,"保守": -3,"経済重視": -5} } }, { t: "自国優先を貫く", e: { f: 100, s: {"保守": 7,"経済重視": 6,"中道": -1,"リベラル": -4,"環境主義": -6} } }] },
+                { title: "党内スキャンダル", choices: [{ t: "徹底調査と処分", e: { f: -100, s: {"all": -5} } }, { t: "報道を否定", e: { f: 0, s: {"all": -12} } }] },
+                { title: "環境規制法案の提出", choices: [{ t: "賛成し推進", e: { f: -20, s: {"環境主義": 12,"リベラル": 6,"中道": 2,"保守": -6,"経済重視": -9} } }, { t: "経済への影響を懸念し反対", e: { f: 0, s: {"経済重視": 9,"保守": 6,"中道": -2,"リベラル": -6,"環境主義": -12} } }] },
+                { title: "党首選挙", type: 'leadership', condition: (p) => p.position !== '党首', choices: [{ t: "党首選に立候補する", e: { type: 'run' } }, { t: "今回は見送る", e: { type: 'wait' } }] },
+                { title: "連立与党に亀裂", type: 'coalition_crisis', condition: (p, all) => p.status === '与党' && all.filter(party => party.status === '与党').length > 1, choices: [{ t: "パートナーの要求を受け入れ、譲歩する", e: { type: 'concede' } }, { t: "要求を拒否し、強硬姿勢を貫く", e: { type: 'reject' } }] },
+                { title: "野党共闘の機運", type: 'opposition_unity', condition: (p, all) => { const r = all.find(pa => pa.status === '与党'); return r && r.overallSupport < 30 && p.status === '野党'; }, choices: [{ t: "積極的に協力し、共闘を主導する", e: { s: { "all_opposition": 3 } } }, { t: "独自の戦いを重視し、距離を置く", e: { s: { "self": 1 } } }] }
+            ]
+        };
+        const difficultySettings = {
+            easy: { funds_multiplier: 1.5, support_gain_multiplier: 1.2, policy_failure_rate: 0.2, neg_event_chance: 0.15 },
+            normal: { funds_multiplier: 1.0, support_gain_multiplier: 1.0, policy_failure_rate: 0.4, neg_event_chance: 0.2 }
+        };
+        let currentDifficulty = difficultySettings.normal;
+
+        // --- Core Game Logic ---
+        function init() {
+            dom.gameScreen.classList.add('hidden');
+            dom.partySelectScreen.classList.add('hidden');
+            dom.startScreen.classList.remove('hidden');
+            document.querySelectorAll('.difficulty-btn').forEach(btn => btn.onclick = selectDifficulty);
+            generateMapSVGPaths();
+            dom.actionButtons.forEach(btn => btn.addEventListener('click', handleActionClick));
+            dom.nextTurnBtn.addEventListener('click', nextTurn);
+            dom.closeElectionResultBtn.addEventListener('click', () => {
+                dom.electionResultModal.classList.add('hidden');
+                isEventActive = false;
+                updateButtons();
+            });
+        }
+
+        function selectDifficulty(event) {
+            difficulty = event.target.dataset.difficulty;
+            currentDifficulty = difficultySettings[difficulty];
+            dom.startScreen.classList.add('hidden');
+            generatePartySelection();
+            dom.partySelectScreen.classList.remove('hidden');
+        }
+
+        function generatePartySelection() {
+            dom.partySelection.innerHTML = '';
+            for (const key in partyPresets) {
+                const party = partyPresets[key];
+                const button = document.createElement('button');
+                button.dataset.party = key;
+                button.className = "party-select-btn w-full text-white py-3 px-4 rounded-lg shadow-lg hover:opacity-90 transition font-semibold text-lg";
+                button.style.backgroundColor = party.color;
+                button.innerHTML = `<div>${party.name} <span class="font-normal text-sm">(${party.ideology})</span></div><div class="ideology">${party.desc}</div>`;
+                button.addEventListener('click', startGame);
+                dom.partySelection.appendChild(button);
+            }
+            const newPartyBtn = document.createElement('button');
+            newPartyBtn.className = "w-full bg-gray-500 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-gray-600 transition font-semibold text-lg";
+            newPartyBtn.textContent = "新党を結成する";
+            newPartyBtn.onclick = showNewPartyModal;
+            dom.partySelection.appendChild(newPartyBtn);
+        }
+
+        function showNewPartyModal() {
+            dom.partySelectScreen.classList.add('hidden');
+            dom.newPartyIdeology.innerHTML = ideologies.map(i => `<option value="${i}">${i}</option>`).join('');
+            dom.newPartyModal.classList.remove('hidden');
+            dom.confirmNewPartyBtn.onclick = () => {
+                const name = dom.newPartyName.value.trim();
+                if (!name) { alert("党名を入力してください。"); return; }
+                const newPartyData = {
+                    key: 'new_party_' + Date.now(),
+                    name: name,
+                    ideology: dom.newPartyIdeology.value,
+                    desc: "ゼロから立ち上がった新しい力。",
+                    color: dom.newPartyColor.value,
+                    initialSupport: 1,
+                    initialFunds: 100 * currentDifficulty.funds_multiplier,
+                    initialPosition: "党首",
+                    initialStatus: "野党",
+                    seats: { lower: 0, upper_re: 0, upper_non_re: 0 }
+                };
+                electionGracePeriod = 2; // 2回の総選挙は免除
+                startGame(null, newPartyData);
+            };
+        }
+
+        function startGame(event, newPartyData = null) {
+            dom.partySelectScreen.classList.add('hidden');
+            dom.newPartyModal.classList.add('hidden');
+
+            const allParties = [];
+            Object.entries(partyPresets).forEach(([key, preset]) => {
+                const partyData = { ...preset, key, prefectureSupport: {}, funds: preset.initialFunds * currentDifficulty.funds_multiplier, status: preset.initialStatus, position: preset.initialPosition, seats: JSON.parse(JSON.stringify(preset.seats)) };
+                allParties.push(partyData);
+            });
+
+            if (newPartyData) {
+                playerParty = { ...newPartyData, prefectureSupport: {}, funds: newPartyData.initialFunds, status: newPartyData.initialStatus, position: newPartyData.initialPosition, seats: JSON.parse(JSON.stringify(newPartyData.seats)) };
+                npcParties = allParties;
+            } else {
+                const partyKey = event.currentTarget.dataset.party;
+                playerParty = allParties.find(p => p.key === partyKey);
+                npcParties = allParties.filter(p => p.key !== partyKey);
+            }
+
+            const currentAllParties = [playerParty, ...npcParties];
+            for (const prefId in prefectures) {
+                let totalInitialSupport = currentAllParties.reduce((sum, p) => sum + p.initialSupport, 0);
+                currentAllParties.forEach(p => {
+                    p.prefectureSupport[prefId] = ((p.initialSupport || 1) / totalInitialSupport) * 100 + (Math.random() * 4 - 2);
+                });
+                normalizeSupportRates(currentAllParties, prefId);
+            }
+
+            turn = 1;
+            actionTakenThisTurn = false;
+            isEventActive = false;
+            dom.gameScreen.classList.remove('hidden');
+            showMessage(`政党「${playerParty.name}」の挑戦が始まります。`, 'info');
+            updateUI();
+            updateButtons();
+        }
+
+        function normalizeSupportRates(parties, prefId) {
+            let totalSupport = parties.reduce((sum, p) => sum + (p.prefectureSupport[prefId] || 0), 0);
+            if (totalSupport > 0) {
+                const scale = 100 / totalSupport;
+                parties.forEach(p => p.prefectureSupport[prefId] = (p.prefectureSupport[prefId] || 0) * scale);
+            }
+        }
+
+        function calculateOverallSupport(party) {
+            const values = Object.values(party.prefectureSupport);
+            party.overallSupport = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+        }
+
+        function updateUI() {
+            const allParties = [playerParty, ...npcParties];
+            allParties.forEach(p => calculateOverallSupport(p));
+            
+            dom.partyName.textContent = playerParty.name;
+            dom.playerPartyStatus.textContent = playerParty.status;
+            dom.playerPartyStatus.className = `status-badge ${playerParty.status === '与党' ? 'status-ruling' : 'status-opposition'}`;
+            dom.lowerHouseSeats.textContent = playerParty.seats.lower;
+            dom.upperHouseSeats.textContent = playerParty.seats.upper_re + playerParty.seats.upper_non_re;
+            dom.totalSeats.textContent = playerParty.seats.lower + playerParty.seats.upper_re + playerParty.seats.upper_non_re;
+            dom.partyIdeology.textContent = playerParty.ideology;
+            dom.playerPosition.textContent = playerParty.position;
+            dom.turnCount.textContent = turn;
+            dom.overallSupport.textContent = playerParty.overallSupport.toFixed(1);
+            dom.funds.textContent = playerParty.funds.toFixed(0);
+
+            dom.npcPartySupports.innerHTML = '';
+            npcParties.forEach(npc => {
+                const totalUpperSeats = npc.seats.upper_re + npc.seats.upper_non_re;
+                const p = document.createElement('p');
+                p.className = 'text-sm flex justify-between items-center';
+                p.innerHTML = `<span><span class="font-bold" style="color: ${npc.color}">${npc.name}</span>: ${npc.overallSupport.toFixed(1)}% (衆${npc.seats.lower},参${totalUpperSeats})</span> <span class="status-badge ${npc.status === '与党' ? 'status-ruling' : 'status-opposition'}">${npc.status}</span>`;
+                dom.npcPartySupports.appendChild(p);
+            });
+            renderJapanMap();
+        }
+
+        function updateButtons() {
+            const enableActions = !isEventActive && !actionTakenThisTurn;
+            dom.actionButtons.forEach(b => { b.disabled = !enableActions; b.classList.toggle('opacity-50', !enableActions); });
+            dom.nextTurnBtn.disabled = isEventActive;
+            dom.nextTurnBtn.classList.toggle('opacity-50', isEventActive);
+        }
+
+        function renderJapanMap() {
+            const allParties = [playerParty, ...npcParties];
+            for (const prefId in prefectures) {
+                const path = dom.japanMap.getElementById(prefId);
+                if (path) {
+                    let winner = null, maxSupport = -1;
+                    allParties.forEach(party => {
+                        const support = party.prefectureSupport[prefId] || 0;
+                        if (support > maxSupport) { maxSupport = support; winner = party; }
+                    });
+                    path.setAttribute('fill', winner ? winner.color : '#ccc');
+                }
+            }
+        }
+
+        function showMessage(message, type = 'info') {
+            dom.messageBox.textContent = message;
+            dom.messageBox.className = 'p-6 rounded-lg shadow-inner border min-h-[80px] flex items-center justify-center text-center text-lg italic';
+            if (type === 'success') dom.messageBox.classList.add('bg-green-100', 'border-green-400', 'text-green-800');
+            else if (type === 'error') dom.messageBox.classList.add('bg-red-100', 'border-red-400', 'text-red-800');
+            else dom.messageBox.classList.add('bg-gray-100', 'border-gray-300', 'text-gray-700');
+        }
+
+        function applySupportChange(partyKey, change) {
+            const allParties = [playerParty, ...npcParties];
+            const targetParty = allParties.find(p => p.key === partyKey);
+            const otherParties = allParties.filter(p => p.key !== partyKey);
+            if (!targetParty || otherParties.length === 0) return;
+
+            for (const prefId in prefectures) {
+                const currentVal = targetParty.prefectureSupport[prefId];
+                
+                // 支持率が50%を超えると、支持率の上昇にブレーキをかける
+                let effectiveChange = change;
+                if (change > 0 && currentVal > 50) {
+                    // 50%から100%にかけて、上昇量を徐々に0に近づける
+                    const dampeningFactor = 1 - Math.pow((currentVal - 50) / 50, 1.5);
+                    effectiveChange *= Math.max(0, dampeningFactor);
+                }
+
+                const newVal = Math.max(0.1, Math.min(100, currentVal + effectiveChange));
+                const actualChange = newVal - currentVal;
+                targetParty.prefectureSupport[prefId] = newVal;
+
+                let totalOtherSupport = otherParties.reduce((sum, p) => sum + p.prefectureSupport[prefId], 0);
+                if (totalOtherSupport > 0) {
+                    otherParties.forEach(p => {
+                        const share = p.prefectureSupport[prefId] / totalOtherSupport;
+                        p.prefectureSupport[prefId] -= actualChange * share;
+                        if (p.prefectureSupport[prefId] < 0) p.prefectureSupport[prefId] = 0;
+                    });
+                }
+                normalizeSupportRates(allParties, prefId);
+            }
+        }
+
+        function handleActionClick(event) {
+            if (actionTakenThisTurn || isEventActive) return;
+            const actionId = event.target.id;
+            let cost = 0, msg = '', success = false;
+
+            const allParties = [playerParty, ...npcParties];
+            const rulingCoalition = allParties.filter(p => p.status === '与党');
+            const rulingSeats = rulingCoalition.reduce((sum, p) => sum + p.seats.lower, 0);
+            const hasMajority = rulingSeats >= 233;
+
+            if (actionId === 'proposePolicyBtn') {
+                cost = 100;
+                if (playerParty.funds >= cost) {
+                    playerParty.funds -= cost;
+                    success = true;
+                    if (playerParty.status === '与党') {
+                        if (!hasMajority && Math.random() < currentDifficulty.policy_failure_rate) {
+                            applySupportChange(playerParty.key, -3);
+                            msg = `少数与党のため国会が紛糾し、法案は否決されました。 (費用: ${cost}万円)`;
+                        } else {
+                            const supportGain = (Math.random() * 4 + 2) * (hasMajority ? 1 : 0.7) * currentDifficulty.support_gain_multiplier;
+                            applySupportChange(playerParty.key, supportGain);
+                            msg = `政策提案が評価され、支持率が変動。 (費用: ${cost}万円)`;
+                        }
+                    } else { // Opposition party
+                        const supportGain = (Math.random() * 2 + 1) * (hasMajority ? 1 : 1.5) * currentDifficulty.support_gain_multiplier;
+                        applySupportChange(playerParty.key, supportGain);
+                        msg = `政府案への鋭い対案を示し、支持を集めました。`;
+                    }
+                } else { msg = `資金不足です！ (必要: ${cost}万円)`; }
+            } else if (actionId === 'holdRallyBtn') {
+                cost = 50;
+                if (playerParty.funds >= cost) {
+                    playerParty.funds -= cost;
+                    applySupportChange(playerParty.key, (Math.random() * 3 + 1) * currentDifficulty.support_gain_multiplier);
+                    msg = `集会が成功し、支持率が変動。 (費用: ${cost}万円)`; success = true;
+                } else { msg = `資金不足です！ (必要: ${cost}万円)`; }
+            } else if (actionId === 'raiseFundsBtn') {
+                const fundsGain = (Math.random() * 200 + 100) * currentDifficulty.funds_multiplier;
+                playerParty.funds += fundsGain;
+                applySupportChange(playerParty.key, -(Math.random() * 2 + 0.5));
+                msg = `資金を${fundsGain.toFixed(0)}万円調達。引き換えに支持が少し低下。`; success = true;
+            }
+
+            if (success) { actionTakenThisTurn = true; showMessage(msg, 'success'); }
+            else { showMessage(msg, 'error'); }
+            updateUI();
+            updateButtons();
+        }
+
+        function nextTurn() {
+            if (isEventActive) return;
+            turn++;
+            actionTakenThisTurn = false;
+            const allParties = [playerParty, ...npcParties];
+
+            allParties.forEach(p => {
+                calculateOverallSupport(p);
+                const maintenance = 10 + Math.floor(p.overallSupport / 5);
+                p.funds -= maintenance;
+                applySupportChange(p.key, -(Math.random() * 0.5));
+                p.funds = Math.max(0, p.funds);
+            });
+
+            npcActions();
+            showMessage(`ターン${turn}。各党は維持費を消費し、支持率は自然変動しました。`, 'info');
+
+            if (playerParty.funds <= 0) { gameOver(`資金が尽きました。政党運営は破綻しました...`); return; }
+
+            let eventTriggered = false;
+            const rulingParty = allParties.find(p => p.status === '与党');
+
+            // プレイヤーが与党で支持率が低い場合、解散勧告イベント
+            if (rulingParty && rulingParty.key === playerParty.key && rulingParty.overallSupport < 20 && Math.random() < 0.5) {
+                 showEvent({ 
+                    type: 'dissolution_suggestion', 
+                    title: "党幹部からの解散進言", 
+                    description: "内閣支持率が20%を割り込み危険水域です。幹部から「このままではジリ貧だ。国民に信を問うべきだ」と解散総選挙を促されました。",
+                    choices: [
+                        { t: "進言を受け入れ解散する", e: { type: 'dissolve' } },
+                        { t: "今は耐えるべき時だ", e: { type: 'resist' } }
+                    ] 
+                });
+                eventTriggered = true;
+            // NPC与党が支持率低い場合は自動で解散することがある
+            } else if (rulingParty && rulingParty.key !== playerParty.key && rulingParty.overallSupport < 20 && Math.random() < 0.4) {
+                showEvent({ type: 'dissolution', title: "内閣支持率低迷による解散", description: `与党「${rulingParty.name}」の内閣支持率の記録的な低迷を受け、政権は国民の信を問うため衆議院の解散を決断しました。`, choices: [{ t: "総選挙へ", e: { type: 'dissolve' } }] });
+                eventTriggered = true;
+            }
+
+            if (!eventTriggered && turn > 1 && turn % (3 * 12) === 0) {
+                showEvent({ type: 'election', house: 'upper', title: "参議院議員通常選挙", choices: [{ t: "選挙戦略を練る", e: {} }] });
+                eventTriggered = true;
+            }
+            if (!eventTriggered && turn > 1 && turn % (4 * 12) === 0) {
+                showEvent({ type: 'election', house: 'lower', title: "衆議院議員任期満了選挙", choices: [{ t: "選挙戦略を練る", e: {} }] });
+                eventTriggered = true;
+            }
+
+            updateUI();
+            updateButtons();
+
+            if (!eventTriggered) {
+                const randomEvent = events.random.find(e => (!e.condition || e.condition(playerParty, allParties)) && Math.random() < currentDifficulty.neg_event_chance);
+                if (randomEvent) { showEvent(randomEvent); }
+            }
+        }
+
+        function npcActions() {
+            npcParties.forEach(npc => {
+                const action = Math.random();
+                if (action < 0.4 && npc.funds > 100) { npc.funds -= 80; applySupportChange(npc.key, Math.random() * 3 + 1); }
+                else if (action < 0.7 && npc.funds > 60) { npc.funds -= 40; applySupportChange(npc.key, Math.random() * 2 + 1); }
+                else { npc.funds += Math.random() * 100 + 50; applySupportChange(npc.key, -Math.random()); }
+            });
+        }
+
+        function gameOver(reason) {
+            isEventActive = true;
+            updateButtons();
+            dom.eventTitle.textContent = "ゲームオーバー";
+            dom.eventDescription.textContent = reason;
+            dom.eventChoices.innerHTML = `<button id="restartGameBtn" class="w-full bg-red-600 text-white py-3 px-6 rounded-lg shadow-lg hover:bg-red-700 transition">最初からやり直す</button>`;
+            dom.eventModal.classList.remove('hidden');
+
+            document.getElementById('restartGameBtn').onclick = () => {
+                dom.eventModal.classList.add('hidden');
+                init();
+            };
+        }
+
+        function showEvent(eventData) {
+            isEventActive = true;
+            updateButtons();
+            dom.eventTitle.textContent = eventData.title;
+            dom.eventDescription.textContent = eventData.description || '';
+            dom.eventChoices.innerHTML = '';
+            eventData.choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.textContent = choice.t;
+                button.className = 'w-full bg-blue-500 text-white py-2 px-4 rounded-md shadow hover:bg-blue-600 transition';
+                button.onclick = () => handleEventChoice(choice, eventData);
+                dom.eventChoices.appendChild(button);
+            });
+            dom.eventModal.classList.remove('hidden');
+        }
+
+        function handleEventChoice(choice, eventData) {
+            dom.eventModal.classList.add('hidden');
+            const allParties = [playerParty, ...npcParties];
+            let postEventMessage = `${eventData.title}: 「${choice.t}」を選択しました。`;
+
+            // Election related events
+            if (eventData.type === 'election') {
+                showAllocationModal({ type: 'election', house: eventData.house, title: eventData.title });
+                return;
+            }
+            if ((eventData.type === 'dissolution' || eventData.type === 'dissolution_suggestion') && choice.e.type === 'dissolve') {
+                showAllocationModal({ type: 'election', house: 'lower', title: "衆議院解散総選挙" });
+                return;
+            }
+            
+            let choiceHandled = false;
+            if (eventData.type === 'dissolution') {
+                if (choice.e.type === 'maintain') {
+                    showMessage("解散を見送り、現体制を維持します。", 'info');
+                    choiceHandled = true;
+                }
+            } else if (eventData.type === 'dissolution_suggestion') {
+                if (choice.e.type === 'resist') {
+                    showMessage("解散要求を退けましたが、求心力の低下は避けられません...", 'error');
+                    applySupportChange(playerParty.key, -3);
+                    choiceHandled = true;
+                }
+            } else if (eventData.type === 'leadership') {
+                if (choice.e.type === 'run') {
+                    const winChance = 0.3 + (playerParty.overallSupport / 100) * 0.5;
+                    if (Math.random() < winChance) {
+                        playerParty.position = '党首';
+                        postEventMessage = "党首選挙に勝利！あなたが新しい党の顔です！";
+                    } else {
+                        playerParty.funds = Math.floor(playerParty.funds * 0.8);
+                        applySupportChange(playerParty.key, -5);
+                        postEventMessage = "党首選挙に敗北...党内での影響力が低下し、資金も減少した。";
+                    }
+                } else {
+                    postEventMessage = "党首選挙への出馬を見送りました。";
+                }
+                choiceHandled = true;
+            } else if (eventData.type === 'coalition_crisis') {
+                const rulingParty = allParties.find(p => p.status === '与党');
+                const coalitionPartners = allParties.filter(p => p.status === '与党' && p.key !== rulingParty.key);
+                if(coalitionPartners.length > 0) {
+                    const partnerToLeave = coalitionPartners[Math.floor(Math.random() * coalitionPartners.length)];
+                    if (choice.e.type === 'concede') {
+                        applySupportChange(rulingParty.key, -3);
+                        rulingParty.funds = Math.max(0, rulingParty.funds - 200);
+                        postEventMessage = `連立パートナー「${partnerToLeave.name}」の要求を受け入れ、連立を維持しました。しかし、党の支持と資金は打撃を受けました。`;
+                    } else {
+                        partnerToLeave.status = '野党';
+                        postEventMessage = `強硬姿勢を貫いた結果、連立パートナー「${partnerToLeave.name}」が政権を離脱しました！与党は過半数を失いました。`;
+                    }
+                }
+                choiceHandled = true;
+            } else if (eventData.type === 'opposition_unity') {
+                if (choice.e.s.all_opposition) {
+                    allParties.forEach(p => { if (p.status === '野党') applySupportChange(p.key, choice.e.s.all_opposition); });
+                    postEventMessage = "野党共闘が実現し、野党全体の支持が拡大しました。";
+                } else {
+                    applySupportChange(playerParty.key, choice.e.s.self);
+                    postEventMessage = "独自の道を歩むことを選択しました。";
+                }
+                choiceHandled = true;
+            } else if (eventData.type === 'coalition') {
+                if (choice.e.type === 'join') {
+                    playerParty.status = '与党';
+                    postEventMessage = `${choice.e.rulingPartyName}との連立政権に参加しました。`;
+                } else {
+                    postEventMessage = "連立参加を拒否し、野党の立場を貫くことを選択しました。";
+                }
+                choiceHandled = true;
+            }
+
+            if (!choiceHandled) {
+                if (choice.e.s) {
+                    allParties.forEach(party => {
+                        const change = choice.e.s[party.ideology] ?? choice.e.s["all"] ?? 0;
+                        if (change !== 0) applySupportChange(party.key, change);
+                    });
+                }
+                if (choice.e.f) playerParty.funds = Math.max(0, playerParty.funds + choice.e.f);
+            }
+            
+            showMessage(postEventMessage, 'info');
+            updateUI();
+            isEventActive = false; 
+            updateButtons();
+        }
+
+        function showAllocationModal(electionData) {
+            dom.allocationTitle.textContent = electionData.title + " 対策本部";
+            dom.totalPartyFunds.textContent = playerParty.funds.toFixed(0);
+            dom.electionBudget.value = Math.floor(playerParty.funds / 2);
+            dom.electionBudget.max = playerParty.funds;
+
+            const updateTotal = () => {
+                let totalAllocated = 0;
+                document.querySelectorAll('.alloc-input').forEach(input => {
+                    totalAllocated += Number(input.value) || 0;
+                });
+                const budget = Number(dom.electionBudget.value) || 0;
+                dom.remainingAllocation.textContent = (budget - totalAllocated).toFixed(0);
+                dom.remainingAllocation.classList.toggle('text-red-500', totalAllocated > budget);
+            };
+
+            dom.electionBudget.oninput = updateTotal;
+
+            let constHtml = '<h3 class="text-xl font-bold mb-2">小選挙区</h3>';
+            for (const prefId in prefectures) {
+                const p = prefectures[prefId];
+                constHtml += `<div class="flex justify-between items-center mb-1"><label>${p.n}</label><input type="number" class="alloc-input w-24 p-1 border rounded" data-type="const" data-id="${prefId}" min="0" step="1"></div>`;
+            }
+            dom.constituencyAllocation.innerHTML = constHtml;
+
+            let prHtml = '<h3 class="text-xl font-bold mb-2">比例ブロック</h3>';
+            for (const blockId in pr_blocks) {
+                const b = pr_blocks[blockId];
+                prHtml += `<div class="flex justify-between items-center mb-1"><label>${b.name}</label><input type="number" class="alloc-input w-24 p-1 border rounded" data-type="pr" data-id="${blockId}" min="0" step="1"></div>`;
+            }
+            dom.prAllocation.innerHTML = prHtml;
+
+            document.querySelectorAll('.alloc-input').forEach(input => input.oninput = updateTotal);
+            
+            dom.confirmAllocationBtn.onclick = () => {
+                const budget = Number(dom.electionBudget.value) || 0;
+                let totalAllocated = 0;
+                const allocations = { const: {}, pr: {} };
+                document.querySelectorAll('.alloc-input').forEach(input => {
+                    const value = Number(input.value) || 0;
+                    totalAllocated += value;
+                    if (value > 0) {
+                        if (input.dataset.type === 'const') allocations.const[input.dataset.id] = value;
+                        else allocations.pr[input.dataset.id] = value;
+                    }
+                });
+
+                if (totalAllocated > budget) {
+                    alert('予算オーバーです！配分を見直してください。');
+                    return;
+                }
+
+                playerParty.funds -= totalAllocated;
+                dom.allocationModal.classList.add('hidden');
+                showElectionResults(electionData, allocations);
+            };
+
+            updateTotal();
+            dom.allocationModal.classList.remove('hidden');
+        }
+
+        function dHondt(partyVotes, seatsToAllocate) {
+            const partySeats = {};
+            const quotients = [];
+            Object.keys(partyVotes).forEach(key => { partySeats[key] = 0; });
+
+            for (let i = 1; i <= seatsToAllocate; i++) {
+                for (const partyKey in partyVotes) {
+                    if (partyVotes[partyKey] > 0) { // 票がない党は候補から除外
+                        quotients.push({ partyKey, quotient: partyVotes[partyKey] / i });
+                    }
+                }
+            }
+            quotients.sort((a, b) => b.quotient - a.quotient);
+            for (let i = 0; i < seatsToAllocate; i++) {
+                if (quotients[i]) partySeats[quotients[i].partyKey]++;
+            }
+            return partySeats;
+        }
+
+        function showElectionResults(electionData, allocations) {
+            const allParties = [playerParty, ...npcParties];
+            const isLowerHouse = electionData.house === 'lower';
+            dom.electionResultTitle.textContent = electionData.title + " 結果速報";
+
+            const tempSupports = {};
+            allParties.forEach(p => tempSupports[p.key] = JSON.parse(JSON.stringify(p.prefectureSupport)));
+
+            // Apply allocation boosts (100万で0.5%ブースト)
+            for(const prefId in allocations.const) {
+                tempSupports[playerParty.key][prefId] += allocations.const[prefId] / 200;
+            }
+            for(const blockId in allocations.pr) {
+                const blockPrefectures = Object.keys(prefectures).filter(id => prefectures[id].pr_block === blockId);
+                blockPrefectures.forEach(prefId => {
+                    tempSupports[playerParty.key][prefId] += allocations.pr[blockId] / 200;
+                });
+            }
+            // NPCも選挙活動を行う
+            npcParties.forEach(npc => {
+                const npcBudget = Math.min(npc.funds * 0.7, 5000); // NPCの選挙予算
+                npc.funds -= npcBudget;
+                for (const prefId in prefectures) {
+                    // NPCは支持率に応じて資金を配分する簡易ロジック
+                    tempSupports[npc.key][prefId] += (npcBudget / 47) * (tempSupports[npc.key][prefId]/100) / 200;
+                }
+            });
+
+            for (const prefId in prefectures) normalizeSupportRates(allParties, prefId, tempSupports);
+
+            const partySeats = { constituency: {}, pr: {} };
+            const totalVotes = {};
+            allParties.forEach(p => { 
+                partySeats.constituency[p.key] = 0; 
+                partySeats.pr[p.key] = 0; 
+                totalVotes[p.key] = 0;
+            });
+
+            // --- Seat Calculation ---
+            // 小選挙区 (ドント方式で各都道府県の議席を配分)
+            for (const prefId in prefectures) {
+                const seatsToAllocate = isLowerHouse ? prefectures[prefId].seatsL : Math.ceil(prefectures[prefId].seatsU / 2);
+                if (seatsToAllocate > 0) {
+                    const prefVotes = {};
+                    allParties.forEach(p => {
+                        prefVotes[p.key] = tempSupports[p.key][prefId] || 0;
+                    });
+                    const constSeatsInPref = dHondt(prefVotes, seatsToAllocate);
+                    for (const pKey in constSeatsInPref) {
+                        partySeats.constituency[pKey] += constSeatsInPref[pKey];
+                    }
+                }
+            }
+
+            // 比例区
+            for (const blockKey in pr_blocks) {
+                const blockVotes = {};
+                const blockPrefectures = Object.keys(prefectures).filter(id => prefectures[id].pr_block === blockKey);
+                allParties.forEach(p => {
+                    blockVotes[p.key] = blockPrefectures.reduce((sum, id) => sum + (tempSupports[p.key][id] || 0), 0);
+                    totalVotes[p.key] += blockVotes[p.key];
+                });
+                const seatsToAllocate = isLowerHouse ? pr_blocks[blockKey].seatsL : Math.ceil(pr_blocks[blockKey].seatsU / 2);
+                const prSeatsInBlock = dHondt(blockVotes, seatsToAllocate);
+                for (const pKey in prSeatsInBlock) partySeats.pr[pKey] += prSeatsInBlock[pKey];
+            }
+
+            // --- Tally & Update Party Data ---
+            const finalSeatCounts = {};
+            let totalNationalVotes = Object.values(totalVotes).reduce((s, v) => s + v, 0);
+            let playerSeatChange = 0;
+
+            allParties.forEach(p => {
+                const const_seats = partySeats.constituency[p.key] || 0;
+                const pr_seats = partySeats.pr[p.key] || 0;
+                const new_seats = const_seats + pr_seats;
+                
+                let old_seats = 0;
+                if (isLowerHouse) {
+                    old_seats = p.seats.lower;
+                    p.seats.lower = new_seats;
+                } else {
+                    old_seats = p.seats.upper_re;
+                    p.seats.upper_non_re = p.seats.upper_re;
+                    p.seats.upper_re = new_seats;
+                }
+                if (p.key === playerParty.key) playerSeatChange = new_seats - old_seats;
+
+                finalSeatCounts[p.key] = {
+                    name: p.name, color: p.color, 
+                    total: p.seats.lower + p.seats.upper_re + p.seats.upper_non_re,
+                    const: const_seats, pr: pr_seats, 
+                    vote_percent: (totalVotes[p.key] / totalNationalVotes) * 100
+                };
+            });
+
+            // --- Determine Ruling Party & Display Results ---
+            let rulingParty = allParties.sort((a, b) => b.seats.lower - a.seats.lower)[0];
+            allParties.forEach(p => { p.status = (p === rulingParty) ? '与党' : '野党'; });
+
+            dom.electionResultsContainer.innerHTML = '';
+            const sortedResults = Object.values(finalSeatCounts).sort((a, b) => b.total - a.total);
+            sortedResults.forEach(r => {
+                const p = allParties.find(p=>p.name===r.name);
+                dom.electionResultsContainer.innerHTML += `
+                    <div class="mb-2 p-2 rounded" style="border-left: 5px solid ${r.color}">
+                        <h4 class="font-bold text-lg">${r.name}</h4>
+                        <p><strong>合計議席: ${r.total}</strong> (衆: ${p.seats.lower}, 参: ${p.seats.upper_re + p.seats.upper_non_re})</p>
+                        <p>獲得議席(今回): ${r.const + r.pr} (小選挙区: ${r.const}, 比例: ${r.pr})</p>
+                        <p>全国得票率: ${r.vote_percent.toFixed(2)}%</p>
+                    </div>
+                `;
+            });
+
+            // --- Game Over & Political Fallout Checks ---
+            if (isLowerHouse && electionGracePeriod > 0) electionGracePeriod--;
+
+            const playerResults = finalSeatCounts[playerParty.key];
+            const totalPlayerSeats = playerParty.seats.lower + playerParty.seats.upper_re + playerParty.seats.upper_non_re;
+            if (electionGracePeriod <= 0 && totalPlayerSeats < 5 && playerResults.vote_percent < 2) {
+                gameOver(`あなたの政党は、国会議員が5名未満かつ得票率2%未満となり、政党要件を喪失しました。党は解散します...`);
+                return;
+            }
+
+            let summary = `選挙の結果、${rulingParty.name}が衆議院第一党となりました。`;
+            if (playerParty.position === '党首') {
+                if (playerSeatChange < -10) { // Heavy loss
+                    playerParty.position = '幹部';
+                    summary += ` あなたの党は議席を大幅に減らし、党首辞任は避けられませんでした。`;
+                } else if (playerSeatChange < 0) { // Minor loss
+                    summary += ` 議席は減らしましたが、党内の反対勢力を抑え、党首の座を維持しました。`;
+                } else { // Maintained or gained
+                    summary += ` あなたのリーダーシップにより、党は議席を維持・拡大しました！`;
+                }
+            }
+            dom.electionSummary.textContent = summary;
+
+            // Coalition check
+            const lowerHouseMajority = 233;
+            const rulingCoalitionSeats = allParties.filter(p => p.status === '与党').reduce((sum, p) => sum + p.seats.lower, 0);
+            if (rulingCoalitionSeats < lowerHouseMajority && rulingParty.key !== playerParty.key) {
+                setTimeout(() => {
+                    showEvent({ 
+                        type: 'coalition', 
+                        title: "連立政権の打診", 
+                        description: `${rulingParty.name}が衆議院で過半数を確保できませんでした。政権安定のため、あなたの党に連立への参加を打診してきました。応じますか？`,
+                        choices: [
+                            { t: "連立に参加し、与党になる", e: { type: 'join', rulingPartyName: rulingParty.name } },
+                            { t: "野党の立場を貫く", e: { type: 'reject' } }
+                        ]
+                    });
+                }, 2000);
+            }
+
+            dom.electionResultModal.classList.remove('hidden');
+        }
+
+        function generateMapSVGPaths() {
+            dom.japanMap.innerHTML = '';
+            for (const prefId in prefectures) {
+                const p = prefectures[prefId];
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute('id', prefId); path.setAttribute('d', `M${p.x},${p.y} L${p.x+p.w},${p.y} L${p.x+p.w},${p.y+p.h} L${p.x},${p.y+p.h} Z`);
+                path.setAttribute('class', 'map-prefecture'); path.setAttribute('fill', '#ccc');
+                dom.japanMap.appendChild(path);
+            }
+        }
+
+        // --- Initializer ---
+        init();
+    </script>
+</body>
+</html>
